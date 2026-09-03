@@ -13,11 +13,13 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
     "eslint": "^10.9.1",
     "prettier": "^3.9.6",
     "tsx": "^4.23.13",

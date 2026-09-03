@@ -1,4 +1,14 @@
 import express, { type ErrorRequestHandler } from "express";
+import { createProductRouter } from "./routes/product.routes.js";
+import { ProductController } from "./controllers/product.controller.js";
+import { ProductService } from "./services/product.service.js";
+import { PostgresProductRepository } from "./repositories/postgres-product.repository.js";
+
+const productRepository = new PostgresProductRepository();
+const productService = new ProductService(productRepository);
+const productController = new ProductController(productService);
+
+const productRouter = createProductRouter(productController);
 
 const app = express();
 
@@ -6,8 +16,8 @@ app.use(express.json());
 
 // Middleware
 app.use((req, res, next) => {
-  console.log("1. Logger middleware");
-  console.log("BODY:", req.body);
+  // console.log("1. Logger middleware");
+  // console.log("BODY:", req.body);
 
   next();
 });
@@ -22,45 +32,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/products/:id", (req, res) => {
-  console.log(req.params);
-
-  res.json({
-    productId: req.params.id,
-  });
-});
-
-app.get("/products", (req, res) => {
-  console.log(req.query);
-
-  res.json({
-    query: req.query,
-  });
-});
-
-// 201, 400
-app.post("/products", (req, res) => {
-  console.log("2. POST /products");
-  console.log(req.body);
-
-  const { name, price } = req.body;
-
-  if (!name || typeof price !== "number" || Number.isNaN(price) || price < 0) {
-    res.status(400).json({
-      message: "Name and price are required",
-    });
-
-    return;
-  }
-
-  res.status(201).json({
-    message: "Product created",
-    product: {
-      name,
-      price,
-    },
-  });
-});
+app.use("/products", productRouter);
 
 app.get("/error", (req, res) => {
   throw new Error("Something went wrong");

@@ -1,0 +1,26 @@
+{
+  "name": "ecommerce-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx src/server.ts",
+    "node": "tsx src/node-server.ts"
+  },
+  "keywords": [],
+  "author": "mac.umatik",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

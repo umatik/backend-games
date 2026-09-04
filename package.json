@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx src/server.ts",
-    "node": "tsx src/node-server.ts"
+    "node": "tsx src/node-server.ts",
+    "migrate": "tsx src/database/migrate.ts"
   },
   "keywords": [],
   "author": "mac.umatik",

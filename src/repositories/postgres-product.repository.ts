@@ -21,8 +21,8 @@ export class PostgresProductRepository implements ProductRepository {
   async create(data: CreateProductData): Promise<Product> {
     const result = await pool.query(
       `
-        INSERT INTO products (name, price)
-        VALUES ($1, $2)
+        INSERT INTO products (name, price, created_at, updated_at)
+        VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id, name, price, is_deleted, created_at, deleted_at, updated_at
       `,
       [data.name, data.price],

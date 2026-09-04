@@ -44,7 +44,8 @@ export class ProductController {
     const { name, price } = req.body;
 
     if (
-      !name ||
+      typeof name !== "string" ||
+      name.trim() === "" ||
       typeof price !== "number" ||
       Number.isNaN(price) ||
       price < 0
@@ -69,8 +70,35 @@ export class ProductController {
     const id = req.params.id as string;
     const { name, price } = req.body;
 
-    console.log("PATCH id:", id);
-    console.log("PATCH body:", req.body);
+    if (name === undefined && price === undefined) {
+      res.status(400).json({
+        message: "At least one field is required",
+      });
+
+      return;
+    }
+
+    if (
+      price !== undefined &&
+      (typeof price !== "number" || Number.isNaN(price) || price < 0)
+    ) {
+      res.status(400).json({
+        message: "Price must be a non-negative number",
+      });
+
+      return;
+    }
+
+    if (
+      name !== undefined &&
+      (typeof name !== "string" || name.trim() === "")
+    ) {
+      res.status(400).json({
+        message: "Name must be a non-empty string",
+      });
+
+      return;
+    }
 
     const productData: UpdateProductData = { name, price };
     const product = await this.productService.updateProduct(id, productData);

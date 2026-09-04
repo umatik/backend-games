@@ -9,16 +9,12 @@ const productService = new ProductService(productRepository);
 const productController = new ProductController(productService);
 
 const productRouter = createProductRouter(productController);
-
 const app = express();
 
 app.use(express.json());
 
 // Middleware
 app.use((req, res, next) => {
-  // console.log("1. Logger middleware");
-  // console.log("BODY:", req.body);
-
   next();
 });
 
@@ -34,10 +30,6 @@ app.get("/", (req, res) => {
 
 app.use("/products", productRouter);
 
-app.get("/error", (req, res) => {
-  throw new Error("Something went wrong");
-});
-
 // 404
 app.use((req, res) => {
   res.status(404).json({
@@ -45,6 +37,7 @@ app.use((req, res) => {
   });
 });
 
+// 500
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   console.error(err);
 

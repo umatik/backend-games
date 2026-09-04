@@ -4,6 +4,10 @@ import type {
   UpdateProductData,
 } from "../types/product.types.js";
 import { ProductService } from "../services/product.service.js";
+import {
+  isValidProductName,
+  isValidProductPrice,
+} from "../validators/product.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -43,15 +47,9 @@ export class ProductController {
   createProduct = async (req: Request, res: Response) => {
     const { name, price } = req.body;
 
-    if (
-      typeof name !== "string" ||
-      name.trim() === "" ||
-      typeof price !== "number" ||
-      Number.isNaN(price) ||
-      price < 0
-    ) {
+    if (!isValidProductName(name) || !isValidProductPrice(price)) {
       res.status(400).json({
-        message: "Name and price are required",
+        message: "Invalid product data",
       });
 
       return;
@@ -78,10 +76,7 @@ export class ProductController {
       return;
     }
 
-    if (
-      price !== undefined &&
-      (typeof price !== "number" || Number.isNaN(price) || price < 0)
-    ) {
+    if (price !== undefined && !isValidProductPrice(price)) {
       res.status(400).json({
         message: "Price must be a non-negative number",
       });
@@ -89,10 +84,7 @@ export class ProductController {
       return;
     }
 
-    if (
-      name !== undefined &&
-      (typeof name !== "string" || name.trim() === "")
-    ) {
+    if (name !== undefined && !isValidProductName(name)) {
       res.status(400).json({
         message: "Name must be a non-empty string",
       });

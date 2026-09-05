@@ -3,11 +3,20 @@ import { createProductRouter } from "./routes/product.routes.js";
 import { ProductController } from "./controllers/product.controller.js";
 import { ProductService } from "./services/product.service.js";
 import { PostgresProductRepository } from "./repositories/postgres-product.repository.js";
+import { PostgresOrderRepository } from "./repositories/postgres-order.repository.js";
+import { OrderService } from "./services/order.service.js";
+import { OrderController } from "./controllers/order.controller.js";
+import { createOrderRouter } from "./routes/order.routes.js";
 
 const productRepository = new PostgresProductRepository();
 const productService = new ProductService(productRepository);
 const productController = new ProductController(productService);
 
+const orderRepository = new PostgresOrderRepository();
+const orderService = new OrderService(orderRepository);
+const orderController = new OrderController(orderService);
+
+const orderRouter = createOrderRouter(orderController);
 const productRouter = createProductRouter(productController);
 const app = express();
 
@@ -19,16 +28,13 @@ app.use((req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  console.log(req.method);
-  console.log(req.url);
-  console.log(req.headers);
-
   res.json({
     message: "E-commerce API is running",
   });
 });
 
 app.use("/products", productRouter);
+app.use("/orders", orderRouter);
 
 // 404
 app.use((req, res) => {

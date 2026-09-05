@@ -7,6 +7,10 @@ import { PostgresOrderRepository } from "./repositories/postgres-order.repositor
 import { OrderService } from "./services/order.service.js";
 import { OrderController } from "./controllers/order.controller.js";
 import { createOrderRouter } from "./routes/order.routes.js";
+import { createAuthRouter } from "./routes/auth.routes.js";
+import { AuthController } from "./controllers/auth.controller.js";
+import { AuthService } from "./services/auth.service.js";
+import { PostgresAuthRepository } from "./repositories/postgres-auth.repository.js";
 
 const productRepository = new PostgresProductRepository();
 const productService = new ProductService(productRepository);
@@ -18,6 +22,12 @@ const orderController = new OrderController(orderService);
 
 const orderRouter = createOrderRouter(orderController);
 const productRouter = createProductRouter(productController);
+
+const authRepository = new PostgresAuthRepository();
+const authService = new AuthService(authRepository);
+const authController = new AuthController(authService);
+const authRouter = createAuthRouter(authController);
+
 const app = express();
 
 app.use(express.json());
@@ -35,6 +45,7 @@ app.get("/", (req, res) => {
 
 app.use("/products", productRouter);
 app.use("/orders", orderRouter);
+app.use(authRouter);
 
 // 404
 app.use((req, res) => {

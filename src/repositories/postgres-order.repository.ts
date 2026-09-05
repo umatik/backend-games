@@ -5,16 +5,17 @@ import type {
 } from "../types/order.types.js";
 import type { OrderRepository } from "./order.repository.js";
 import type { PoolClient } from "pg";
+import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
 import { ProductNotFoundError } from "../errors/product-not-found.error.js";
 
 export class PostgresOrderRepository implements OrderRepository {
   async findUserById(client: PoolClient, userId: string): Promise<boolean> {
     const result = await client.query(
       `
-      SELECT id
-      FROM users
-      WHERE id = $1
-    `,
+        SELECT id
+        FROM users
+        WHERE id = $1
+      `,
       [userId],
     );
 
@@ -48,27 +49,42 @@ export class PostgresOrderRepository implements OrderRepository {
     items: CreateOrderItemData[],
   ): Promise<void> {
     for (const item of items) {
-      const result = await client.query(
+      const productResult = await client.query(
         `
-        SELECT price
-        FROM products
-        WHERE id = $1
-          AND is_deleted = FALSE
-      `,
+          SELECT id, price
+          FROM products
+          WHERE id = $1
+            AND is_deleted = FALSE
+        `,
         [item.productId],
       );
 
-      if (result.rows.length === 0) {
+      if (productResult.rows.length === 0) {
         throw new ProductNotFoundError(item.productId);
       }
 
-      const price = Number(result.rows[0].price);
+      const price = Number(productResult.rows[0].price);
+
+      const inventoryResult = await client.query(
+        `
+          UPDATE inventory
+          SET quantity = quantity - $1
+          WHERE product_id = $2
+            AND quantity >= $1
+          RETURNING quantity
+        `,
+        [item.quantity, item.productId],
+      );
+
+      if (inventoryResult.rows.length === 0) {
+        throw new InsufficientStockError(item.productId);
+      }
 
       await client.query(
         `
-        INSERT INTO order_items (order_id, product_id, quantity, price)
-        VALUES ($1, $2, $3, $4)
-      `,
+          INSERT INTO order_items (order_id, product_id, quantity, price)
+          VALUES ($1, $2, $3, $4)
+        `,
         [orderId, item.productId, item.quantity, price],
       );
     }

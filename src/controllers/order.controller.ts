@@ -7,6 +7,7 @@ import {
   isValidOrderItems,
 } from "../validators/order.validator.js";
 import { UserNotFoundError } from "../errors/user-not-found.error.js";
+import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
 
 export class OrderController {
   constructor(private orderService: OrderService) {}
@@ -40,6 +41,11 @@ export class OrderController {
           message: error.message,
         });
 
+        return;
+      }
+
+      if (error instanceof InsufficientStockError) {
+        res.status(409).json({ message: error.message });
         return;
       }
 

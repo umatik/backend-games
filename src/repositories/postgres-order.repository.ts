@@ -8,6 +8,19 @@ import type { PoolClient } from "pg";
 import { ProductNotFoundError } from "../errors/product-not-found.error.js";
 
 export class PostgresOrderRepository implements OrderRepository {
+  async findUserById(client: PoolClient, userId: string): Promise<boolean> {
+    const result = await client.query(
+      `
+      SELECT id
+      FROM users
+      WHERE id = $1
+    `,
+      [userId],
+    );
+
+    return result.rows.length > 0;
+  }
+
   async create(client: PoolClient, data: CreateOrderData): Promise<Order> {
     const result = await client.query(
       `

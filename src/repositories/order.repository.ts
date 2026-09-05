@@ -13,4 +13,6 @@ export interface OrderRepository {
     orderId: string,
     items: CreateOrderItemData[],
   ): Promise<void>;
+
+  findUserById(client: PoolClient, userId: string): Promise<boolean>;
 }

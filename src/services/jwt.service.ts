@@ -16,7 +16,7 @@ export class JwtService {
   generateToken(userId: string, email: string): string {
     return jwt.sign(
       {
-        userId,
+        userId: String(userId),
         email,
       },
       this.secret,

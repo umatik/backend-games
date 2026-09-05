@@ -1,30 +1,34 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { ProductNotFoundError } from "../errors/product-not-found.error.js";
-import type { CreateOrderData } from "../types/order.types.js";
-import { OrderService } from "../services/order.service.js";
-import {
-  isValidOrderUserId,
-  isValidOrderItems,
-} from "../validators/order.validator.js";
 import { UserNotFoundError } from "../errors/user-not-found.error.js";
 import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
+import type { CreateOrderData } from "../types/order.types.js";
+import { OrderService } from "../services/order.service.js";
+import { isValidOrderItems } from "../validators/order.validator.js";
+import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 
 export class OrderController {
   constructor(private orderService: OrderService) {}
 
-  createOrder = async (req: Request, res: Response) => {
-    const { userId, items } = req.body;
+  createOrder = async (req: AuthenticatedRequest, res: Response) => {
+    const { items } = req.body;
 
-    if (!isValidOrderUserId(userId) || !isValidOrderItems(items)) {
+    if (!isValidOrderItems(items)) {
       res.status(400).json({
-        message: "Invalid order data",
+        message: "Invalid order items",
       });
+      return;
+    }
 
+    if (!req.user) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
       return;
     }
 
     const data: CreateOrderData = {
-      userId,
+      userId: req.user.userId,
       items,
     };
 
@@ -40,17 +44,18 @@ export class OrderController {
         res.status(404).json({
           message: error.message,
         });
-
-        return;
-      }
-
-      if (error instanceof InsufficientStockError) {
-        res.status(409).json({ message: error.message });
         return;
       }
 
       if (error instanceof ProductNotFoundError) {
         res.status(404).json({
+          message: error.message,
+        });
+        return;
+      }
+
+      if (error instanceof InsufficientStockError) {
+        res.status(409).json({
           message: error.message,
         });
         return;

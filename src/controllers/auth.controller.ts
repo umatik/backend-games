@@ -20,14 +20,15 @@ export class AuthController {
     }
 
     try {
-      const user = await this.authService.login(email, password);
+      const result = await this.authService.login(email, password);
 
       res.status(200).json({
         message: "Login successful",
         user: {
-          id: user.id,
-          email: user.email,
+          id: result.user.id,
+          email: result.user.email,
         },
+        token: result.token,
       });
     } catch (error) {
       if (error instanceof Error && error.message === "Invalid credentials") {

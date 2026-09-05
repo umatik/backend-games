@@ -1,9 +1,13 @@
 import bcrypt from "bcrypt";
 import type { AuthRepository } from "../repositories/auth.repository.js";
 import { pool } from "../database/db.js";
+import { JwtService } from "./jwt.service.js";
 
 export class AuthService {
-  constructor(private authRepository: AuthRepository) {}
+  constructor(
+    private authRepository: AuthRepository,
+    private jwtService: JwtService,
+  ) {}
 
   async login(email: string, password: string) {
     const client = await pool.connect();
@@ -45,7 +49,12 @@ export class AuthService {
         userAgent: null,
       });
 
-      return user;
+      const token = this.jwtService.generateToken(user.id, user.email);
+
+      return {
+        user,
+        token,
+      };
     } finally {
       client.release();
     }

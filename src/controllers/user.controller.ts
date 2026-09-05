@@ -1,7 +1,10 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
+import { UserService } from "../services/user.service.js";
 
 export class UserController {
+  constructor(private userService: UserService) {}
+
   getUser = async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.params.id;
 
@@ -24,6 +27,37 @@ export class UserController {
         id: req.user.userId,
         email: req.user.email,
       },
+    });
+  };
+
+  register = async (req: Request, res: Response) => {
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      address,
+      city,
+      postalCode,
+      country,
+    } = req.body;
+
+    const user = await this.userService.register({
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      address,
+      city,
+      postalCode,
+      country,
+    });
+
+    res.status(201).json({
+      message: "User registered",
+      user,
     });
   };
 }

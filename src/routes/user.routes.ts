@@ -7,5 +7,7 @@ export const createUserRouter = (userController: UserController) => {
 
   router.get("/:id", authMiddleware, userController.getUser);
 
+  router.post("/register", userController.register);
+
   return router;
 };

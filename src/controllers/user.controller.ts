@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { UserService } from "../services/user.service.js";
+import { isValidRegisterUser } from "../validators/user.validator.js";
 
 export class UserController {
   constructor(private userService: UserService) {}
@@ -31,6 +32,13 @@ export class UserController {
   };
 
   register = async (req: Request, res: Response) => {
+    if (!isValidRegisterUser(req.body)) {
+      res.status(400).json({
+        message: "Invalid registration data",
+      });
+      return;
+    }
+
     const {
       email,
       password,

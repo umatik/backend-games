@@ -5,9 +5,9 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 export const createUserRouter = (userController: UserController) => {
   const router = Router();
 
-  router.get("/:id", authMiddleware, userController.getUser);
-
   router.post("/register", userController.register);
+
+  router.get("/:id", authMiddleware, userController.getUser);
 
   return router;
 };

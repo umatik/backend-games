@@ -6,10 +6,11 @@ import type {
 } from "../types/product.types.js";
 import type { ProductRepository } from "./product.repository.js";
 import { pool } from "../database/db.js";
+import type { PoolClient } from "pg";
 
 export class PostgresProductRepository implements ProductRepository {
   private mapProductRow = (row: ProductRow): Product => ({
-    id: String(row.id),
+    id: Number(row.id),
     name: row.name,
     price: Number(row.price),
     is_deleted: row.is_deleted,
@@ -18,8 +19,8 @@ export class PostgresProductRepository implements ProductRepository {
     deleted_at: row.deleted_at,
   });
 
-  async create(data: CreateProductData): Promise<Product> {
-    const result = await pool.query(
+  async create(client: PoolClient, data: CreateProductData): Promise<Product> {
+    const result = await client.query(
       `
         INSERT INTO products (name, price, created_at, updated_at)
         VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)

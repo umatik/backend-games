@@ -1,16 +1,13 @@
 import type { PoolClient } from "pg";
-import type {
-  CreateUserData,
-  CreateUserResult,
-  UserRepository,
-} from "./user.repository.js";
+import type { UserRepository } from "./user.repository.js";
+import type { CreateUserData, CreatedUser } from "../types/user.types.js";
 
 export class PostgresUserRepository implements UserRepository {
   async createUser(
     client: PoolClient,
     data: CreateUserData,
-  ): Promise<CreateUserResult> {
-    const result = await client.query<CreateUserResult>(
+  ): Promise<CreatedUser> {
+    const result = await client.query<CreatedUser>(
       `
         INSERT INTO users (
           email,

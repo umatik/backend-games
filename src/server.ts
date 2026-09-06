@@ -6,7 +6,7 @@ import {
   orderRouter,
   userRouter,
   authRouter,
-} from "./routes/index.js";
+} from "./dependency-injection.js";
 
 const app = express();
 

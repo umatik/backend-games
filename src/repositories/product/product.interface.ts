@@ -2,7 +2,7 @@ import type {
   CreateProductData,
   Product,
   UpdateProductData,
-} from "../types/product.types.js";
+} from "../../types/product.types.js";
 import type { PoolClient } from "pg";
 
 export interface ProductRepository {

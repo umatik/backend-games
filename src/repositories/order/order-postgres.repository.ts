@@ -1,12 +1,12 @@
+import type { OrderInterface } from "./order.interface.js";
+import type { PoolClient } from "pg";
 import type {
   CreateOrderData,
   CreateOrderItemData,
   Order,
-} from "../types/order.types.js";
-import type { OrderInterface } from "./order.interface.js";
-import type { PoolClient } from "pg";
-import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
-import { ProductNotFoundError } from "../errors/product-not-found.error.js";
+} from "../../types/order.types.js";
+import { ProductNotFoundError } from "../../errors/product-not-found.error.js";
+import { InsufficientStockError } from "../../errors/insufficient-stock.error.js";
 
 export class OrderPostgresRepository implements OrderInterface {
   async findUserById(client: PoolClient, userId: string): Promise<boolean> {

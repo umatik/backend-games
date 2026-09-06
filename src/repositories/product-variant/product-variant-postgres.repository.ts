@@ -1,10 +1,10 @@
 import type { PoolClient } from "pg";
-import type { ProductVariantRepository } from "./product-variant.repository.js";
+import type { ProductVariantRepository } from "./product-variant.interface.js";
 import type {
   CreateProductVariantData,
   ProductVariant,
   UpdateProductVariantData,
-} from "../types/product-variant.types.js";
+} from "../../types/product-variant.types.js";
 
 export class PostgresProductVariantRepository implements ProductVariantRepository {
   async create(
@@ -15,23 +15,21 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       `
         INSERT INTO product_variants (
           product_id,
-          sku,
           color,
           size,
           price
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4)
         RETURNING
           id,
           product_id AS "productId",
-          sku,
           color,
           size,
           price,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
       `,
-      [data.productId, data.sku, data.color, data.size, data.price],
+      [data.productId, data.color, data.size, data.price],
     );
 
     const variant = result.rows[0];
@@ -52,7 +50,6 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         SELECT
           id,
           product_id AS "productId",
-          sku,
           color,
           size,
           price,
@@ -76,7 +73,6 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         SELECT
           id,
           product_id AS "productId",
-          sku,
           color,
           size,
           price,
@@ -99,11 +95,6 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   ): Promise<ProductVariant | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
-
-    if (data.sku !== undefined) {
-      fields.push(`sku = $${values.length + 1}`);
-      values.push(data.sku);
-    }
 
     if (data.color !== undefined) {
       fields.push(`color = $${values.length + 1}`);
@@ -136,7 +127,6 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         RETURNING
           id,
           product_id AS "productId",
-          sku,
           color,
           size,
           price,

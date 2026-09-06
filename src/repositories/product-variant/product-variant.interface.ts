@@ -3,7 +3,7 @@ import type {
   CreateProductVariantData,
   ProductVariant,
   UpdateProductVariantData,
-} from "../types/product-variant.types.js";
+} from "../../types/product-variant.types.js";
 
 export interface ProductVariantRepository {
   create(

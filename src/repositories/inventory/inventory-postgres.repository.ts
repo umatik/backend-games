@@ -1,10 +1,10 @@
 import type { PoolClient } from "pg";
-import type { InventoryRepository } from "./inventory.repository.js";
+import type { InventoryRepository } from "./inventory.interface.js";
 import type {
   CreateInventoryData,
   Inventory,
   UpdateInventoryData,
-} from "../types/product.types.js";
+} from "../../types/inventory.types.js";
 
 export class PostgresInventoryRepository implements InventoryRepository {
   async create(
@@ -14,15 +14,15 @@ export class PostgresInventoryRepository implements InventoryRepository {
     const result = await client.query<Inventory>(
       `
         INSERT INTO inventory (
-          product_id,
+          product_variant_id,
           quantity
         )
         VALUES ($1, $2)
         RETURNING
-          product_id AS "productId",
+          product_variant_id AS "productVariantId",
           quantity
       `,
-      [data.productId, data.quantity],
+      [data.productVariantId, data.quantity],
     );
 
     const inventory = result.rows[0];
@@ -34,19 +34,19 @@ export class PostgresInventoryRepository implements InventoryRepository {
     return inventory;
   }
 
-  async findByProductId(
+  async findByProductVariantId(
     client: PoolClient,
-    productId: number,
+    productVariantId: number,
   ): Promise<Inventory | null> {
     const result = await client.query<Inventory>(
       `
         SELECT
-          product_id AS "productId",
+          product_variant_id AS "productVariantId",
           quantity
         FROM inventory
-        WHERE product_id = $1
+        WHERE product_variant_id = $1
       `,
-      [productId],
+      [productVariantId],
     );
 
     return result.rows[0] ?? null;
@@ -54,19 +54,19 @@ export class PostgresInventoryRepository implements InventoryRepository {
 
   async update(
     client: PoolClient,
-    productId: number,
+    productVariantId: number,
     data: UpdateInventoryData,
   ): Promise<Inventory | null> {
     const result = await client.query<Inventory>(
       `
         UPDATE inventory
         SET quantity = $1
-        WHERE product_id = $2
+        WHERE product_variant_id = $2
         RETURNING
-          product_id AS "productId",
+          product_variant_id AS "productVariantId",
           quantity
       `,
-      [data.quantity, productId],
+      [data.quantity, productVariantId],
     );
 
     return result.rows[0] ?? null;

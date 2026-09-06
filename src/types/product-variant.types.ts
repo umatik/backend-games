@@ -1,7 +1,6 @@
 export type ProductVariant = {
   id: number;
   productId: number;
-  sku: string;
   color: string | null;
   size: string | null;
   price: number;
@@ -11,7 +10,6 @@ export type ProductVariant = {
 
 export type CreateProductVariantData = {
   productId: number;
-  sku: string;
   color: string | null;
   size: string | null;
   price: number;

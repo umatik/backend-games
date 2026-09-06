@@ -3,13 +3,15 @@ import type {
   Product,
   UpdateProductData,
 } from "../types/product.types.js";
-import type { ProductRepository } from "../repositories/product.repository.js";
-import type { InventoryRepository } from "../repositories/inventory.repository.js";
 import { pool } from "../database/db.js";
+import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
+import type { ProductRepository } from "../repositories/product/product.interface.js";
+import type { InventoryRepository } from "../repositories/inventory/inventory.interface.js";
 
 export class ProductService {
   constructor(
     private productRepository: ProductRepository,
+    private productVariantRepository: ProductVariantRepository,
     private inventoryRepository: InventoryRepository,
   ) {}
 
@@ -21,8 +23,15 @@ export class ProductService {
 
       const product = await this.productRepository.create(client, data);
 
-      await this.inventoryRepository.create(client, {
+      const variant = await this.productVariantRepository.create(client, {
         productId: product.id,
+        color: null,
+        size: null,
+        price: product.price,
+      });
+
+      await this.inventoryRepository.create(client, {
+        productVariantId: variant.id,
         quantity: 0,
       });
 
@@ -46,31 +55,11 @@ export class ProductService {
     try {
       await client.query("BEGIN");
 
-      const { quantity, ...productData } = data;
-
-      const product = await this.productRepository.update(
-        client,
-        id,
-        productData,
-      );
+      const product = await this.productRepository.update(client, id, data);
 
       if (!product) {
         await client.query("ROLLBACK");
         return null;
-      }
-
-      if (quantity !== undefined) {
-        const inventory = await this.inventoryRepository.update(
-          client,
-          product.id,
-          {
-            quantity,
-          },
-        );
-
-        if (!inventory) {
-          throw new Error("Inventory not found");
-        }
       }
 
       await client.query("COMMIT");

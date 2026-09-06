@@ -3,7 +3,7 @@ import type {
   CreateOrderData,
   CreateOrderItemData,
   Order,
-} from "../types/order.types.js";
+} from "../../types/order.types.js";
 
 export interface OrderInterface {
   create(client: PoolClient, data: CreateOrderData): Promise<Order>;

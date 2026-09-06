@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import type { UserContactInterface } from "./user-contact.interface.js";
-import type { CreateUserContactData } from "../types/user.types.js";
+import type { CreateUserContactData } from "../../types/user.types.js";
 
 export class UserContactPostgresRepository implements UserContactInterface {
   async createContact(

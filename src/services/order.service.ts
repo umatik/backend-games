@@ -1,10 +1,10 @@
 import { pool } from "../database/db.js";
-import type { OrderRepository } from "../repositories/order.repository.js";
-import type { CreateOrderData, Order } from "../types/order.types.js";
 import { UserNotFoundError } from "../errors/user-not-found.error.js";
+import type { CreateOrderData, Order } from "../types/order.types.js";
+import type { OrderInterface } from "../repositories/order/order.interface.js";
 
 export class OrderService {
-  constructor(private orderRepository: OrderRepository) {}
+  constructor(private orderRepository: OrderInterface) {}
 
   async createOrder(data: CreateOrderData): Promise<Order> {
     const client = await pool.connect();

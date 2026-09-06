@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { pool } from "../database/db.js";
-import type { UserRepository } from "../repositories/user.repository.js";
-import type { UserContactRepository } from "../repositories/user-contact.repository.js";
+import type { UserInterface } from "../repositories/user/user.interface.js";
+import type { UserContactInterface } from "../repositories/user/user-contact.interface.js";
 import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
 import type { PoolClient } from "pg";
 import type {
@@ -13,8 +13,8 @@ import type {
 
 export class UserService {
   constructor(
-    private userRepository: UserRepository,
-    private userContactRepository: UserContactRepository,
+    private userRepository: UserInterface,
+    private userContactRepository: UserContactInterface,
   ) {}
 
   async register(data: RegisterUserData) {

@@ -3,19 +3,19 @@ import type {
   CreateInventoryData,
   Inventory,
   UpdateInventoryData,
-} from "../types/product.types.js";
+} from "../../types/inventory.types.js";
 
 export interface InventoryRepository {
   create(client: PoolClient, data: CreateInventoryData): Promise<Inventory>;
 
-  findByProductId(
+  findByProductVariantId(
     client: PoolClient,
-    productId: number,
+    productVariantId: number,
   ): Promise<Inventory | null>;
 
   update(
     client: PoolClient,
-    productId: number,
+    productVariantId: number,
     data: UpdateInventoryData,
   ): Promise<Inventory | null>;
 }

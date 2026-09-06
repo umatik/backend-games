@@ -3,10 +3,10 @@ import type {
   Product,
   ProductRow,
   UpdateProductData,
-} from "../types/product.types.js";
-import type { ProductRepository } from "./product.repository.js";
-import { pool } from "../database/db.js";
+} from "../../types/product.types.js";
+import { pool } from "../../database/db.js";
 import type { PoolClient } from "pg";
+import type { ProductRepository } from "./product.interface.js";
 
 export class PostgresProductRepository implements ProductRepository {
   private mapProductRow = (row: ProductRow): Product => ({
@@ -59,8 +59,12 @@ export class PostgresProductRepository implements ProductRepository {
     return result.rows.map((row) => this.mapProductRow(row));
   }
 
-  async update(id: string, data: UpdateProductData): Promise<Product | null> {
-    const result = await pool.query(
+  async update(
+    client: PoolClient,
+    id: string,
+    data: UpdateProductData,
+  ): Promise<Product | null> {
+    const result = await client.query(
       `
         UPDATE products
         SET

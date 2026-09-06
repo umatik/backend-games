@@ -1,18 +1,6 @@
 import type { PoolClient } from "pg";
-
-export type CreateUserData = {
-  email: string;
-  passwordHash: string;
-};
-
-export type CreateUserResult = {
-  id: string;
-  email: string;
-};
+import type { CreatedUser, CreateUserData } from "../types/user.types.js";
 
 export interface UserRepository {
-  createUser(
-    client: PoolClient,
-    data: CreateUserData,
-  ): Promise<CreateUserResult>;
+  createUser(client: PoolClient, data: CreateUserData): Promise<CreatedUser>;
 }

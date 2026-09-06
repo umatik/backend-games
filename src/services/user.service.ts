@@ -1,22 +1,15 @@
 import bcrypt from "bcrypt";
 import { pool } from "../database/db.js";
 import type { UserRepository } from "../repositories/user.repository.js";
+import type { UserContactRepository } from "../repositories/user-contact.repository.js";
+import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
+import type { PoolClient } from "pg";
 import type {
-  UserContactRepository,
   CreateUserContactData,
-} from "../repositories/user-contact.repository.js";
-
-export type RegisterUserData = {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
-};
+  CreateUserData,
+  CreatedUser,
+  RegisterUserData,
+} from "../types/user.types.js";
 
 export class UserService {
   constructor(
@@ -32,7 +25,7 @@ export class UserService {
 
       const passwordHash = await bcrypt.hash(data.password, 12);
 
-      const user = await this.userRepository.createUser(client, {
+      const user = await this.createUser(client, {
         email: data.email,
         passwordHash,
       });
@@ -58,6 +51,26 @@ export class UserService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async createUser(
+    client: PoolClient,
+    data: CreateUserData,
+  ): Promise<CreatedUser> {
+    try {
+      return await this.userRepository.createUser(client, data);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "23505"
+      ) {
+        throw new EmailAlreadyExistsError();
+      }
+
+      throw error;
     }
   }
 }

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { UserService } from "../services/user.service.js";
 import { isValidRegisterUser } from "../validators/user.validator.js";
+import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
 
 export class UserController {
   constructor(private userService: UserService) {}
@@ -51,21 +52,32 @@ export class UserController {
       country,
     } = req.body;
 
-    const user = await this.userService.register({
-      email,
-      password,
-      firstName,
-      lastName,
-      phone,
-      address,
-      city,
-      postalCode,
-      country,
-    });
+    try {
+      const user = await this.userService.register({
+        email,
+        password,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        country,
+      });
 
-    res.status(201).json({
-      message: "User registered",
-      user,
-    });
+      res.status(201).json({
+        message: "User registered",
+        user,
+      });
+    } catch (error) {
+      if (error instanceof EmailAlreadyExistsError) {
+        res.status(409).json({
+          message: error.message,
+        });
+        return;
+      }
+
+      throw error;
+    }
   };
 }

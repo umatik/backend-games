@@ -5,7 +5,7 @@ import type {
   Order,
 } from "../types/order.types.js";
 
-export interface OrderRepository {
+export interface OrderInterface {
   create(client: PoolClient, data: CreateOrderData): Promise<Order>;
 
   createItems(

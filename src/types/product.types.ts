@@ -24,17 +24,3 @@ export type CreateProductData = Omit<
 >;
 
 export type UpdateProductData = Partial<CreateProductData>;
-
-export type Inventory = {
-  productId: number;
-  quantity: number;
-};
-
-export type CreateInventoryData = {
-  productId: number;
-  quantity: number;
-};
-
-export type UpdateInventoryData = {
-  quantity: number;
-};

@@ -41,7 +41,47 @@ export class ProductService {
     id: string,
     data: UpdateProductData,
   ): Promise<Product | null> {
-    return this.productRepository.update(id, data);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const { quantity, ...productData } = data;
+
+      const product = await this.productRepository.update(
+        client,
+        id,
+        productData,
+      );
+
+      if (!product) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      if (quantity !== undefined) {
+        const inventory = await this.inventoryRepository.update(
+          client,
+          product.id,
+          {
+            quantity,
+          },
+        );
+
+        if (!inventory) {
+          throw new Error("Inventory not found");
+        }
+      }
+
+      await client.query("COMMIT");
+
+      return product;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getProduct(id: string): Promise<Product | null> {

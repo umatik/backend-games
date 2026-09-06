@@ -1,7 +1,7 @@
-import type { AuthRepository, AuthUser } from "./auth.repository.js";
+import type { AuthInterface, AuthUser } from "./auth.interface.js";
 import type { PoolClient } from "pg";
 
-export class PostgresAuthRepository implements AuthRepository {
+export class AuthPostgresRepository implements AuthInterface {
   async findUserByEmail(
     client: PoolClient,
     email: string,

@@ -9,6 +9,10 @@ export interface ProductRepository {
   create(client: PoolClient, data: CreateProductData): Promise<Product>;
   findById(id: string): Promise<Product | null>;
   findAll(): Promise<Product[]>;
-  update(id: string, data: UpdateProductData): Promise<Product | null>;
+  update(
+    client: PoolClient,
+    id: string,
+    data: UpdateProductData,
+  ): Promise<Product | null>;
   delete(id: string): Promise<boolean>;
 }

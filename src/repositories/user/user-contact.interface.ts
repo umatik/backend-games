@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import type { CreateUserContactData } from "../types/user.types.js";
 
-export interface UserContactRepository {
+export interface UserContactInterface {
   createContact(client: PoolClient, data: CreateUserContactData): Promise<void>;
 }

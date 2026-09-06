@@ -3,12 +3,12 @@ import type {
   CreateOrderItemData,
   Order,
 } from "../types/order.types.js";
-import type { OrderRepository } from "./order.repository.js";
+import type { OrderInterface } from "./order.interface.js";
 import type { PoolClient } from "pg";
 import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
 import { ProductNotFoundError } from "../errors/product-not-found.error.js";
 
-export class PostgresOrderRepository implements OrderRepository {
+export class OrderPostgresRepository implements OrderInterface {
   async findUserById(client: PoolClient, userId: string): Promise<boolean> {
     const result = await client.query(
       `

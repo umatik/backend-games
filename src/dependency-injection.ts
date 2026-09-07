@@ -1,6 +1,5 @@
 import { PostgresProductRepository } from "./repositories/product/product-postgres.repository.js";
 import { PostgresProductVariantRepository } from "./repositories/product-variant/product-variant-postgres.repository.js";
-import { PostgresInventoryRepository } from "./repositories/inventory/inventory-postgres.repository.js";
 
 import { ProductService } from "./services/product.service.js";
 import { ProductController } from "./controllers/product.controller.js";
@@ -25,12 +24,10 @@ import { createAuthRouter } from "./routes/auth.routes.js";
 
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
-const inventoryRepository = new PostgresInventoryRepository();
 
 const productService = new ProductService(
   productRepository,
   productVariantRepository,
-  inventoryRepository,
 );
 
 const productController = new ProductController(productService);

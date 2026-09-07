@@ -1,18 +1,17 @@
 import type {
   CreateProductData,
   Product,
+  ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
 import { pool } from "../database/db.js";
 import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
 import type { ProductRepository } from "../repositories/product/product.interface.js";
-import type { InventoryRepository } from "../repositories/inventory/inventory.interface.js";
 
 export class ProductService {
   constructor(
     private productRepository: ProductRepository,
     private productVariantRepository: ProductVariantRepository,
-    private inventoryRepository: InventoryRepository,
   ) {}
 
   async createProduct(data: CreateProductData): Promise<Product> {
@@ -23,15 +22,11 @@ export class ProductService {
 
       const product = await this.productRepository.create(client, data);
 
-      const variant = await this.productVariantRepository.create(client, {
+      await this.productVariantRepository.create(client, {
         productId: product.id,
         color: null,
         size: null,
         price: product.price,
-      });
-
-      await this.inventoryRepository.create(client, {
-        productVariantId: variant.id,
         quantity: 0,
       });
 
@@ -73,12 +68,52 @@ export class ProductService {
     }
   }
 
-  async getProduct(id: string): Promise<Product | null> {
-    return this.productRepository.findById(id);
+  async getProduct(id: string): Promise<ProductDetails | null> {
+    const product = await this.productRepository.findById(id);
+
+    if (!product) {
+      return null;
+    }
+
+    const client = await pool.connect();
+
+    try {
+      const variants = await this.productVariantRepository.findByProductId(
+        client,
+        product.id,
+      );
+
+      return {
+        ...product,
+        variants,
+      };
+    } finally {
+      client.release();
+    }
   }
 
-  async getAllProducts(): Promise<Product[]> {
-    return this.productRepository.findAll();
+  async getAllProducts(): Promise<ProductDetails[]> {
+    const products = await this.productRepository.findAll();
+
+    const client = await pool.connect();
+
+    try {
+      return await Promise.all(
+        products.map(async (product) => {
+          const variants = await this.productVariantRepository.findByProductId(
+            client,
+            product.id,
+          );
+
+          return {
+            ...product,
+            variants,
+          };
+        }),
+      );
+    } finally {
+      client.release();
+    }
   }
 
   async deleteProduct(id: string): Promise<boolean> {

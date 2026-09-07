@@ -7,6 +7,13 @@ import type {
 } from "../../types/product-variant.types.js";
 
 export class PostgresProductVariantRepository implements ProductVariantRepository {
+  private mapProductVariantRow(row: ProductVariant): ProductVariant {
+    return {
+      ...row,
+      price: Number(row.price),
+    };
+  }
+
   async create(
     client: PoolClient,
     data: CreateProductVariantData,
@@ -17,19 +24,21 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           product_id,
           color,
           size,
-          price
+          price,
+          quantity
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING
           id,
           product_id AS "productId",
           color,
           size,
           price,
+          quantity,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
       `,
-      [data.productId, data.color, data.size, data.price],
+      [data.productId, data.color, data.size, data.price, data.quantity],
     );
 
     const variant = result.rows[0];
@@ -38,7 +47,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       throw new Error("Product variant was not created");
     }
 
-    return variant;
+    return this.mapProductVariantRow(variant);
   }
 
   async findById(
@@ -53,6 +62,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           color,
           size,
           price,
+          quantity,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM product_variants
@@ -61,7 +71,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       [id],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] ? this.mapProductVariantRow(result.rows[0]) : null;
   }
 
   async findByProductId(
@@ -76,6 +86,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           color,
           size,
           price,
+          quantity,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM product_variants
@@ -85,7 +96,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       [productId],
     );
 
-    return result.rows;
+    return result.rows.map((row) => this.mapProductVariantRow(row));
   }
 
   async update(
@@ -111,6 +122,11 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       values.push(data.price);
     }
 
+    if (data.quantity !== undefined) {
+      fields.push(`quantity = $${values.length + 1}`);
+      values.push(data.quantity);
+    }
+
     if (fields.length === 0) {
       return this.findById(client, id);
     }
@@ -130,13 +146,14 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           color,
           size,
           price,
+          quantity,
           created_at AS "createdAt",
           updated_at AS "updatedAt"
       `,
       values,
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] ? this.mapProductVariantRow(result.rows[0]) : null;
   }
 
   async delete(client: PoolClient, id: number): Promise<boolean> {

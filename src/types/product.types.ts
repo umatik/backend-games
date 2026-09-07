@@ -1,3 +1,5 @@
+import type { ProductVariant } from "./product-variant.types.js";
+
 export type Product = {
   id: number;
   name: string;
@@ -24,3 +26,7 @@ export type CreateProductData = Omit<
 >;
 
 export type UpdateProductData = Partial<CreateProductData>;
+
+export type ProductDetails = Product & {
+  variants: ProductVariant[];
+};

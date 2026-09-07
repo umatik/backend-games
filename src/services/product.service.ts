@@ -49,7 +49,7 @@ export class ProductService {
   async updateProduct(
     id: string,
     data: UpdateProductData,
-  ): Promise<Product | null> {
+  ): Promise<ProductDetails | null> {
     const client = await pool.connect();
 
     try {
@@ -91,11 +91,9 @@ export class ProductService {
               variantData.quantity = variant.quantity;
             }
 
-            const variantId = variant.id;
-
             await this.productVariantRepository.update(
               client,
-              variantId,
+              variant.id,
               variantData,
             );
           } else {
@@ -110,9 +108,17 @@ export class ProductService {
         }
       }
 
+      const variants = await this.productVariantRepository.findByProductId(
+        client,
+        product.id,
+      );
+
       await client.query("COMMIT");
 
-      return product;
+      return {
+        ...product,
+        variants,
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -169,10 +175,6 @@ export class ProductService {
     }
   }
 
-  async deleteProduct(id: string): Promise<boolean> {
-    return this.productRepository.delete(id);
-  }
-
   async deleteProductVariant(
     productId: number,
     variantId: number,
@@ -211,5 +213,9 @@ export class ProductService {
     } finally {
       client.release();
     }
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    return this.productRepository.delete(id);
   }
 }

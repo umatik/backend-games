@@ -4,7 +4,13 @@ import type {
   UpdateProductData,
 } from "../types/product.types.js";
 import { ProductService } from "../services/product.service.js";
-import { isValidProductName } from "../validators/product.validator.js";
+import {
+  isValidProductName,
+  isValidProductOption,
+  isValidProductPrice,
+  isValidProductQuantity,
+  isValidProductVariantId,
+} from "../validators/product.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -59,6 +65,41 @@ export class ProductController {
 
       return;
     }
+
+    for (const variant of variants) {
+      if (!isValidProductOption(variant.color)) {
+        res.status(400).json({
+          message: "Variant color must be a non-empty string or null",
+        });
+
+        return;
+      }
+
+      if (!isValidProductOption(variant.size)) {
+        res.status(400).json({
+          message: "Variant size must be a non-empty string or null",
+        });
+
+        return;
+      }
+
+      if (!isValidProductPrice(variant.price)) {
+        res.status(400).json({
+          message: "Variant price must be a non-negative number",
+        });
+
+        return;
+      }
+
+      if (!isValidProductQuantity(variant.quantity)) {
+        res.status(400).json({
+          message: "Variant quantity must be a non-negative integer",
+        });
+
+        return;
+      }
+    }
+
     const productData: CreateProductData = {
       name,
       variants,
@@ -98,6 +139,81 @@ export class ProductController {
       });
 
       return;
+    }
+
+    if (variants !== undefined) {
+      for (const variant of variants) {
+        if (variant.id !== undefined && !isValidProductVariantId(variant.id)) {
+          res.status(400).json({
+            message: "Variant id must be a positive integer",
+          });
+
+          return;
+        }
+
+        if (
+          variant.color !== undefined &&
+          !isValidProductOption(variant.color)
+        ) {
+          res.status(400).json({
+            message: "Variant color must be a non-empty string or null",
+          });
+
+          return;
+        }
+
+        if (variant.size !== undefined && !isValidProductOption(variant.size)) {
+          res.status(400).json({
+            message: "Variant size must be a non-empty string or null",
+          });
+
+          return;
+        }
+
+        if (variant.id === undefined) {
+          if (!isValidProductPrice(variant.price)) {
+            res.status(400).json({
+              message:
+                "Variant price is required and must be a non-negative number",
+            });
+
+            return;
+          }
+
+          if (!isValidProductQuantity(variant.quantity)) {
+            res.status(400).json({
+              message:
+                "Variant quantity is required and must be a non-negative integer",
+            });
+
+            return;
+          }
+
+          continue;
+        }
+
+        if (
+          variant.price !== undefined &&
+          !isValidProductPrice(variant.price)
+        ) {
+          res.status(400).json({
+            message: "Variant price must be a non-negative number",
+          });
+
+          return;
+        }
+
+        if (
+          variant.quantity !== undefined &&
+          !isValidProductQuantity(variant.quantity)
+        ) {
+          res.status(400).json({
+            message: "Variant quantity must be a non-negative integer",
+          });
+
+          return;
+        }
+      }
     }
 
     const productData: UpdateProductData = {

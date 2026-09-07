@@ -1,5 +1,5 @@
 export class ProductNotFoundError extends Error {
-  constructor(productId: string) {
+  constructor(productId: number) {
     super(`Product ${productId} not found`);
 
     this.name = "ProductNotFoundError";

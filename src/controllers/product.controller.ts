@@ -4,10 +4,7 @@ import type {
   UpdateProductData,
 } from "../types/product.types.js";
 import { ProductService } from "../services/product.service.js";
-import {
-  isValidProductName,
-  isValidProductPrice,
-} from "../validators/product.validator.js";
+import { isValidProductName } from "../validators/product.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -45,17 +42,28 @@ export class ProductController {
   };
 
   createProduct = async (req: Request, res: Response) => {
-    const { name, price } = req.body;
+    const { name, variants } = req.body;
 
-    if (!isValidProductName(name) || !isValidProductPrice(price)) {
+    if (!isValidProductName(name)) {
       res.status(400).json({
-        message: "Invalid product data",
+        message: "Invalid product name",
       });
 
       return;
     }
 
-    const productData: CreateProductData = { name, price };
+    if (!Array.isArray(variants)) {
+      res.status(400).json({
+        message: "Variants must be an array",
+      });
+
+      return;
+    }
+    const productData: CreateProductData = {
+      name,
+      variants,
+    };
+
     const product = await this.productService.createProduct(productData);
 
     res.status(201).json({
@@ -66,19 +74,11 @@ export class ProductController {
 
   updateProduct = async (req: Request, res: Response) => {
     const id = req.params.id as string;
-    const { name, price } = req.body;
+    const { name, variants } = req.body;
 
-    if (name === undefined && price === undefined) {
+    if (name === undefined && variants === undefined) {
       res.status(400).json({
         message: "At least one field is required",
-      });
-
-      return;
-    }
-
-    if (price !== undefined && !isValidProductPrice(price)) {
-      res.status(400).json({
-        message: "Price must be a non-negative number",
       });
 
       return;
@@ -92,7 +92,19 @@ export class ProductController {
       return;
     }
 
-    const productData: UpdateProductData = { name, price };
+    if (variants !== undefined && !Array.isArray(variants)) {
+      res.status(400).json({
+        message: "Variants must be an array",
+      });
+
+      return;
+    }
+
+    const productData: UpdateProductData = {
+      name,
+      variants,
+    };
+
     const product = await this.productService.updateProduct(id, productData);
 
     if (!product) {
@@ -102,6 +114,7 @@ export class ProductController {
 
       return;
     }
+
     res.status(200).json({
       message: "Product updated",
       product,

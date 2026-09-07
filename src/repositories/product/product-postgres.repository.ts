@@ -12,7 +12,6 @@ export class PostgresProductRepository implements ProductRepository {
   private mapProductRow = (row: ProductRow): Product => ({
     id: Number(row.id),
     name: row.name,
-    price: Number(row.price),
     is_deleted: row.is_deleted,
     updated_at: row.updated_at,
     created_at: row.created_at,
@@ -22,11 +21,11 @@ export class PostgresProductRepository implements ProductRepository {
   async create(client: PoolClient, data: CreateProductData): Promise<Product> {
     const result = await client.query(
       `
-        INSERT INTO products (name, price, created_at, updated_at)
+        INSERT INTO products (name, created_at, updated_at)
         VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING id, name, price, is_deleted, created_at, deleted_at, updated_at
+        RETURNING id, name, is_deleted, created_at, deleted_at, updated_at
       `,
-      [data.name, data.price],
+      [data.name],
     );
 
     return this.mapProductRow(result.rows[0]);
@@ -35,7 +34,7 @@ export class PostgresProductRepository implements ProductRepository {
   async findById(id: string): Promise<Product | null> {
     const result = await pool.query(
       `
-        SELECT id, name, price, is_deleted, created_at, updated_at, deleted_at
+        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
         FROM products
         WHERE id = $1
           AND is_deleted = FALSE`,
@@ -51,7 +50,7 @@ export class PostgresProductRepository implements ProductRepository {
 
   async findAll(): Promise<Product[]> {
     const result = await pool.query(`
-        SELECT id, name, price, is_deleted, created_at, updated_at, deleted_at
+        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
         FROM products
         WHERE is_deleted = FALSE
       `);
@@ -69,13 +68,12 @@ export class PostgresProductRepository implements ProductRepository {
         UPDATE products
         SET
           name = COALESCE($1, name),
-          price = COALESCE($2, price),
           updated_at = NOW()
-        WHERE id = $3
+        WHERE id = $2
           AND is_deleted = FALSE
-        RETURNING id, name, price, is_deleted, created_at, updated_at, deleted_at
+        RETURNING id, name, is_deleted, created_at, updated_at, deleted_at
       `,
-      [data.name, data.price, id],
+      [data.name, id],
     );
 
     if (result.rows.length > 0) {

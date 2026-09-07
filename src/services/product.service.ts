@@ -7,6 +7,7 @@ import type {
 import { pool } from "../database/db.js";
 import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
 import type { ProductRepository } from "../repositories/product/product.interface.js";
+import type { UpdateProductVariantData } from "../types/product-variant.types.js";
 
 export class ProductService {
   constructor(
@@ -20,15 +21,19 @@ export class ProductService {
     try {
       await client.query("BEGIN");
 
-      const product = await this.productRepository.create(client, data);
-
-      await this.productVariantRepository.create(client, {
-        productId: product.id,
-        color: null,
-        size: null,
-        price: product.price,
-        quantity: 0,
+      const product = await this.productRepository.create(client, {
+        name: data.name,
       });
+
+      for (const variant of data.variants) {
+        await this.productVariantRepository.create(client, {
+          productId: product.id,
+          color: variant.color,
+          size: variant.size,
+          price: variant.price,
+          quantity: variant.quantity,
+        });
+      }
 
       await client.query("COMMIT");
 
@@ -50,11 +55,47 @@ export class ProductService {
     try {
       await client.query("BEGIN");
 
-      const product = await this.productRepository.update(client, id, data);
+      let product: Product | null;
+
+      if (data.name !== undefined) {
+        product = await this.productRepository.update(client, id, {
+          name: data.name,
+        });
+      } else {
+        product = await this.productRepository.findById(id);
+      }
 
       if (!product) {
         await client.query("ROLLBACK");
         return null;
+      }
+
+      if (data.variants !== undefined) {
+        for (const variant of data.variants) {
+          const variantData: UpdateProductVariantData = {};
+
+          if (variant.color !== undefined) {
+            variantData.color = variant.color;
+          }
+
+          if (variant.size !== undefined) {
+            variantData.size = variant.size;
+          }
+
+          if (variant.price !== undefined) {
+            variantData.price = variant.price;
+          }
+
+          if (variant.quantity !== undefined) {
+            variantData.quantity = variant.quantity;
+          }
+
+          await this.productVariantRepository.update(
+            client,
+            variant.id,
+            variantData,
+          );
+        }
       }
 
       await client.query("COMMIT");

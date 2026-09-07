@@ -35,8 +35,10 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           size,
           price,
           quantity,
+          is_deleted AS "isDeleted",
           created_at AS "createdAt",
-          updated_at AS "updatedAt"
+          updated_at AS "updatedAt",
+          deleted_at AS "deletedAt"
       `,
       [data.productId, data.color, data.size, data.price, data.quantity],
     );
@@ -63,10 +65,13 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           size,
           price,
           quantity,
+          is_deleted AS "isDeleted",
           created_at AS "createdAt",
-          updated_at AS "updatedAt"
+          updated_at AS "updatedAt",
+          deleted_at AS "deletedAt"
         FROM product_variants
         WHERE id = $1
+          AND is_deleted = FALSE
       `,
       [id],
     );
@@ -87,10 +92,13 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           size,
           price,
           quantity,
+          is_deleted AS "isDeleted",
           created_at AS "createdAt",
-          updated_at AS "updatedAt"
+          updated_at AS "updatedAt",
+          deleted_at AS "deletedAt"
         FROM product_variants
         WHERE product_id = $1
+          AND is_deleted = FALSE
         ORDER BY id
       `,
       [productId],
@@ -140,6 +148,7 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         UPDATE product_variants
         SET ${fields.join(", ")}
         WHERE id = $${values.length}
+          AND is_deleted = FALSE
         RETURNING
           id,
           product_id AS "productId",
@@ -147,8 +156,10 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
           size,
           price,
           quantity,
+          is_deleted AS "isDeleted",
           created_at AS "createdAt",
-          updated_at AS "updatedAt"
+          updated_at AS "updatedAt",
+          deleted_at AS "deletedAt"
       `,
       values,
     );
@@ -159,8 +170,13 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   async delete(client: PoolClient, id: number): Promise<boolean> {
     const result = await client.query(
       `
-        DELETE FROM product_variants
+        UPDATE product_variants
+        SET
+          is_deleted = TRUE,
+          deleted_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
+          AND is_deleted = FALSE
       `,
       [id],
     );

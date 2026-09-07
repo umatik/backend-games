@@ -1,5 +1,5 @@
 export type CreateOrderItemData = {
-  productId: string;
+  productVariantId: number;
   quantity: number;
 };
 

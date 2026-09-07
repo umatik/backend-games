@@ -49,43 +49,49 @@ export class OrderPostgresRepository implements OrderInterface {
     items: CreateOrderItemData[],
   ): Promise<void> {
     for (const item of items) {
-      const productResult = await client.query(
+      const productVariantResult = await client.query(
         `
-          SELECT id, price
-          FROM products
-          WHERE id = $1
-            AND is_deleted = FALSE
+          SELECT pv.id, pv.product_id, pv.price
+          FROM product_variants pv
+                 JOIN products p ON p.id = pv.product_id
+          WHERE pv.id = $1
+            AND p.is_deleted = FALSE
         `,
-        [item.productId],
+        [item.productVariantId],
       );
 
-      if (productResult.rows.length === 0) {
-        throw new ProductNotFoundError(item.productId);
+      if (productVariantResult.rows.length === 0) {
+        throw new ProductNotFoundError(item.productVariantId);
       }
 
-      const price = Number(productResult.rows[0].price);
+      const price = Number(productVariantResult.rows[0].price);
 
-      const inventoryResult = await client.query(
+      const stockResult = await client.query(
         `
-          UPDATE inventory
+          UPDATE product_variants
           SET quantity = quantity - $1
-          WHERE product_id = $2
+          WHERE id = $2
             AND quantity >= $1
           RETURNING quantity
         `,
-        [item.quantity, item.productId],
+        [item.quantity, item.productVariantId],
       );
 
-      if (inventoryResult.rows.length === 0) {
-        throw new InsufficientStockError(item.productId);
+      if (stockResult.rows.length === 0) {
+        throw new InsufficientStockError(item.productVariantId);
       }
 
       await client.query(
         `
-          INSERT INTO order_items (order_id, product_id, quantity, price)
+          INSERT INTO order_items (
+            order_id,
+            product_variant_id,
+            quantity,
+            price
+          )
           VALUES ($1, $2, $3, $4)
         `,
-        [orderId, item.productId, item.quantity, price],
+        [orderId, item.productVariantId, item.quantity, price],
       );
     }
   }

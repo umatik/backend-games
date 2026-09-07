@@ -135,4 +135,26 @@ export class ProductController {
 
     res.status(204).send();
   };
+
+  deleteProductVariant = async (req: Request, res: Response) => {
+    const productId = Number(req.params.productId);
+    const variantId = Number(req.params.variantId);
+
+    const deleted = await this.productService.deleteProductVariant(
+      productId,
+      variantId,
+    );
+
+    if (!deleted) {
+      res.status(404).json({
+        message: "Product variant not found",
+      });
+
+      return;
+    }
+
+    res.status(200).json({
+      message: "Product variant deleted",
+    });
+  };
 }

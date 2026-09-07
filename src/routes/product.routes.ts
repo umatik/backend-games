@@ -9,6 +9,10 @@ export const createProductRouter = (productController: ProductController) => {
   router.get("/:id", productController.getProduct);
   router.patch("/:id", productController.updateProduct);
   router.delete("/:id", productController.deleteProduct);
+  router.delete(
+    "/:productId/variants/:variantId",
+    productController.deleteProductVariant,
+  );
 
   return router;
 };

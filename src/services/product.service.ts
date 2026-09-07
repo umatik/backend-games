@@ -72,29 +72,41 @@ export class ProductService {
 
       if (data.variants !== undefined) {
         for (const variant of data.variants) {
-          const variantData: UpdateProductVariantData = {};
+          if (variant.id !== undefined) {
+            const variantData: UpdateProductVariantData = {};
 
-          if (variant.color !== undefined) {
-            variantData.color = variant.color;
+            if (variant.color !== undefined) {
+              variantData.color = variant.color;
+            }
+
+            if (variant.size !== undefined) {
+              variantData.size = variant.size;
+            }
+
+            if (variant.price !== undefined) {
+              variantData.price = variant.price;
+            }
+
+            if (variant.quantity !== undefined) {
+              variantData.quantity = variant.quantity;
+            }
+
+            const variantId = variant.id;
+
+            await this.productVariantRepository.update(
+              client,
+              variantId,
+              variantData,
+            );
+          } else {
+            await this.productVariantRepository.create(client, {
+              productId: product.id,
+              color: variant.color ?? null,
+              size: variant.size ?? null,
+              price: variant.price ?? 0,
+              quantity: variant.quantity ?? 0,
+            });
           }
-
-          if (variant.size !== undefined) {
-            variantData.size = variant.size;
-          }
-
-          if (variant.price !== undefined) {
-            variantData.price = variant.price;
-          }
-
-          if (variant.quantity !== undefined) {
-            variantData.quantity = variant.quantity;
-          }
-
-          await this.productVariantRepository.update(
-            client,
-            variant.id,
-            variantData,
-          );
         }
       }
 
@@ -159,5 +171,45 @@ export class ProductService {
 
   async deleteProduct(id: string): Promise<boolean> {
     return this.productRepository.delete(id);
+  }
+
+  async deleteProductVariant(
+    productId: number,
+    variantId: number,
+  ): Promise<boolean> {
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const variant = await this.productVariantRepository.findById(
+        client,
+        variantId,
+      );
+
+      if (!variant || variant.productId !== productId) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+
+      const deleted = await this.productVariantRepository.delete(
+        client,
+        variantId,
+      );
+
+      if (!deleted) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+
+      await client.query("COMMIT");
+
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }

@@ -27,7 +27,7 @@ export type CreateProductVariantInput = {
 };
 
 export type UpdateProductVariantInput = {
-  id: number;
+  id?: number;
   color?: string | null;
   size?: string | null;
   price?: number;

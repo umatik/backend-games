@@ -8,6 +8,7 @@ import { pool } from "../database/db.js";
 import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
 import type { ProductRepository } from "../repositories/product/product.interface.js";
 import type { UpdateProductVariantData } from "../types/product-variant.types.js";
+import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
 
 export class ProductService {
   constructor(
@@ -73,6 +74,13 @@ export class ProductService {
       if (data.variants !== undefined) {
         for (const variant of data.variants) {
           if (variant.id !== undefined) {
+            const existingVariant =
+              await this.productVariantRepository.findById(client, variant.id);
+
+            if (!existingVariant || existingVariant.productId !== product.id) {
+              throw new ProductVariantNotFoundError(variant.id);
+            }
+
             const variantData: UpdateProductVariantData = {};
 
             if (variant.color !== undefined) {
@@ -126,7 +134,6 @@ export class ProductService {
       client.release();
     }
   }
-
   async getProduct(id: string): Promise<ProductDetails | null> {
     const product = await this.productRepository.findById(id);
 

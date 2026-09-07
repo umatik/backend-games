@@ -11,6 +11,7 @@ import {
   isValidProductQuantity,
   isValidProductVariantId,
 } from "../validators/product.validator.js";
+import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -221,20 +222,32 @@ export class ProductController {
       variants,
     };
 
-    const product = await this.productService.updateProduct(id, productData);
+    try {
+      const product = await this.productService.updateProduct(id, productData);
 
-    if (!product) {
-      res.status(404).json({
-        message: "Product not found",
+      if (!product) {
+        res.status(404).json({
+          message: "Product not found",
+        });
+
+        return;
+      }
+
+      res.status(200).json({
+        message: "Product updated",
+        product,
       });
+    } catch (error) {
+      if (error instanceof ProductVariantNotFoundError) {
+        res.status(404).json({
+          message: "Product variant not found",
+        });
 
-      return;
+        return;
+      }
+
+      throw error;
     }
-
-    res.status(200).json({
-      message: "Product updated",
-      product,
-    });
   };
 
   deleteProduct = async (req: Request, res: Response) => {
@@ -255,6 +268,17 @@ export class ProductController {
   deleteProductVariant = async (req: Request, res: Response) => {
     const productId = Number(req.params.productId);
     const variantId = Number(req.params.variantId);
+
+    if (
+      !isValidProductVariantId(productId) ||
+      !isValidProductVariantId(variantId)
+    ) {
+      res.status(400).json({
+        message: "Product id and variant id must be positive integers",
+      });
+
+      return;
+    }
 
     const deleted = await this.productService.deleteProductVariant(
       productId,

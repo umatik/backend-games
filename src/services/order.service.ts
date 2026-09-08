@@ -1,6 +1,10 @@
 import { pool } from "../database/db.js";
 import { UserNotFoundError } from "../errors/user-not-found.error.js";
-import type { CreateOrderData, Order } from "../types/order.types.js";
+import type {
+  CreateOrderData,
+  Order,
+  OrderDetails,
+} from "../types/order.types.js";
 import type { OrderInterface } from "../repositories/order/order.interface.js";
 
 export class OrderService {
@@ -31,6 +35,29 @@ export class OrderService {
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getOrdersByUserId(userId: string): Promise<OrderDetails[]> {
+    const client = await pool.connect();
+
+    try {
+      return await this.orderRepository.findByUserId(client, userId);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getOrderById(
+    orderId: string,
+    userId: string,
+  ): Promise<OrderDetails | null> {
+    const client = await pool.connect();
+
+    try {
+      return await this.orderRepository.findById(client, orderId, userId);
     } finally {
       client.release();
     }

@@ -7,14 +7,15 @@ export const isValidOrderItem = (item: unknown): boolean => {
     return false;
   }
 
-  const { productId, quantity } = item as {
-    productId?: unknown;
+  const { productVariantId, quantity } = item as {
+    productVariantId?: unknown;
     quantity?: unknown;
   };
 
   return (
-    typeof productId === "string" &&
-    productId.trim() !== "" &&
+    typeof productVariantId === "number" &&
+    Number.isInteger(productVariantId) &&
+    productVariantId > 0 &&
     typeof quantity === "number" &&
     Number.isInteger(quantity) &&
     quantity > 0

@@ -3,6 +3,7 @@ import type {
   CreateOrderData,
   CreateOrderItemData,
   Order,
+  OrderDetails,
 } from "../../types/order.types.js";
 
 export interface OrderInterface {
@@ -15,4 +16,12 @@ export interface OrderInterface {
   ): Promise<void>;
 
   findUserById(client: PoolClient, userId: string): Promise<boolean>;
+
+  findByUserId(client: PoolClient, userId: string): Promise<OrderDetails[]>;
+
+  findById(
+    client: PoolClient,
+    orderId: string,
+    userId: string,
+  ): Promise<OrderDetails | null>;
 }

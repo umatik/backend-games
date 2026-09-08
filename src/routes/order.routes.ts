@@ -5,6 +5,8 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 export const createOrderRouter = (orderController: OrderController) => {
   const router = Router();
 
+  router.get("/", authMiddleware, orderController.getOrders);
+  router.get("/:id", authMiddleware, orderController.getOrder);
   router.post("/", authMiddleware, orderController.createOrder);
 
   return router;

@@ -64,4 +64,52 @@ export class OrderController {
       throw error;
     }
   };
+
+  getOrders = async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    const orders = await this.orderService.getOrdersByUserId(req.user.userId);
+
+    res.status(200).json({
+      message: "Orders found",
+      orders,
+    });
+  };
+
+  getOrder = async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      res.status(400).json({
+        message: "Invalid order id",
+      });
+      return;
+    }
+
+    const order = await this.orderService.getOrderById(id, req.user.userId);
+
+    if (!order) {
+      res.status(404).json({
+        message: "Order not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Order found",
+      order,
+    });
+  };
 }

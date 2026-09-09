@@ -21,8 +21,8 @@ export class PostgresProductRepository implements ProductRepository {
   async create(client: PoolClient, data: CreateProductData): Promise<Product> {
     const result = await client.query(
       `
-        INSERT INTO products (name, created_at, updated_at)
-        VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO products (name)
+        VALUES ($1)
         RETURNING id, name, is_deleted, created_at, deleted_at, updated_at
       `,
       [data.name],
@@ -50,10 +50,10 @@ export class PostgresProductRepository implements ProductRepository {
 
   async findAll(): Promise<Product[]> {
     const result = await pool.query(`
-        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
-        FROM products
-        WHERE is_deleted = FALSE
-      `);
+      SELECT id, name, is_deleted, created_at, updated_at, deleted_at
+      FROM products
+      WHERE is_deleted = FALSE
+    `);
 
     return result.rows.map((row) => this.mapProductRow(row));
   }
@@ -66,9 +66,8 @@ export class PostgresProductRepository implements ProductRepository {
     const result = await client.query(
       `
         UPDATE products
-        SET
-          name = COALESCE($1, name),
-          updated_at = NOW()
+        SET name       = COALESCE($1, name),
+            updated_at = NOW()
         WHERE id = $2
           AND is_deleted = FALSE
         RETURNING id, name, is_deleted, created_at, updated_at, deleted_at
@@ -87,14 +86,13 @@ export class PostgresProductRepository implements ProductRepository {
     const result = await pool.query(
       `
         UPDATE products
-        SET
-          is_deleted = TRUE,
-          deleted_at = NOW(),
-          updated_at = NOW()
+        SET is_deleted = TRUE,
+            deleted_at = NOW(),
+            updated_at = NOW()
         WHERE id = $1
           AND is_deleted = FALSE
         RETURNING id
-    `,
+      `,
       [id],
     );
 

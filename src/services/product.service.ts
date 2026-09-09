@@ -134,6 +134,7 @@ export class ProductService {
       client.release();
     }
   }
+
   async getProduct(id: string): Promise<ProductDetails | null> {
     const product = await this.productRepository.findById(id);
 

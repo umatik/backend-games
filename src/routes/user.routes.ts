@@ -6,8 +6,8 @@ export const createUserRouter = (userController: UserController) => {
   const router = Router();
 
   router.post("/register", userController.register);
-
   router.get("/:id", authMiddleware, userController.getUser);
+  router.patch("/:id", authMiddleware, userController.updateUser);
 
   return router;
 };

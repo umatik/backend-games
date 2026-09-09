@@ -26,3 +26,36 @@ export const isValidRegisterUser = (data: unknown): boolean => {
     user.country.trim() !== ""
   );
 };
+
+export const isValidUpdateUser = (data: unknown): boolean => {
+  if (typeof data !== "object" || data === null) {
+    return false;
+  }
+
+  const user = data as Record<string, unknown>;
+
+  const allowedFields = [
+    "email",
+    "firstName",
+    "lastName",
+    "phone",
+    "address",
+    "city",
+    "postalCode",
+    "country",
+  ];
+
+  const fields = Object.keys(user);
+
+  if (fields.length === 0) {
+    return false;
+  }
+
+  if (!fields.every((field) => allowedFields.includes(field))) {
+    return false;
+  }
+
+  return fields.every((field) => {
+    return typeof user[field] === "string" && user[field].trim() !== "";
+  });
+};

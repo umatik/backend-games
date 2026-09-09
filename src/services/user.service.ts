@@ -9,6 +9,8 @@ import type {
   CreateUserData,
   CreatedUser,
   RegisterUserData,
+  UserDetails,
+  UpdateUserData,
 } from "../types/user.types.js";
 
 export class UserService {
@@ -16,6 +18,16 @@ export class UserService {
     private userRepository: UserInterface,
     private userContactRepository: UserContactInterface,
   ) {}
+
+  async getUserById(userId: number): Promise<UserDetails | null> {
+    const client = await pool.connect();
+
+    try {
+      return await this.userRepository.findById(client, userId);
+    } finally {
+      client.release();
+    }
+  }
 
   async register(data: RegisterUserData) {
     const client = await pool.connect();
@@ -71,6 +83,19 @@ export class UserService {
       }
 
       throw error;
+    }
+  }
+
+  async updateUser(
+    userId: number,
+    data: UpdateUserData,
+  ): Promise<UserDetails | null> {
+    const client = await pool.connect();
+
+    try {
+      return await this.userRepository.update(client, userId, data);
+    } finally {
+      client.release();
     }
   }
 }

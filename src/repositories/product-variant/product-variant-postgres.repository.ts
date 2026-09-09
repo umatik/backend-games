@@ -10,7 +10,10 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   private mapProductVariantRow(row: ProductVariant): ProductVariant {
     return {
       ...row,
+      id: Number(row.id),
+      productId: Number(row.productId),
       price: Number(row.price),
+      quantity: Number(row.quantity),
     };
   }
 
@@ -20,13 +23,11 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   ): Promise<ProductVariant> {
     const result = await client.query<ProductVariant>(
       `
-        INSERT INTO product_variants (
-          product_id,
-          color,
-          size,
-          price,
-          quantity
-        )
+        INSERT INTO product_variants (product_id,
+                                      color,
+                                      size,
+                                      price,
+                                      quantity)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING
           id,
@@ -58,17 +59,16 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   ): Promise<ProductVariant | null> {
     const result = await client.query<ProductVariant>(
       `
-        SELECT
-          id,
-          product_id AS "productId",
-          color,
-          size,
-          price,
-          quantity,
-          is_deleted AS "isDeleted",
-          created_at AS "createdAt",
-          updated_at AS "updatedAt",
-          deleted_at AS "deletedAt"
+        SELECT id,
+               product_id AS "productId",
+               color,
+               size,
+               price,
+               quantity,
+               is_deleted AS "isDeleted",
+               created_at AS "createdAt",
+               updated_at AS "updatedAt",
+               deleted_at AS "deletedAt"
         FROM product_variants
         WHERE id = $1
           AND is_deleted = FALSE
@@ -85,17 +85,16 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
   ): Promise<ProductVariant[]> {
     const result = await client.query<ProductVariant>(
       `
-        SELECT
-          id,
-          product_id AS "productId",
-          color,
-          size,
-          price,
-          quantity,
-          is_deleted AS "isDeleted",
-          created_at AS "createdAt",
-          updated_at AS "updatedAt",
-          deleted_at AS "deletedAt"
+        SELECT id,
+               product_id AS "productId",
+               color,
+               size,
+               price,
+               quantity,
+               is_deleted AS "isDeleted",
+               created_at AS "createdAt",
+               updated_at AS "updatedAt",
+               deleted_at AS "deletedAt"
         FROM product_variants
         WHERE product_id = $1
           AND is_deleted = FALSE
@@ -171,10 +170,9 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
     const result = await client.query(
       `
         UPDATE product_variants
-        SET
-          is_deleted = TRUE,
-          deleted_at = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
+        SET is_deleted = TRUE,
+            deleted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
           AND is_deleted = FALSE
       `,

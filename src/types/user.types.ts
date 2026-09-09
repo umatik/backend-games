@@ -53,3 +53,26 @@ export type CreateUserContactData = {
   postalCode: string;
   country: string;
 };
+
+export type UserDetails = {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
+};
+
+export type UpdateUserData = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+};

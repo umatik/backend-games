@@ -4,20 +4,25 @@ import type {
   ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
-import { pool } from "../database/db.js";
 import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
 import type { ProductRepository } from "../repositories/product/product.interface.js";
 import type { UpdateProductVariantData } from "../types/product-variant.types.js";
 import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
+import type { PoolClient } from "pg";
+
+export type Database = {
+  connect(): Promise<PoolClient>;
+};
 
 export class ProductService {
   constructor(
     private productRepository: ProductRepository,
     private productVariantRepository: ProductVariantRepository,
+    private pool: Database,
   ) {}
 
   async createProduct(data: CreateProductData): Promise<Product> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
@@ -51,7 +56,7 @@ export class ProductService {
     id: string,
     data: UpdateProductData,
   ): Promise<ProductDetails | null> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
@@ -142,7 +147,7 @@ export class ProductService {
       return null;
     }
 
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       const variants = await this.productVariantRepository.findByProductId(
@@ -162,7 +167,7 @@ export class ProductService {
   async getAllProducts(): Promise<ProductDetails[]> {
     const products = await this.productRepository.findAll();
 
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       return await Promise.all(
@@ -187,7 +192,7 @@ export class ProductService {
     productId: number,
     variantId: number,
   ): Promise<boolean> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");

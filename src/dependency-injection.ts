@@ -22,12 +22,15 @@ import { AuthService } from "./services/auth.service.js";
 import { AuthController } from "./controllers/auth.controller.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
 
+import { pool } from "./database/db.js";
+
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
 
 const productService = new ProductService(
   productRepository,
   productVariantRepository,
+  pool,
 );
 
 const productController = new ProductController(productService);

@@ -5,9 +5,12 @@ export const isValidRegisterUser = (data: unknown): boolean => {
 
   const user = data as Record<string, unknown>;
 
+  const email = typeof user.email === "string" ? user.email.trim() : "";
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   return (
-    typeof user.email === "string" &&
-    user.email.trim() !== "" &&
+    emailRegex.test(email) &&
     typeof user.password === "string" &&
     user.password.trim() !== "" &&
     typeof user.firstName === "string" &&

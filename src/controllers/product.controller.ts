@@ -25,7 +25,7 @@ export class ProductController {
 
     res.status(200).json({
       message: "Products found",
-      product: products,
+      products,
     });
   };
 

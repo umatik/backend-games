@@ -3,7 +3,7 @@ import type { AuthInterface } from "../repositories/auth/auth.interface.js";
 import { pool } from "../database/db.js";
 import { JwtService } from "./jwt.service.js";
 
-export class AuthService {
+export class AuthenticationService {
   constructor(
     private authRepository: AuthInterface,
     private jwtService: JwtService,

@@ -1,13 +1,13 @@
 import { Router } from "express";
 import type { UserController } from "../controllers/user.controller.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
+import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
 
 export const createUserRouter = (userController: UserController) => {
   const router = Router();
 
   router.post("/register", userController.register);
-  router.get("/:id", authMiddleware, userController.getUser);
-  router.patch("/:id", authMiddleware, userController.updateUser);
+  router.get("/:id", authenticationMiddleware, userController.getUser);
+  router.patch("/:id", authenticationMiddleware, userController.updateUser);
 
   return router;
 };

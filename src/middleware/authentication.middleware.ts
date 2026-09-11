@@ -8,7 +8,7 @@ export type AuthenticatedRequest = Request & {
   };
 };
 
-export const authMiddleware = (
+export const authenticationMiddleware = (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,

@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "dev": "tsx src/server.ts",
-    "node": "tsx src/node-server.ts",
+    "dev": "tsx src/node-server.ts",
     "migrate": "tsx src/database/migrate.ts"
   },
   "keywords": [],

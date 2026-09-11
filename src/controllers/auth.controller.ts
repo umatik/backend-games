@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import { AuthService } from "../services/auth.service.js";
+import { AuthenticationService } from "../services/authentication.service.js";
 
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthenticationService) {}
 
   login = async (req: Request, res: Response) => {
     const { email, password } = req.body;

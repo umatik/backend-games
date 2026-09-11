@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
 import { UserService } from "../services/user.service.js";
 import {
   isValidRegisterUser,

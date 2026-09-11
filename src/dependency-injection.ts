@@ -18,11 +18,14 @@ import { createUserRouter } from "./routes/user.routes.js";
 
 import { AuthPostgresRepository } from "./repositories/auth/auth-postgres.repository.js";
 import { JwtService } from "./services/jwt.service.js";
-import { AuthService } from "./services/auth.service.js";
+import { AuthenticationService } from "./services/authentication.service.js";
 import { AuthController } from "./controllers/auth.controller.js";
-import { createAuthRouter } from "./routes/auth.routes.js";
+import { createAuthRouter } from "./routes/authentication.routes.js";
+
+import { PermissionPostgresRepository } from "./repositories/permissions/permission-postgres.repository.js";
 
 import { pool } from "./database/db.js";
+import { AuthorizationService } from "./services/authorization.service.js";
 
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
@@ -49,6 +52,11 @@ export const userRouter = createUserRouter(userController);
 
 const authRepository = new AuthPostgresRepository();
 const jwtService = new JwtService();
-const authService = new AuthService(authRepository, jwtService);
+const authService = new AuthenticationService(authRepository, jwtService);
 const authController = new AuthController(authService);
 export const authRouter = createAuthRouter(authController);
+
+const permissionRepository = new PermissionPostgresRepository();
+const authorizationService = new AuthorizationService(permissionRepository);
+
+export { authorizationService };

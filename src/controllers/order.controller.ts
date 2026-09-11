@@ -5,7 +5,7 @@ import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
 import type { CreateOrderData } from "../types/order.types.js";
 import { OrderService } from "../services/order.service.js";
 import { isValidOrderItems } from "../validators/order.validator.js";
-import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
 
 export class OrderController {
   constructor(private orderService: OrderService) {}

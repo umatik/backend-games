@@ -11,6 +11,15 @@ const login = async () => {
   return response.body.token;
 };
 
+const loginAsAdmin = async () => {
+  const response = await request(app).post("/login").send({
+    email: "bob@example.com",
+    password: "alamakota",
+  });
+
+  return response.body.token;
+};
+
 describe("Products API", () => {
   it("should get a product by id", async () => {
     const response = await request(app).get("/products/50");
@@ -179,7 +188,7 @@ describe("Products API", () => {
   });
 
   it("should return 404 when deleting a product variant that does not exist", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .delete("/products/50/variants/999999")
@@ -460,5 +469,16 @@ describe("Products API", () => {
     expect(
       variants.some((variant: { id: number }) => variant.id === variantId),
     ).toBe(false);
+  });
+
+  it("should return 403 when a regular user tries to delete a product", async () => {
+    const token = await login();
+
+    const response = await request(app)
+      .delete("/products/1")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Forbidden");
   });
 });

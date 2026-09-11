@@ -167,11 +167,11 @@ export class ProductService {
   async getAllProducts(): Promise<ProductDetails[]> {
     const products = await this.productRepository.findAll();
 
-    const client = await this.pool.connect();
+    return Promise.all(
+      products.map(async (product) => {
+        const client = await this.pool.connect();
 
-    try {
-      return await Promise.all(
-        products.map(async (product) => {
+        try {
           const variants = await this.productVariantRepository.findByProductId(
             client,
             product.id,
@@ -181,11 +181,11 @@ export class ProductService {
             ...product,
             variants,
           };
-        }),
-      );
-    } finally {
-      client.release();
-    }
+        } finally {
+          client.release();
+        }
+      }),
+    );
   }
 
   async deleteProductVariant(

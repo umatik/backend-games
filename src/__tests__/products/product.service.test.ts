@@ -19,11 +19,8 @@ describe("ProductService", () => {
   let mockPool: Database;
 
   beforeEach(() => {
-    // Czyścimy historię wywołań mocków przed każdym testem.
-    // Dzięki temu jeden test nie wpływa na kolejny.
     jest.clearAllMocks();
 
-    // Mockujemy ProductRepository.
     productRepository = {
       create: jest.fn(),
       findById: jest.fn(),
@@ -32,7 +29,6 @@ describe("ProductService", () => {
       delete: jest.fn(),
     };
 
-    // Mockujemy ProductVariantRepository.
     productVariantRepository = {
       create: jest.fn(),
       findById: jest.fn(),
@@ -41,15 +37,12 @@ describe("ProductService", () => {
       delete: jest.fn(),
     };
 
-    // Mockujemy połączenie z bazą.
-    // pool.connect() zwróci nasz sztuczny mockClient.
     mockPool = {
       connect: jest
         .fn<() => Promise<PoolClient>>()
         .mockResolvedValue(mockClient as unknown as PoolClient),
     };
 
-    // Wstrzykujemy mocki do prawdziwego ProductService.
     productService = new ProductService(
       productRepository,
       productVariantRepository,
@@ -57,19 +50,6 @@ describe("ProductService", () => {
     );
   });
 
-  // Testujemy poprawne utworzenie produktu razem z wariantem.
-  //
-  // Przygotowanie:
-  // - ProductRepository.create() zwraca utworzony produkt.
-  //
-  // Wykonanie:
-  // - wywołujemy createProduct().
-  //
-  // Sprawdzamy:
-  // - zwrócony produkt,
-  // - dane przekazane do ProductRepository,
-  // - dane przekazane do ProductVariantRepository,
-  // - rozpoczęcie transakcji.
   it("should create a product", async () => {
     const data = {
       name: "Test Product",
@@ -124,10 +104,6 @@ describe("ProductService", () => {
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
   });
 
-  // Sprawdzamy poprawne zakończenie transakcji po utworzeniu produktu.
-  //
-  // Oczekujemy kolejności:
-  // BEGIN -> COMMIT -> release()
   it("should commit transaction after creating product", async () => {
     const data = {
       name: "Test Product",
@@ -150,12 +126,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy rollback, kiedy tworzenie produktu zakończy się błędem.
-  //
-  // Symulujemy błąd ProductRepository.create().
-  //
-  // Oczekujemy:
-  // BEGIN -> błąd -> ROLLBACK -> release()
   it("should rollback transaction when product creation fails", async () => {
     const data = {
       name: "Test Product",
@@ -173,15 +143,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy rollback, kiedy produkt został utworzony,
-  // ale tworzenie wariantu zakończyło się błędem.
-  //
-  // Symulujemy:
-  // productRepository.create() -> sukces
-  // productVariantRepository.create() -> błąd
-  //
-  // Oczekujemy:
-  // BEGIN -> błąd -> ROLLBACK -> release()
   it("should rollback transaction when variant creation fails", async () => {
     const data = {
       name: "Test Product",
@@ -217,15 +178,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy aktualizację nazwy produktu.
-  //
-  // Service wywołuje:
-  // productRepository.update()
-  //
-  // Sprawdzamy:
-  // - zwrócony produkt,
-  // - ID,
-  // - przekazane dane.
   it("should update a product", async () => {
     const data = {
       name: "Updated Product",
@@ -258,15 +210,6 @@ describe("ProductService", () => {
     );
   });
 
-  // Sprawdzamy sytuację, kiedy aktualizacja produktu
-  // nie znajduje produktu.
-  //
-  // update() zwraca null.
-  //
-  // Service powinien:
-  // - wykonać ROLLBACK,
-  // - zwrócić null,
-  // - zwolnić połączenie.
   it("should return null when product does not exist", async () => {
     productRepository.update.mockResolvedValue(null);
 
@@ -281,14 +224,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy aktualizację istniejącego wariantu.
-  //
-  // Przygotowanie:
-  // - produkt istnieje,
-  // - wariant istnieje,
-  // - wariant należy do tego produktu.
-  //
-  // Następnie Service powinien wywołać update() wariantu.
   it("should update a product variant", async () => {
     const data = {
       variants: [
@@ -366,11 +301,6 @@ describe("ProductService", () => {
     );
   });
 
-  // Sprawdzamy dodanie nowego wariantu podczas update produktu.
-  //
-  // Brak id oznacza, że jest to nowy wariant.
-  //
-  // Service powinien więc użyć create(), a nie update().
   it("should create a new product variant during product update", async () => {
     const data = {
       variants: [
@@ -434,16 +364,6 @@ describe("ProductService", () => {
     );
   });
 
-  // Sprawdzamy błąd, kiedy wariant podany w update
-  // nie istnieje.
-  //
-  // findById() zwraca null.
-  //
-  // Oczekujemy:
-  // - ProductVariantNotFoundError,
-  // - brak update(),
-  // - ROLLBACK,
-  // - release().
   it("should rollback when product variant does not exist", async () => {
     const data = {
       variants: [
@@ -479,14 +399,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy zabezpieczenie przed aktualizacją wariantu,
-  // który istnieje, ale należy do INNEGO produktu.
-  //
-  // Produkt ma id 1.
-  // Wariant ma productId 2.
-  //
-  // Service powinien potraktować go tak samo,
-  // jak nieistniejący wariant.
   it("should rollback when product variant belongs to another product", async () => {
     const data = {
       variants: [
@@ -533,10 +445,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy aktualizację wariantu bez żadnych pól do zmiany.
-  //
-  // Service powinien przygotować pusty obiekt variantData
-  // i przekazać go do update().
   it("should update a product variant with empty update data", async () => {
     const data = {
       variants: [
@@ -605,12 +513,6 @@ describe("ProductService", () => {
     );
   });
 
-  // Sprawdzamy pobranie produktu razem z jego wariantami.
-  //
-  // ProductRepository.findById() znajduje produkt.
-  // ProductVariantRepository.findByProductId() znajduje warianty.
-  //
-  // Service powinien połączyć oba wyniki w jeden obiekt.
   it("should get a product with variants", async () => {
     productRepository.findById.mockResolvedValue({
       id: 1,
@@ -671,12 +573,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy sytuację, kiedy produkt nie istnieje.
-  //
-  // Service powinien:
-  // - zwrócić null,
-  // - NIE pobierać wariantów,
-  // - NIE otwierać połączenia z bazą.
   it("should return null when getting a product that does not exist", async () => {
     productRepository.findById.mockResolvedValue(null);
 
@@ -688,12 +584,6 @@ describe("ProductService", () => {
     expect(mockPool.connect).not.toHaveBeenCalled();
   });
 
-  // Sprawdzamy pobranie wielu produktów razem z wariantami.
-  //
-  // findAll() zwraca produkty.
-  // Następnie Service pobiera warianty każdego produktu.
-  //
-  // Na końcu otrzymujemy tablicę ProductDetails[].
   it("should get all products with their variants", async () => {
     productRepository.findAll.mockResolvedValue([
       {
@@ -768,12 +658,9 @@ describe("ProductService", () => {
       2,
     );
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(mockClient.release).toHaveBeenCalledTimes(2);
   });
 
-  // Sprawdzamy sytuację, kiedy baza nie zwraca żadnych produktów.
-  //
-  // Service powinien zwrócić pustą tablicę.
   it("should return an empty array when there are no products", async () => {
     productRepository.findAll.mockResolvedValue([]);
 
@@ -782,15 +669,8 @@ describe("ProductService", () => {
     expect(result).toEqual([]);
 
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy poprawne usunięcie wariantu.
-  //
-  // Najpierw sprawdzamy, czy wariant istnieje
-  // i należy do właściwego produktu.
-  //
-  // Następnie delete() -> COMMIT -> release().
   it("should delete a product variant", async () => {
     productVariantRepository.findById.mockResolvedValue({
       id: 1,
@@ -826,12 +706,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy sytuację, kiedy wariant nie istnieje.
-  //
-  // Service powinien:
-  // - zwrócić false,
-  // - wykonać ROLLBACK,
-  // - NIE wykonać delete().
   it("should return false when product variant does not exist", async () => {
     productVariantRepository.findById.mockResolvedValue(null);
 
@@ -846,12 +720,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy zabezpieczenie przed usunięciem wariantu
-  // należącego do innego produktu.
-  //
-  // Wariant istnieje, ale productId się nie zgadza.
-  //
-  // Service powinien zwrócić false i wykonać ROLLBACK.
   it("should return false when product variant belongs to another product", async () => {
     productVariantRepository.findById.mockResolvedValue({
       id: 1,
@@ -877,13 +745,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy sytuację, kiedy Repository nie usunął wariantu.
-  //
-  // delete() zwraca false.
-  //
-  // Service powinien:
-  // - zwrócić false,
-  // - zrobić ROLLBACK.
   it("should rollback when deleting product variant fails", async () => {
     productVariantRepository.findById.mockResolvedValue({
       id: 1,
@@ -909,14 +770,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy prawdziwy błąd podczas usuwania wariantu.
-  //
-  // delete() rzuca wyjątek.
-  //
-  // Service powinien:
-  // - przekazać błąd dalej,
-  // - wykonać ROLLBACK,
-  // - zwolnić połączenie.
   it("should rollback transaction when deleting product variant throws", async () => {
     productVariantRepository.findById.mockResolvedValue({
       id: 1,
@@ -942,11 +795,6 @@ describe("ProductService", () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  // Sprawdzamy, czy Service poprawnie przekazuje
-  // żądanie usunięcia produktu do Repository.
-  //
-  // deleteProduct() nie posiada własnej transakcji.
-  // Deleguje operację bezpośrednio do Repository.
   it("should delete a product", async () => {
     productRepository.delete.mockResolvedValue(true);
 
@@ -957,9 +805,6 @@ describe("ProductService", () => {
     expect(productRepository.delete).toHaveBeenCalledWith("1");
   });
 
-  // Sprawdzamy sytuację, kiedy Repository zwraca false.
-  //
-  // Service powinien po prostu zwrócić false.
   it("should return false when product deletion fails", async () => {
     productRepository.delete.mockResolvedValue(false);
 

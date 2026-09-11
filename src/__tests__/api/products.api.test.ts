@@ -161,7 +161,7 @@ describe("Products API", () => {
   });
 
   it("should return 404 when deleting a product that does not exist", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .delete("/products/999999")
@@ -393,7 +393,7 @@ describe("Products API", () => {
   });
 
   it("should soft delete a product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const productResponse = await request(app)
       .post("/products")

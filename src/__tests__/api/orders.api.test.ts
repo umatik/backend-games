@@ -89,7 +89,7 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: 1,
           },
         ],
@@ -106,7 +106,7 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: 1,
           },
         ],
@@ -123,7 +123,7 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: 1,
           },
         ],
@@ -173,7 +173,7 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: 0,
           },
         ],
@@ -191,7 +191,7 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: -1,
           },
         ],
@@ -209,11 +209,11 @@ describe("Orders API", () => {
       .send({
         items: [
           {
-            productVariantId: 1,
+            productVariantId: 296,
             quantity: 1,
           },
           {
-            productVariantId: 2,
+            productVariantId: 297,
             quantity: 2,
           },
         ],
@@ -226,7 +226,9 @@ describe("Orders API", () => {
   it("should decrease variant quantity after creating an order", async () => {
     const token = await login();
 
-    const productResponse = await request(app).get("/products/1");
+    const productResponse = await request(app).get("/products/100");
+
+    expect(productResponse.status).toBe(200);
 
     const variant = productResponse.body.product.variants[0];
 
@@ -247,7 +249,7 @@ describe("Orders API", () => {
 
     expect(orderResponse.status).toBe(201);
 
-    const updatedProductResponse = await request(app).get("/products/1");
+    const updatedProductResponse = await request(app).get("/products/100");
 
     const updatedVariant = updatedProductResponse.body.product.variants.find(
       (item: { id: number }) => item.id === variant.id,
@@ -259,7 +261,9 @@ describe("Orders API", () => {
   it("should return 409 when requested quantity exceeds stock", async () => {
     const token = await login();
 
-    const productResponse = await request(app).get("/products/1");
+    const productResponse = await request(app).get("/products/100");
+
+    expect(productResponse.status).toBe(200);
 
     const variant = productResponse.body.product.variants[0];
 

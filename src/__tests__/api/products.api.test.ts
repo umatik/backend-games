@@ -1,24 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-
-const login = async () => {
-  const response = await request(app).post("/login").send({
-    email: "alice@example.com",
-    password: "alamakota",
-  });
-
-  return response.body.token;
-};
-
-const loginAsAdmin = async () => {
-  const response = await request(app).post("/login").send({
-    email: "bob@example.com",
-    password: "alamakota",
-  });
-
-  return response.body.token;
-};
+import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
 
 describe("Products API", () => {
   it("should get a product by id", async () => {
@@ -47,7 +30,7 @@ describe("Products API", () => {
   });
 
   it("should create a product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .post("/products")
@@ -107,8 +90,30 @@ describe("Products API", () => {
     expect(response.body.message).toBe("Invalid or expired token");
   });
 
+  it("should return 403 when a regular user tries to create a product", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Forbidden Product",
+        variants: [
+          {
+            color: "Black",
+            size: "M",
+            price: 100,
+            quantity: 10,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Forbidden");
+  });
+
   it("should update a product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .patch("/products/50")
@@ -130,8 +135,22 @@ describe("Products API", () => {
     expect(response.body.message).toBe("Authorization header is required");
   });
 
+  it("should return 403 when a regular user tries to update a product", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .patch("/products/50")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Forbidden Update",
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Forbidden");
+  });
+
   it("should return 404 when updating a product that does not exist", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .patch("/products/999999")
@@ -198,8 +217,19 @@ describe("Products API", () => {
     expect(response.body.message).toBe("Product variant not found");
   });
 
+  it("should return 403 when a regular user tries to delete a product variant", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .delete("/products/50/variants/8")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Forbidden");
+  });
+
   it("should return 404 when deleting a variant from a different product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .delete("/products/50/variants/8")
@@ -210,7 +240,7 @@ describe("Products API", () => {
   });
 
   it("should return 400 when creating a product with an empty name", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .post("/products")
@@ -231,7 +261,7 @@ describe("Products API", () => {
   });
 
   it("should create a product without variants", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .post("/products")
@@ -246,7 +276,7 @@ describe("Products API", () => {
   });
 
   it("should return 400 when creating a product with invalid price", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .post("/products")
@@ -267,7 +297,7 @@ describe("Products API", () => {
   });
 
   it("should return 400 when creating a product with invalid quantity", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .post("/products")
@@ -288,7 +318,7 @@ describe("Products API", () => {
   });
 
   it("should update product variants", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const productResponse = await request(app)
       .post("/products")
@@ -334,7 +364,7 @@ describe("Products API", () => {
   });
 
   it("should add a new variant when updating a product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const productResponse = await request(app)
       .post("/products")
@@ -372,7 +402,7 @@ describe("Products API", () => {
   });
 
   it("should return 404 when updating a variant that belongs to another product", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const response = await request(app)
       .patch("/products/50")
@@ -425,7 +455,7 @@ describe("Products API", () => {
   });
 
   it("should soft delete a product variant", async () => {
-    const token = await login();
+    const token = await loginAsAdmin();
 
     const productResponse = await request(app)
       .post("/products")
@@ -472,7 +502,7 @@ describe("Products API", () => {
   });
 
   it("should return 403 when a regular user tries to delete a product", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .delete("/products/1")

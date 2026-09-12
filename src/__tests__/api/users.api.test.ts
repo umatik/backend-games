@@ -1,15 +1,7 @@
 import { describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-
-const login = async (email = "alice@example.com", password = "alamakota") => {
-  const response = await request(app).post("/login").send({
-    email,
-    password,
-  });
-
-  return response.body.token;
-};
+import { loginAsUser } from "../../__test-helpers__/auth.js";
 
 describe("Users API", () => {
   it("should register a new user", async () => {
@@ -159,7 +151,7 @@ describe("Users API", () => {
   });
 
   it("should get the authenticated user", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/users/1")
@@ -188,7 +180,7 @@ describe("Users API", () => {
   });
 
   it("should return 403 when getting another user's data", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/users/2")
@@ -199,7 +191,7 @@ describe("Users API", () => {
   });
 
   it("should return 403 when getting another user's data even if user does not exist", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/users/999999")
@@ -209,28 +201,10 @@ describe("Users API", () => {
   });
 
   it("should update the authenticated user", async () => {
-    const email = `api-update-${Date.now()}@example.com`;
-
-    const registerResponse = await request(app).post("/users/register").send({
-      email,
-      password: "alamakota",
-      firstName: "Before",
-      lastName: "Update",
-      phone: "123456789",
-      address: "Test Street 1",
-      city: "Warsaw",
-      postalCode: "00-001",
-      country: "Poland",
-    });
-
-    expect(registerResponse.status).toBe(201);
-
-    const userId = registerResponse.body.user.id;
-
-    const token = await login(email);
+    const token = await loginAsUser();
 
     const response = await request(app)
-      .patch(`/users/${userId}`)
+      .patch("/users/1")
       .set("Authorization", `Bearer ${token}`)
       .send({
         firstName: "After",
@@ -263,7 +237,7 @@ describe("Users API", () => {
   });
 
   it("should return 403 when updating another user's data", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .patch("/users/2")

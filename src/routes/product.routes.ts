@@ -9,11 +9,17 @@ export const createProductRouter = (productController: ProductController) => {
   router.get("/", productController.getProducts);
   router.get("/:id", productController.getProduct);
 
-  router.post("/", authenticationMiddleware, productController.createProduct);
+  router.post(
+    "/",
+    authenticationMiddleware,
+    requirePermission("products:create"),
+    productController.createProduct,
+  );
 
   router.patch(
     "/:id",
     authenticationMiddleware,
+    requirePermission("products:update"),
     productController.updateProduct,
   );
 
@@ -27,6 +33,7 @@ export const createProductRouter = (productController: ProductController) => {
   router.delete(
     "/:productId/variants/:variantId",
     authenticationMiddleware,
+    requirePermission("products:delete"),
     productController.deleteProductVariant,
   );
 

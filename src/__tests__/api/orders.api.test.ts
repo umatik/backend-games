@@ -1,19 +1,11 @@
 import { describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-
-const login = async () => {
-  const response = await request(app).post("/login").send({
-    email: "alice@example.com",
-    password: "alamakota",
-  });
-
-  return response.body.token;
-};
+import { loginAsUser } from "../../__test-helpers__/auth.js";
 
 describe("Orders API", () => {
   it("should get all orders", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/orders")
@@ -42,7 +34,7 @@ describe("Orders API", () => {
   });
 
   it("should get an order by id", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/orders/1")
@@ -70,7 +62,7 @@ describe("Orders API", () => {
   });
 
   it("should return 404 when order does not exist", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/orders/999999")
@@ -81,7 +73,7 @@ describe("Orders API", () => {
   });
 
   it("should create an order", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -134,7 +126,7 @@ describe("Orders API", () => {
   });
 
   it("should return 400 when creating an order without items", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -147,7 +139,7 @@ describe("Orders API", () => {
   });
 
   it("should return 404 when creating an order with a non-existing product variant", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -165,7 +157,7 @@ describe("Orders API", () => {
   });
 
   it("should return 400 when creating an order with invalid quantity", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -183,7 +175,7 @@ describe("Orders API", () => {
   });
 
   it("should return 400 when creating an order with negative quantity", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -201,7 +193,7 @@ describe("Orders API", () => {
   });
 
   it("should create an order with multiple items", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .post("/orders")
@@ -224,7 +216,7 @@ describe("Orders API", () => {
   });
 
   it("should decrease variant quantity after creating an order", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const productResponse = await request(app).get("/products/100");
 
@@ -259,7 +251,7 @@ describe("Orders API", () => {
   });
 
   it("should return 409 when requested quantity exceeds stock", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const productResponse = await request(app).get("/products/100");
 
@@ -283,7 +275,7 @@ describe("Orders API", () => {
   });
 
   it("should return 404 when getting an order belonging to another user", async () => {
-    const token = await login();
+    const token = await loginAsUser();
 
     const response = await request(app)
       .get("/orders/2")

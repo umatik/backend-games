@@ -6,7 +6,7 @@ export type AuthUser = {
   passwordHash: string;
 };
 
-export interface AuthInterface {
+export interface AuthenticationInterface {
   findUserByEmail(client: PoolClient, email: string): Promise<AuthUser | null>;
 
   logLogin(

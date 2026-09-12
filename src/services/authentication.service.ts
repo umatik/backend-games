@@ -1,11 +1,11 @@
 import bcrypt from "bcrypt";
-import type { AuthInterface } from "../repositories/auth/auth.interface.js";
+import type { AuthenticationInterface } from "../repositories/authentication/authentication.interface.js";
 import { pool } from "../database/db.js";
 import { JwtService } from "./jwt.service.js";
 
 export class AuthenticationService {
   constructor(
-    private authRepository: AuthInterface,
+    private authRepository: AuthenticationInterface,
     private jwtService: JwtService,
   ) {}
 

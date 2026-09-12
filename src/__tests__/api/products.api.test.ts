@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
 import request from "supertest";
-import app from "../../server.js";
+import app from "../../app.js";
 
 const login = async () => {
   const response = await request(app).post("/login").send({

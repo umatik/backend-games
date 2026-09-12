@@ -1,49 +1,7 @@
-import "dotenv/config";
-import express, { type ErrorRequestHandler } from "express";
+import app from "./app.js";
 
-import {
-  productRouter,
-  orderRouter,
-  userRouter,
-  authRouter,
-} from "./dependency-injection.js";
+const PORT = 3000;
 
-const app = express();
-
-app.use(express.json());
-
-// Middleware
-app.use((req, res, next) => {
-  next();
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
-
-app.get("/", (req, res) => {
-  res.json({
-    message: "E-commerce API is running",
-  });
-});
-
-app.use("/products", productRouter);
-app.use("/orders", orderRouter);
-app.use("/users", userRouter);
-app.use(authRouter);
-
-// 404
-app.use((req, res) => {
-  res.status(404).json({
-    message: "Route not found",
-  });
-});
-
-// 500
-const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  console.error(err);
-
-  res.status(500).json({
-    message: "Internal Server Error",
-  });
-};
-
-app.use(errorHandler);
-
-export default app;

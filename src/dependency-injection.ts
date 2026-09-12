@@ -16,10 +16,10 @@ import { UserService } from "./services/user.service.js";
 import { UserController } from "./controllers/user.controller.js";
 import { createUserRouter } from "./routes/user.routes.js";
 
-import { AuthPostgresRepository } from "./repositories/auth/auth-postgres.repository.js";
+import { AuthenticationPostgresRepository } from "./repositories/authentication/authentication-postgres.repository.js";
 import { JwtService } from "./services/jwt.service.js";
 import { AuthenticationService } from "./services/authentication.service.js";
-import { AuthController } from "./controllers/auth.controller.js";
+import { AuthenticationController } from "./controllers/authentication.controller.js";
 import { createAuthRouter } from "./routes/authentication.routes.js";
 
 import { PermissionPostgresRepository } from "./repositories/permissions/permission-postgres.repository.js";
@@ -50,10 +50,10 @@ const userService = new UserService(userRepository, userContactRepository);
 const userController = new UserController(userService);
 export const userRouter = createUserRouter(userController);
 
-const authRepository = new AuthPostgresRepository();
+const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
 const authService = new AuthenticationService(authRepository, jwtService);
-const authController = new AuthController(authService);
+const authController = new AuthenticationController(authService);
 export const authRouter = createAuthRouter(authController);
 
 const permissionRepository = new PermissionPostgresRepository();

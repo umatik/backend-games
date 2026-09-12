@@ -1,16 +1,21 @@
 import bcrypt from "bcrypt";
+import type { PoolClient } from "pg";
 import type { AuthenticationInterface } from "../repositories/authentication/authentication.interface.js";
-import { pool } from "../database/db.js";
 import { JwtService } from "./jwt.service.js";
+
+export type Database = {
+  connect(): Promise<PoolClient>;
+};
 
 export class AuthenticationService {
   constructor(
     private authRepository: AuthenticationInterface,
     private jwtService: JwtService,
+    private pool: Database,
   ) {}
 
   async login(email: string, password: string) {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       const user = await this.authRepository.findUserByEmail(client, email);

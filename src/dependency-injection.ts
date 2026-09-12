@@ -40,7 +40,7 @@ const productController = new ProductController(productService);
 export const productRouter = createProductRouter(productController);
 
 const orderRepository = new OrderPostgresRepository();
-const orderService = new OrderService(orderRepository);
+const orderService = new OrderService(orderRepository, pool);
 const orderController = new OrderController(orderService);
 export const orderRouter = createOrderRouter(orderController);
 
@@ -52,11 +52,14 @@ export const userRouter = createUserRouter(userController);
 
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
-const authService = new AuthenticationService(authRepository, jwtService);
+const authService = new AuthenticationService(authRepository, jwtService, pool);
 const authController = new AuthenticationController(authService);
 export const authRouter = createAuthRouter(authController);
 
 const permissionRepository = new PermissionPostgresRepository();
-const authorizationService = new AuthorizationService(permissionRepository);
+const authorizationService = new AuthorizationService(
+  permissionRepository,
+  pool,
+);
 
 export { authorizationService };

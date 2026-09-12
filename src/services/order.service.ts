@@ -1,4 +1,3 @@
-import { pool } from "../database/db.js";
 import { UserNotFoundError } from "../errors/user-not-found.error.js";
 import type {
   CreateOrderData,
@@ -6,12 +5,20 @@ import type {
   OrderDetails,
 } from "../types/order.types.js";
 import type { OrderInterface } from "../repositories/order/order.interface.js";
+import type { PoolClient } from "pg";
+
+export type Database = {
+  connect(): Promise<PoolClient>;
+};
 
 export class OrderService {
-  constructor(private orderRepository: OrderInterface) {}
+  constructor(
+    private orderRepository: OrderInterface,
+    private pool: Database,
+  ) {}
 
   async createOrder(data: CreateOrderData): Promise<Order> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
@@ -41,7 +48,7 @@ export class OrderService {
   }
 
   async getOrdersByUserId(userId: string): Promise<OrderDetails[]> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       return await this.orderRepository.findByUserId(client, userId);
@@ -54,7 +61,7 @@ export class OrderService {
     orderId: string,
     userId: string,
   ): Promise<OrderDetails | null> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       return await this.orderRepository.findById(client, orderId, userId);

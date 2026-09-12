@@ -1,9 +1,52 @@
 -- ============================================================
+-- ROLES
+-- ============================================================
+
+INSERT INTO roles (name)
+VALUES ('user'),
+       ('admin');
+
+-- ============================================================
+-- PERMISSIONS
+-- ============================================================
+
+INSERT INTO permissions (name)
+VALUES ('products:read'),
+       ('products:create'),
+       ('products:update'),
+       ('products:delete'),
+       ('orders:read'),
+       ('orders:create'),
+       ('orders:update'),
+       ('users:read'),
+       ('users:update');
+
+-- Regular users get basic permissions.
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+         CROSS JOIN permissions p
+WHERE r.name = 'user'
+  AND p.name IN (
+                 'products:read',
+                 'orders:read',
+                 'orders:create',
+                 'users:read',
+                 'users:update'
+    );
+
+-- Admin gets every permission.
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+         CROSS JOIN permissions p
+WHERE r.name = 'admin';
+
+-- ============================================================
 -- USERS
 -- ============================================================
 
-INSERT INTO users (email,
-                   password_hash)
+INSERT INTO users (email, password_hash)
 VALUES ('alice@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
        ('bob@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
        ('charlie@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
@@ -15,19 +58,25 @@ VALUES ('alice@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz
        ('irene@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
        ('jack@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6');
 
+-- All seeded users are regular users.
+INSERT INTO user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM users u
+         CROSS JOIN roles r
+WHERE r.name = 'user';
+
+-- Make Bob an admin as well.
+INSERT INTO user_roles (user_id, role_id)
+SELECT 2, r.id
+FROM roles r
+WHERE r.name = 'admin';
 
 -- ============================================================
 -- USER CONTACT DETAILS
 -- ============================================================
 
-INSERT INTO user_contact_details (user_id,
-                                  first_name,
-                                  last_name,
-                                  phone,
-                                  address,
-                                  city,
-                                  postal_code,
-                                  country)
+INSERT INTO user_contact_details
+(user_id, first_name, last_name, phone, address, city, postal_code, country)
 VALUES (1, 'Alice', 'Smith', '500000001', 'Main Street 1', 'Warsaw', '00-001', 'Poland'),
        (2, 'Bob', 'Johnson', '500000002', 'Main Street 2', 'Krakow', '30-001', 'Poland'),
        (3, 'Charlie', 'Brown', '500000003', 'Main Street 3', 'Gdansk', '80-001', 'Poland'),
@@ -39,27 +88,22 @@ VALUES (1, 'Alice', 'Smith', '500000001', 'Main Street 1', 'Warsaw', '00-001', '
        (9, 'Irene', 'Anderson', '500000009', 'Main Street 9', 'Katowice', '40-001', 'Poland'),
        (10, 'Jack', 'Thomas', '500000010', 'Main Street 10', 'Opole', '45-001', 'Poland');
 
-
 -- ============================================================
 -- PRODUCTS
--- 100 products
 -- ============================================================
 
 INSERT INTO products (name)
 SELECT 'Product ' || gs
 FROM generate_series(1, 100) AS gs;
 
-
 -- ============================================================
 -- PRODUCT VARIANTS
+-- Deterministic stock and prices.
 -- Each product gets 1–5 variants.
 -- ============================================================
 
-INSERT INTO product_variants (product_id,
-                              color,
-                              size,
-                              price,
-                              quantity)
+INSERT INTO product_variants
+    (product_id, color, size, price, quantity)
 SELECT p.id,
        CASE ((v.variant_number - 1) % 5)
            WHEN 0 THEN 'Black'
@@ -75,19 +119,17 @@ SELECT p.id,
            WHEN 3 THEN 'XL'
            WHEN 4 THEN 'XXL'
            END,
-       ROUND((50 + random() * 1950)::numeric, 2),
-       20 + floor(random() * 81)::integer
+       (50 + (p.id * 10) + v.variant_number)::numeric(10, 2),
+       100
 FROM products p
          CROSS JOIN LATERAL generate_series(
         1,
         1 + ((p.id - 1) % 5)
                             ) AS v(variant_number);
 
-
 -- ============================================================
 -- ORDERS
 -- Users 1–7 get one order each.
--- Each order contains 1–5 items.
 -- Users 8–10 have no orders.
 -- ============================================================
 
@@ -102,36 +144,25 @@ $$
     BEGIN
         FOR current_user_id IN 1..7
             LOOP
-
                 item_count := 1 + ((current_user_id - 1) % 5);
 
-                INSERT INTO orders (user_id,
-                                    status)
-                VALUES (current_user_id,
-                        'pending')
+                INSERT INTO orders (user_id, status)
+                VALUES (current_user_id, 'pending')
                 RETURNING id INTO current_order_id;
 
                 FOR i IN 1..item_count
                     LOOP
-
                         SELECT pv.id
                         INTO variant_id
                         FROM product_variants pv
-                        WHERE pv.id = (SELECT MIN(id)
-                                       FROM product_variants) + ((current_user_id - 1) * 7 + i - 1)
-                        ORDER BY pv.id
+                        WHERE pv.id = ((current_user_id - 1) * 7 + i)
                         LIMIT 1;
 
                         item_quantity := 1 + ((i - 1) % 3);
 
-                        INSERT INTO order_items (order_id,
-                                                 product_variant_id,
-                                                 quantity,
-                                                 price)
-                        SELECT current_order_id,
-                               pv.id,
-                               item_quantity,
-                               pv.price
+                        INSERT INTO order_items
+                            (order_id, product_variant_id, quantity, price)
+                        SELECT current_order_id, pv.id, item_quantity, pv.price
                         FROM product_variants pv
                         WHERE pv.id = variant_id;
 
@@ -139,9 +170,7 @@ $$
                         SET quantity = quantity - item_quantity
                         WHERE id = variant_id
                           AND quantity >= item_quantity;
-
                     END LOOP;
-
             END LOOP;
     END
 $$;

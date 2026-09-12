@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest",
     "dev": "tsx src/server.ts",
-    "migrate": "tsx src/database/migrate.ts"
+    "migrate": "tsx src/database/migrate.ts",
+    "migrate:test": "NODE_ENV=test tsx src/database/migrate.ts"
   },
   "keywords": [],
   "author": "mac.umatik",

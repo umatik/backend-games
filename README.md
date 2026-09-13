@@ -34,17 +34,19 @@ Główny nacisk:
 >
 > Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
 > pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
-
-> **Historia i ewolucja projektu**
 >
-> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania
-> nauki.
-> Kurs był realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
-> testowaniem, poprawkami, refaktoryzacją i podejmowaniem decyzji technicznych.
+> Jednocześnie repozytorium nie jest próbą udawania doświadczenia seniorskiego ani zastąpieniem doświadczenia
+> zawodowego.
+> Jest przede wszystkim praktycznym dowodem mojego zrozumienia zagadnień backendowych oraz umiejętności zastosowania ich
+> w rzeczywistym projekcie.
 >
-> Historia commitów odpowiada kolejnym etapom opisanym w README. Poszczególne commity mogą jednak przedstawiać zupełnie
-> różne podejścia, eksperymenty lub zmiany implementacyjne. Ostateczna logika i architektura projektu są zgodne z
-> aktualnym opisem kursu w README.
+> Mam około 15 lat doświadczenia zawodowego w IT. Nie określam go jako doświadczenia seniorskiego w obszarze backendu —
+> jest to przede wszystkim praktyczne doświadczenie na poziomie regular, które stanowi punkt wyjścia do świadomego
+> rozwijania kompetencji backendowych.
+>
+> Ten projekt ma pokazać nie tylko znajomość technologii, ale przede wszystkim sposób myślenia o backendzie:
+> odpowiedzialności warstw, przepływie danych, bezpieczeństwie, transakcjach, testowaniu, jakości kodu oraz decyzjach
+> architektonicznych.
 
 ## Stack technologiczny
 

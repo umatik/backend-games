@@ -1,10 +1,16 @@
-# Node.js Backend Course — E-commerce API
+# Node.js Backend Course — E-commerce API — Część 1
 
 ## Cel kursu
 
-Celem kursu jest zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od praktyki.
+Celem kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od
+praktyki.
 
-Projekt rozwijany jest etapami, a każde nowe zagadnienie jest dokładane do istniejącej aplikacji.
+Projekt był rozwijany etapami na bazie jednego rzeczywistego API. Kurs był prowadzony interaktywnie przez ChatGPT:
+kolejne zagadnienia były dobierane do aktualnego poziomu projektu, implementowane praktycznie, testowane, a następnie
+wspólnie weryfikowane i refaktoryzowane.
+
+Nie chodziło o stworzenie sztucznego projektu „pod kurs”, lecz o przejście przez rzeczywisty cykl developerski:
+projektowanie → implementacja → testowanie → poprawki → refaktoryzacja → decyzje architektoniczne → code review.
 
 Główny nacisk:
 
@@ -16,12 +22,24 @@ Główny nacisk:
 - transakcje i spójność danych
 - testy
 - bezpieczeństwo
+- dokumentacja API
 - przygotowanie aplikacji do produkcji
+- myślenie o skalowalności bez niepotrzebnego overengineeringu
 
-> **Historia i ewolucja kursu**
+> **Rola ChatGPT w kursie**
 >
-> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania nauki.
-> Kurs jest realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
+> Kurs był prowadzony w formie praktycznej współpracy z ChatGPT. ChatGPT pełnił rolę prowadzącego / mentora
+> technicznego: zadawał kolejne zadania, wyjaśniał zagadnienia, analizował decyzje architektoniczne, pomagał diagnozować
+> problemy, przygotowywał testy i prowadził przez refaktoryzacje.
+>
+> Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
+> pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
+
+> **Historia i ewolucja projektu**
+>
+> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania
+> nauki.
+> Kurs był realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
 > testowaniem, poprawkami, refaktoryzacją i podejmowaniem decyzji technicznych.
 >
 > Historia commitów odpowiada kolejnym etapom opisanym w README. Poszczególne commity mogą jednak przedstawiać zupełnie
@@ -30,22 +48,67 @@ Główny nacisk:
 
 ## Stack technologiczny
 
+### Runtime / język
+
 - Node.js
 - TypeScript
+- ES Modules
+- tsx
+
+### HTTP / API
+
 - Express
+- REST API
 - Helmet
+- cors
+- express-rate-limit
+
+### Baza danych
+
 - PostgreSQL
 - Docker
 - pg
+- Pool / PoolClient
+- SQL
+- database migrations
+
+### Authentication / Authorization
+
 - JWT
 - bcrypt
+- RBAC
+- permissions
+- Bearer Authentication
+
+### Validation / Security
+
+- request validation
+- Helmet
+- CORS
+- rate limiting
+- JWT hardening
+- parameterized SQL queries
+- request body limits
+- npm audit
+
+### Testing
+
 - Jest
 - Supertest
 - ts-jest
+- osobna baza PostgreSQL `ecommerce_test`
+
+### API Documentation
+
+- OpenAPI 3.0
+- swagger-jsdoc
+- Swagger UI
+
+### Tooling
+
 - dotenv
-- cors
-- express-rate-limit
 - Git
+- npm
 
 ---
 
@@ -53,6 +116,8 @@ Główny nacisk:
 
 ```text
 HTTP Request
+     ↓
+Middleware
      ↓
 Controller
      ↓
@@ -68,6 +133,21 @@ Za składanie zależności odpowiada Composition Root:
 ```text
 src/dependency-injection.ts
 ```
+
+Aktualna architektura wykorzystuje Dependency Injection do składania:
+
+```text
+Repository
+   ↓
+Service
+   ↓
+Controller
+   ↓
+Router
+```
+
+Jednym z celów końcowego code review jest ocena, czy obecna forma Composition Root i DI jest optymalna dla małego
+e-commerce, który może ewoluować w większy system.
 
 ---
 
@@ -387,6 +467,9 @@ Pozwala to m.in. na:
 - wymianę implementacji
 - kontrolowanie architektury
 
+Końcowy refactor / code review obejmuje również ocenę granic Composition Root oraz sposobu udostępniania zależności
+pomiędzy middleware, routerami i pozostałymi warstwami.
+
 ## 14. Unit tests
 
 Testujemy m.in.:
@@ -496,7 +579,7 @@ Zaimplementowane:
 - centralna obsługa błędów Express
 - własna klasa AppError
 - własne klasy błędów aplikacyjnych
-- next(error)
+- next (error)
 - rozdzielenie błędów biznesowych od technicznych
 - poprawne status codes
 - usunięcie powtarzającego się error handlingu
@@ -648,7 +731,7 @@ JSON request body posiada ograniczenie:
 Konfiguracja:
 
 ```ts
-express.json({ limit: "1mb" })
+express.json({limit: "1mb"})
 ```
 
 Przekroczenie limitu zwraca:
@@ -681,44 +764,149 @@ found 0 vulnerabilities
 
 ---
 
-# Następne zagadnienia
+## 19. Logging — bonus
 
-## 19. Logging
+Podstawowe logowanie requestów istnieje w aplikacji.
 
-- logging requestów
+Obecny logger zapisuje m.in.:
+
+```text
+GET /products 200 12ms
+```
+
+Rozbudowane logging zostało świadomie potraktowane jako **bonus**, a nie wymagany element podstawowej architektury.
+
+Potencjalne rozszerzenia na przyszłość:
+
 - logging błędów
 - poziomy logowania
 - strukturalne logi
 - correlation/request ID
-- co logować
-- czego nie logować
+- centralne logowanie
+- zasady dotyczące danych, których nie należy logować
+
+Nie ma potrzeby wprowadzać rozbudowanego systemu logowania dla obecnej skali projektu, chyba że code review wykaże
+konkretną potrzebę.
+
+---
 
 ## 20. API Documentation
 
-- OpenAPI
-- Swagger
-- dokumentowanie endpointów
-- request schemas
-- response schemas
-- authentication
-- error responses
+API zostało udokumentowane przy użyciu:
 
-## 21. Final refactor / Code review
+```text
+OpenAPI 3.0
++
+swagger-jsdoc
++
+Swagger UI
+```
 
-Przegląd całego projektu:
+Swagger UI dostępny jest pod:
+
+```text
+/api-docs
+```
+
+Dokumentacja obejmuje:
+
+- endpointy Users
+- endpointy Products
+- endpointy Orders
+- Authentication
+- parametry path
+- request bodies
+- response codes
+- wymagania dotyczące autoryzacji
+- tagowanie endpointów
+
+Endpointy są grupowane w Swagger UI według obszarów:
+
+```text
+Users
+Products
+Orders
+Authentication
+```
+
+---
+
+# 21. Final refactor / Code review
+
+Ten etap nie jest kolejną funkcjonalnością API.
+
+Jest to pełny przegląd projektu pod kątem jakości obecnej architektury oraz jej zdolności do dalszej ewolucji.
+
+Główne kryterium:
+
+> Czy jest to dobrze zaprojektowany mały e-commerce, który może rosnąć bez konieczności przepisywania podstaw
+> architektury?
+
+Code review powinien ocenić m.in.:
 
 - Architecture
 - Code quality
-- Naming
-- Dependencies
+- Separation of responsibilities
+- Dependency Injection
+- Composition Root
+- Controllers
+- Services
+- Repositories
+- Middleware
 - Database
 - Transactions
 - Error handling
 - Tests
 - Security
+- API
 - Performance
+- Scalability
+- Maintainability
+- Production readiness
 
-## 22. Production preparation
+### Technical debt
+
+Technical debt musi być analizowany osobno.
+
+W review należy rozróżniać:
+
+```text
+OK
+↓
+zostawić
+
+Do poprawy teraz
+↓
+realna wartość / ryzyko
+
+Technical debt
+↓
+obecnie działa, ale może wymagać zmiany przy rozwoju
+
+Realny problem / ryzyko
+↓
+wymaga działania
+```
+
+Nie każda niedoskonałość wymaga natychmiastowego refaktoru.
+
+Celem jest znalezienie rozsądnego balansu pomiędzy:
+
+```text
+prostota
+     +
+maintainability
+     +
+skalowalność
+     +
+brak overengineeringu
+```
+
+---
+
+# 22. Production preparation
+
+Planowane przygotowanie aplikacji do środowiska produkcyjnego:
 
 - environment variables
 - Docker
@@ -773,40 +961,41 @@ Przegląd całego projektu:
                     └──────────────┘
 ```
 
+Architektura celowo pozostaje stosunkowo prosta dla małego e-commerce.
+
+Jednocześnie granice między warstwami mają umożliwiać późniejszą ewolucję systemu bez konieczności natychmiastowego
+przechodzenia na mikroserwisy lub inne rozwiązania infrastrukturalne.
+
 ---
 
-# Stan kursu
+# Stan projektu
 
-**Zrealizowane:** 1–18
+### Zrealizowane
 
-**Aktualny etap:** 18. API Security — zakończony
+```text
+1.  Node.js + TypeScript
+2.  Express
+3.  PostgreSQL
+4.  Database migrations
+5.  Users
+6.  Authentication
+7.  Authorization
+8.  Products
+9.  Soft delete
+10. Orders
+11. Inventory / Stock
+12. Transactions
+13. Dependency Injection
+14. Unit tests
+15. API tests
+16. Edge cases
+17. Error handling / Error cleanup
+18. API Security
+19. Logging — bonus
+20. API Documentation
+```
 
-Projekt posiada obecnie:
-
-- warstwową architekturę
-- PostgreSQL
-- migracje
-- JWT
-- bcrypt
-- RBAC
-- permissions
-- transakcje
-- soft delete
-- kontrolę stocku
-- ownership
-- centralne error handling
-- cleanup transakcji
-- unit tests
-- API tests
-- izolowaną bazę testową
-- Helmet
-- CORS
-- rate limiting
-- request size limits
-- JWT hardening
-- security audit
-
-Aktualny stan testów:
+### Aktualny stan testów
 
 ```text
 Test Suites: 8 passed
@@ -814,20 +1003,64 @@ Tests:       112 passed
 Snapshots:   0 total
 ```
 
-Aktualny stan zależności:
+### Aktualny stan zależności
 
 ```text
 npm audit
 found 0 vulnerabilities
 ```
 
-Do zakończenia kursu pozostały:
+### Pozostało
 
 ```text
-19. Logging
-20. API Documentation
 21. Final refactor / Code review
 22. Production preparation
 ```
 
-Docelowo projekt ma być kompletnym przykładem backendu e-commerce przygotowanego z myślą o środowisku produkcyjnym.
+---
+
+# Cel architektoniczny projektu
+
+Projekt jest przeznaczony dla **małych, niskokomercyjnych sklepów e-commerce**.
+
+Nie jest celem budowanie systemu o złożoności platform pokroju Amazon.
+
+Celem jest natomiast stworzenie architektury, która:
+
+- jest prosta do utrzymania,
+- ma jasno określone odpowiedzialności,
+- jest testowalna,
+- ogranicza sprzężenie,
+- pozwala rozwijać kolejne moduły,
+- pozwala wymieniać implementacje,
+- może obsłużyć wzrost projektu,
+- nie wymaga przedwczesnego overengineeringu,
+- może ewoluować wraz ze wzrostem biznesu.
+
+Najważniejsza zasada projektu:
+
+> **Budujemy prosty system dla małego e-commerce, ale nie budujemy go w sposób, który zamyka drogę do dalszego
+rozwoju.**
+
+## Bonus — Production & Scalability
+
+Tematy świadomie pozostawione poza główną częścią kursu. Nie są konieczne dla małego, niskokomercyjnego sklepu na start,
+ale są ważne w realnych systemach i przy dalszym skalowaniu API.
+
+- **Production-grade logging** — structured logging, log levels, request/correlation ID, bezpieczne logowanie błędów
+- **Caching** — Redis, cache-aside, TTL, invalidation, cache'owanie danych typu `GET /products` i problemy ze stale data
+- **Observability** — health/readiness checks, metrics, monitoring, tracing, alerting
+- **Background jobs** — kolejki, BullMQ/Redis, zadania asynchroniczne, retry i failed jobs
+- **Graceful shutdown** — poprawne zamykanie HTTP server, PostgreSQL pool, Redis i obsługa `SIGTERM` / `SIGINT`
+- **Production configuration** — rozdzielenie `dev/test/prod`, secrets management i bezpieczna konfiguracja środowiska
+- **Database scaling** — indeksy, analiza zapytań, `EXPLAIN ANALYZE`, tuning connection pool, a później read replicas
+- **API scalability** — pagination, filtering, sorting, limity, idempotency i API versioning
+- **Deployment & infrastructure** — CI/CD, production Docker, reverse proxy, HTTPS/TLS, backup/restore i
+  minimal/no-downtime deployment
+
+### Part II
+
+Druga część kursu będzie rozwijać istniejący backend w kierunku bardziej produkcyjnego i skalowalnego systemu — bez
+dokładania infrastruktury tylko po to, żeby ją mieć.
+
+**I will back :P**

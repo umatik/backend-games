@@ -1,8 +1,9 @@
-# Node.js Backend Course — E-commerce API — Część 1
+# Node.js Backend Trainer — E-commerce API
 
-## Cel kursu
+## Cel treningu
 
-Celem kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od
+Celem treningu / kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w
+oderwaniu od
 praktyki.
 
 Projekt był rozwijany etapami na bazie jednego rzeczywistego API. Kurs był prowadzony interaktywnie przez ChatGPT:
@@ -26,27 +27,39 @@ Główny nacisk:
 - przygotowanie aplikacji do produkcji
 - myślenie o skalowalności bez niepotrzebnego overengineeringu
 
-> **Rola ChatGPT w kursie**
+> **Rola ChatGPT w projekcie**
 >
-> Kurs był prowadzony w formie praktycznej współpracy z ChatGPT. ChatGPT pełnił rolę prowadzącego / mentora
-> technicznego: zadawał kolejne zadania, wyjaśniał zagadnienia, analizował decyzje architektoniczne, pomagał diagnozować
-> problemy, przygotowywał testy i prowadził przez refaktoryzacje.
+> Projekt nie był kursem backendu od podstaw. Był praktycznym treningiem ukierunkowanym na odświeżenie,
+> uporządkowanie i pogłębienie mojej wcześniejszej wiedzy backendowej oraz przełożenie jej na współczesny
+> ekosystem Node.js / TypeScript.
 >
-> Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
-> pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
+> ChatGPT pełnił rolę prowadzącego / trenera technicznego i realizował wcześniej ustalony program obejmujący
+> Node.js, TypeScript, Express, PostgreSQL, REST API, authentication, authorization, transactions, testing,
+> security, architecture oraz scalability.
 >
-> Jednocześnie repozytorium nie jest próbą udawania doświadczenia seniorskiego ani zastąpieniem doświadczenia
-> zawodowego.
-> Jest przede wszystkim praktycznym dowodem mojego zrozumienia zagadnień backendowych oraz umiejętności zastosowania ich
-> w rzeczywistym projekcie.
+> Kolejne zagadnienia były realizowane poprzez praktyczne zadania i rozwój jednego rzeczywistego projektu e-commerce.
+> ChatGPT pomagał analizować problemy implementacyjne, wyjaśniał nowe lub wymagające odświeżenia zagadnienia,
+> przygotowywać testy, refaktoryzować kod oraz przeprowadzać code review.
 >
-> Mam około 15 lat doświadczenia zawodowego w IT. Nie określam go jako doświadczenia seniorskiego w obszarze backendu —
-> jest to przede wszystkim praktyczne doświadczenie na poziomie regular, które stanowi punkt wyjścia do świadomego
-> rozwijania kompetencji backendowych.
+> Moje wcześniejsze doświadczenie backendowe było w dużej mierze związane z PHP, dlatego podstawowe koncepcje
+> programowania obiektowego, warstwowej architektury, komunikacji z bazą danych czy tworzenia API nie były dla mnie
+> nowe. Po ponad 5 latach pracy głównie jako frontend developer, Node.js jako środowisko backendowe stanowiło
+> natomiast nowe doświadczenie praktyczne.
 >
-> Ten projekt ma pokazać nie tylko znajomość technologii, ale przede wszystkim sposób myślenia o backendzie:
-> odpowiedzialności warstw, przepływie danych, bezpieczeństwie, transakcjach, testowaniu, jakości kodu oraz decyzjach
-> architektonicznych.
+> Mam około 15 lat doświadczenia zawodowego w IT, przy czym nie określam go jako doświadczenia seniorskiego
+> w obszarze backendu. Ten trening miał przede wszystkim uporządkować i pogłębić moje wcześniejsze doświadczenie
+> oraz przełożyć je na współczesny ekosystem Node.js / TypeScript.
+>
+
+> **Historia projektu**
+>
+> Historia commitów przedstawia ciągły rozwój projektu — od kolejnych funkcjonalności, przez zmiany architektoniczne,
+> po poprawki i refaktoryzacje. Nie jest to seria sztucznie wydzielonych etapów, lecz zapis rzeczywistego procesu
+> developerskiego.
+>
+> W historii commitów znajdują się również zmiany architektoniczne i implementacyjne wynikające z moich własnych
+> propozycji i decyzji podejmowanych w trakcie pracy. Repozytorium pokazuje więc nie tylko realizację programu,
+> ale również analizę problemów, podejmowanie decyzji i ewolucję architektury.
 
 ## Stack technologiczny
 

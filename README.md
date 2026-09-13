@@ -2,8 +2,7 @@
 
 ## Cel kursu
 
-Celem kursu jest zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od
-praktyki.
+Celem kursu jest zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od praktyki.
 
 Projekt rozwijany jest etapami, a każde nowe zagadnienie jest dokładane do istniejącej aplikacji.
 
@@ -21,8 +20,7 @@ Główny nacisk:
 
 > **Historia i ewolucja kursu**
 >
-> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania
-> nauki.
+> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania nauki.
 > Kurs jest realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
 > testowaniem, poprawkami, refaktoryzacją i podejmowaniem decyzji technicznych.
 >
@@ -45,6 +43,8 @@ Główny nacisk:
 - Supertest
 - ts-jest
 - dotenv
+- cors
+- express-rate-limit
 - Git
 
 ---
@@ -424,12 +424,48 @@ Testujemy:
 - brak uprawnień
 - stock
 - ownership
+- izolację testowej bazy danych
+
+Testy wykorzystują osobną bazę PostgreSQL:
+
+```text
+ecommerce_test
+```
+
+Konfiguracja środowiska testowego znajduje się w:
+
+```text
+.env.test
+```
+
+Baza testowa jest całkowicie oddzielona od bazy developerskiej:
+
+```text
+Development
+    ↓
+ecommerce
+
+Tests
+    ↓
+ecommerce_test
+```
+
+Przed uruchomieniem testów baza testowa jest resetowana i wypełniana deterministycznymi danymi.
+
+Dzięki temu:
+
+- testy nigdy nie modyfikują bazy developerskiej
+- każdy test run korzysta ze znanego stanu danych
+- dane testowe są deterministyczne
+- API tests mogą korzystać z prawdziwego PostgreSQL
+- testy nie pozostawiają danych w bazie developerskiej
 
 Aktualny stan:
 
 ```text
-Test Suites: 5 passed
-Tests:       88 passed
+Test Suites: 8 passed
+Tests:       112 passed
+Snapshots:   0 total
 ```
 
 ## 16. Testowanie przypadków brzegowych
@@ -451,15 +487,16 @@ dostęp do cudzego orderu
 
 ---
 
-# Następne zagadnienia
-
 ## 17. Error handling / Error cleanup
 
-Następny etap kursu:
+Zaimplementowano centralną obsługę błędów Express.
+
+Zaimplementowane:
 
 - centralna obsługa błędów Express
-- własne klasy błędów
-- next (error)
+- własna klasa AppError
+- własne klasy błędów aplikacyjnych
+- next(error)
 - rozdzielenie błędów biznesowych od technicznych
 - poprawne status codes
 - usunięcie powtarzającego się error handlingu
@@ -469,19 +506,182 @@ Następny etap kursu:
 - poprawne ROLLBACK
 - poprawne zwalnianie PoolClient
 
+Błędy aplikacyjne wykorzystują odpowiednie statusy HTTP, m.in.:
+
+```text
+404 Not Found
+409 Conflict
+```
+
+Nieoczekiwane błędy są zwracane klientowi jako:
+
+```text
+500 Internal Server Error
+```
+
+bez ujawniania szczegółów implementacji.
+
+---
+
 ## 18. API Security
 
-- security headers
-- CORS
-- rate limiting
-- JWT security
-- password security
-- input validation
-- SQL injection
-- mass assignment
-- sensitive data
-- odpowiednie status codes
-- security hardening
+Zaimplementowane zostało podstawowe security hardening API.
+
+### Security headers
+
+Wykorzystujemy:
+
+```text
+Helmet
+```
+
+Helmet dodaje podstawowe security headers do odpowiedzi HTTP.
+
+### CORS
+
+API posiada konfigurację CORS:
+
+```text
+cors
+```
+
+Aktualnie API pozwala na żądania cross-origin.
+
+### Rate limiting
+
+Endpoint logowania posiada ograniczenie liczby prób:
+
+```text
+POST /login
+```
+
+Konfiguracja:
+
+```text
+10 requests
+/
+15 minutes
+```
+
+Po przekroczeniu limitu API zwraca:
+
+```text
+429 Too Many Requests
+```
+
+### JWT security
+
+JWT został dodatkowo zabezpieczony poprzez:
+
+- jawne określenie algorytmu HS256
+- wymagany JWT_SECRET
+- issuer
+- audience
+- expiration time
+
+Token:
+
+```text
+expiresIn: 1h
+```
+
+### Password security
+
+Hasła użytkowników są hashowane przy użyciu:
+
+```text
+bcrypt
+```
+
+Przy rejestracji używany jest odpowiedni koszt hashowania.
+
+### Input validation
+
+Endpointy posiadają walidację danych wejściowych.
+
+Walidowane są m.in.:
+
+- wymagane pola
+- typy danych
+- wartości liczbowe
+- quantity
+- dane produktów
+- dane zamówień
+- dane użytkowników
+
+### SQL Injection
+
+Zapytania PostgreSQL wykorzystują parametryzowane wartości:
+
+```text
+$1
+$2
+$3
+```
+
+Dzięki temu dane użytkownika nie są bezpośrednio składane w SQL.
+
+### Mass assignment
+
+Dane przyjmowane przez API są jawnie mapowane na pola obsługiwane przez aplikację.
+
+Nie przekazujemy bezpośrednio całego req.body do warstwy bazy danych.
+
+### Sensitive data
+
+API nie zwraca w odpowiedziach:
+
+```text
+password_hash
+```
+
+Wrażliwe dane nie są również umieszczane w komunikatach błędów.
+
+### Request size limits
+
+JSON request body posiada ograniczenie:
+
+```text
+1 MB
+```
+
+Konfiguracja:
+
+```ts
+express.json({ limit: "1mb" })
+```
+
+Przekroczenie limitu zwraca:
+
+```text
+413 Payload Too Large
+```
+
+z bezpiecznym komunikatem:
+
+```json
+{
+  "message": "Request body too large"
+}
+```
+
+### Dependency security audit
+
+Zależności projektu zostały sprawdzone:
+
+```bash
+npm audit
+```
+
+Aktualny wynik:
+
+```text
+found 0 vulnerabilities
+```
+
+---
+
+# Następne zagadnienia
 
 ## 19. Logging
 
@@ -551,6 +751,7 @@ Przegląd całego projektu:
                     │ Auth         │
                     │ Permissions  │
                     │ Validation   │
+                    │ Security     │
                     └──────┬───────┘
                            │
                     ┌──────▼───────┐
@@ -576,24 +777,57 @@ Przegląd całego projektu:
 
 # Stan kursu
 
-**Zrealizowane:** 1–16
+**Zrealizowane:** 1–18
 
-**Aktualny etap:** 17. Error handling / Error cleanup
+**Aktualny etap:** 18. API Security — zakończony
 
-Projekt przeszedł od prostego REST API do backendu z:
+Projekt posiada obecnie:
 
-- warstwową architekturą
+- warstwową architekturę
 - PostgreSQL
-- migracjami
+- migracje
 - JWT
 - bcrypt
 - RBAC
 - permissions
-- transakcjami
+- transakcje
 - soft delete
-- kontrolą stocku
+- kontrolę stocku
 - ownership
+- centralne error handling
+- cleanup transakcji
 - unit tests
 - API tests
+- izolowaną bazę testową
+- Helmet
+- CORS
+- rate limiting
+- request size limits
+- JWT hardening
+- security audit
+
+Aktualny stan testów:
+
+```text
+Test Suites: 8 passed
+Tests:       112 passed
+Snapshots:   0 total
+```
+
+Aktualny stan zależności:
+
+```text
+npm audit
+found 0 vulnerabilities
+```
+
+Do zakończenia kursu pozostały:
+
+```text
+19. Logging
+20. API Documentation
+21. Final refactor / Code review
+22. Production preparation
+```
 
 Docelowo projekt ma być kompletnym przykładem backendu e-commerce przygotowanego z myślą o środowisku produkcyjnym.

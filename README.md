@@ -1,16 +1,15 @@
-# Node.js Backend Trainer — E-commerce API
+# Node.js Backend Course — E-commerce API
 
-## Cel treningu
+## Cel kursu
 
-Celem treningu / kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w
-oderwaniu od
+Celem kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od
 praktyki.
 
-Projekt był rozwijany etapami na bazie jednego rzeczywistego API. Kurs był prowadzony interaktywnie przez ChatGPT:
+Projekt był rozwijany etapami na bazie jednego rzeczywistego API. Trening był prowadzony interaktywnie przez ChatGPT:
 kolejne zagadnienia były dobierane do aktualnego poziomu projektu, implementowane praktycznie, testowane, a następnie
 wspólnie weryfikowane i refaktoryzowane.
 
-Nie chodziło o stworzenie sztucznego projektu „pod kurs”, lecz o przejście przez rzeczywisty cykl developerski:
+Nie chodziło o stworzenie sztucznego projektu „pod trening”, lecz o przejście przez rzeczywisty cykl developerski:
 projektowanie → implementacja → testowanie → poprawki → refaktoryzacja → decyzje architektoniczne → code review.
 
 Główny nacisk:
@@ -27,39 +26,25 @@ Główny nacisk:
 - przygotowanie aplikacji do produkcji
 - myślenie o skalowalności bez niepotrzebnego overengineeringu
 
-> **Rola ChatGPT w projekcie**
+> **Rola ChatGPT w kursie**
 >
-> Projekt nie był kursem backendu od podstaw. Był praktycznym treningiem ukierunkowanym na odświeżenie,
-> uporządkowanie i pogłębienie mojej wcześniejszej wiedzy backendowej oraz przełożenie jej na współczesny
-> ekosystem Node.js / TypeScript.
+> Kurs był prowadzony w formie praktycznej współpracy z ChatGPT. ChatGPT pełnił rolę prowadzącego / mentora
+> technicznego: zadawał kolejne zadania, wyjaśniał zagadnienia, analizował decyzje architektoniczne, pomagał diagnozować
+> problemy, przygotowywał testy i prowadził przez refaktoryzacje.
 >
-> ChatGPT pełnił rolę prowadzącego / trenera technicznego i realizował wcześniej ustalony program obejmujący
-> Node.js, TypeScript, Express, PostgreSQL, REST API, authentication, authorization, transactions, testing,
-> security, architecture oraz scalability.
->
-> Kolejne zagadnienia były realizowane poprzez praktyczne zadania i rozwój jednego rzeczywistego projektu e-commerce.
-> ChatGPT pomagał analizować problemy implementacyjne, wyjaśniał nowe lub wymagające odświeżenia zagadnienia,
-> przygotowywać testy, refaktoryzować kod oraz przeprowadzać code review.
->
-> Moje wcześniejsze doświadczenie backendowe było w dużej mierze związane z PHP, dlatego podstawowe koncepcje
-> programowania obiektowego, warstwowej architektury, komunikacji z bazą danych czy tworzenia API nie były dla mnie
-> nowe. Po ponad 5 latach pracy głównie jako frontend developer, Node.js jako środowisko backendowe stanowiło
-> natomiast nowe doświadczenie praktyczne.
->
-> Mam około 20 lat doświadczenia zawodowego w IT, przy czym nie określam go jako doświadczenia seniorskiego
-> w obszarze backendu. Ten trening miał przede wszystkim uporządkować i pogłębić moje wcześniejsze doświadczenie
-> oraz przełożyć je na współczesny ekosystem Node.js / TypeScript.
->
+> Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
+> pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
 
-> **Historia projektu**
+> **Historia i ewolucja projektu**
 >
-> Historia commitów przedstawia ciągły rozwój projektu — od kolejnych funkcjonalności, przez zmiany architektoniczne,
-> po poprawki i refaktoryzacje. Nie jest to seria sztucznie wydzielonych etapów, lecz zapis rzeczywistego procesu
-> developerskiego.
+> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania
+> nauki.
+> Kurs był realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
+> testowaniem, poprawkami, refaktoryzacją i podejmowaniem decyzji technicznych.
 >
-> W historii commitów znajdują się również zmiany architektoniczne i implementacyjne wynikające z moich własnych
-> propozycji i decyzji podejmowanych w trakcie pracy. Repozytorium pokazuje więc nie tylko realizację programu,
-> ale również analizę problemów, podejmowanie decyzji i ewolucję architektury.
+> Historia commitów odpowiada kolejnym etapom opisanym w README. Poszczególne commity mogą jednak przedstawiać zupełnie
+> różne podejścia, eksperymenty lub zmiany implementacyjne. Ostateczna logika i architektura projektu są zgodne z
+> aktualnym opisem kursu w README.
 
 ## Stack technologiczny
 
@@ -1056,26 +1041,3 @@ Najważniejsza zasada projektu:
 
 > **Budujemy prosty system dla małego e-commerce, ale nie budujemy go w sposób, który zamyka drogę do dalszego
 rozwoju.**
-
-## Bonus — Production & Scalability
-
-Tematy świadomie pozostawione poza główną częścią kursu. Nie są konieczne dla małego, niskokomercyjnego sklepu na start,
-ale są ważne w realnych systemach i przy dalszym skalowaniu API.
-
-- **Production-grade logging** — structured logging, log levels, request/correlation ID, bezpieczne logowanie błędów
-- **Caching** — Redis, cache-aside, TTL, invalidation, cache'owanie danych typu `GET /products` i problemy ze stale data
-- **Observability** — health/readiness checks, metrics, monitoring, tracing, alerting
-- **Background jobs** — kolejki, BullMQ/Redis, zadania asynchroniczne, retry i failed jobs
-- **Graceful shutdown** — poprawne zamykanie HTTP server, PostgreSQL pool, Redis i obsługa `SIGTERM` / `SIGINT`
-- **Production configuration** — rozdzielenie `dev/test/prod`, secrets management i bezpieczna konfiguracja środowiska
-- **Database scaling** — indeksy, analiza zapytań, `EXPLAIN ANALYZE`, tuning connection pool, a później read replicas
-- **API scalability** — pagination, filtering, sorting, limity, idempotency i API versioning
-- **Deployment & infrastructure** — CI/CD, production Docker, reverse proxy, HTTPS/TLS, backup/restore i
-  minimal/no-downtime deployment
-
-### Part II
-
-Druga część kursu będzie rozwijać istniejący backend w kierunku bardziej produkcyjnego i skalowalnego systemu — bez
-dokładania infrastruktury tylko po to, żeby ją mieć.
-
-**I will back :P**

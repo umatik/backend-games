@@ -1,6 +1,8 @@
 import helmet from "helmet";
 import "dotenv/config";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import openapi from "./docs/openapi.js";
 import express, { type ErrorRequestHandler } from "express";
 
 import {
@@ -41,6 +43,7 @@ app.get("/", (req, res) => {
 app.use("/products", productRouter);
 app.use("/orders", orderRouter);
 app.use("/users", userRouter);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapi));
 
 app.use(authRouter);
 

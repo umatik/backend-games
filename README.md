@@ -46,7 +46,7 @@ Główny nacisk:
 > nowe. Po ponad 5 latach pracy głównie jako frontend developer, Node.js jako środowisko backendowe stanowiło
 > natomiast nowe doświadczenie praktyczne.
 >
-> Mam około 15 lat doświadczenia zawodowego w IT, przy czym nie określam go jako doświadczenia seniorskiego
+> Mam około 20 lat doświadczenia zawodowego w IT, przy czym nie określam go jako doświadczenia seniorskiego
 > w obszarze backendu. Ten trening miał przede wszystkim uporządkować i pogłębić moje wcześniejsze doświadczenie
 > oraz przełożyć je na współczesny ekosystem Node.js / TypeScript.
 >

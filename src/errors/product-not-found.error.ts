@@ -1,7 +1,8 @@
-export class ProductNotFoundError extends Error {
-  constructor(productId: number) {
-    super(`Product ${productId} not found`);
+import { AppError } from "./app.error.js";
 
+export class ProductNotFoundError extends AppError {
+  constructor() {
+    super("Product not found", 404);
     this.name = "ProductNotFoundError";
   }
 }

@@ -40,7 +40,12 @@ export class OrderService {
 
       return order;
     } catch (error) {
-      await client.query("ROLLBACK");
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+
       throw error;
     } finally {
       client.release();

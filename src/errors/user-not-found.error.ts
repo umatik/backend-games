@@ -1,8 +1,8 @@
 import { AppError } from "./app.error.js";
 
 export class UserNotFoundError extends AppError {
-  constructor() {
-    super("User not found", 404);
+  constructor(userId: string) {
+    super(`User ${userId} not found`, 404);
     this.name = "UserNotFoundError";
   }
 }

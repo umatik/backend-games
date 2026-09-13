@@ -17,8 +17,18 @@ app.use(cors());
 
 app.use(express.json({ limit: "1mb" }));
 
-// Middleware
+// Middleware, Request logging
 app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on("finish", () => {
+    console.log(
+      `${new Date().toISOString()} ${req.ip} ${req.method} ${req.originalUrl} ${
+        res.statusCode
+      } ${Date.now() - startedAt}ms`,
+    );
+  });
+
   next();
 });
 
@@ -43,6 +53,11 @@ app.use((req, res) => {
 
 // 500
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  console.error(
+    `${new Date().toISOString()} ERROR ${req.ip} ${req.method} ${req.originalUrl}`,
+    err,
+  );
+
   if (err?.type === "entity.too.large") {
     res.status(413).json({
       message: "Request body too large",
@@ -63,6 +78,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     message: "Internal Server Error",
   });
 };
+
 app.use(errorHandler);
 
 export default app;

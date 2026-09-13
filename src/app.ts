@@ -29,6 +29,7 @@ app.get("/", (req, res) => {
 app.use("/products", productRouter);
 app.use("/orders", orderRouter);
 app.use("/users", userRouter);
+
 app.use(authRouter);
 
 // 404

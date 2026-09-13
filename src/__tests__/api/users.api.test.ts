@@ -267,4 +267,16 @@ describe("Users API", () => {
 
     expect(response.status).toBe(400);
   });
+
+  it("should not expose password hash", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .get("/users/1")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty("password_hash");
+    expect(response.body).not.toHaveProperty("passwordHash");
+  });
 });

@@ -518,4 +518,18 @@ describe("Products API", () => {
     expect(response.status).toBe(404);
     expect(response.body.message).toBe("Product not found");
   });
+
+  it("should return 400 when product name is missing", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        variants: [],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid product name");
+  });
 });

@@ -35,6 +35,7 @@ Główny nacisk:
 - Node.js
 - TypeScript
 - Express
+- Helmet
 - PostgreSQL
 - Docker
 - pg

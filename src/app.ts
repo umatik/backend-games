@@ -1,3 +1,4 @@
+import helmet from "helmet";
 import "dotenv/config";
 import express, { type ErrorRequestHandler } from "express";
 
@@ -10,6 +11,7 @@ import {
 import { AppError } from "./errors/app.error.js";
 
 const app = express();
+app.use(helmet());
 
 app.use(express.json());
 

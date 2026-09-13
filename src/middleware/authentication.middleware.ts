@@ -38,7 +38,11 @@ export const authenticationMiddleware = (
   }
 
   try {
-    const payload = jwt.verify(token, secret);
+    const payload = jwt.verify(token, secret, {
+      algorithms: ["HS256"],
+      issuer: "ecommerce-api",
+      audience: "ecommerce-client",
+    });
 
     if (
       typeof payload !== "object" ||

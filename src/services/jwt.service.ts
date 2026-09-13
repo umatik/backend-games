@@ -22,6 +22,9 @@ export class JwtService {
       this.secret,
       {
         expiresIn: "1h",
+        algorithm: "HS256",
+        issuer: "ecommerce-api",
+        audience: "ecommerce-client",
       },
     );
   }

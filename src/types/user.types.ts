@@ -68,6 +68,10 @@ export type UserDetails = {
 
 export type UpdateUserData = {
   email?: string;
+  password?: string;
+};
+
+export type UpdateUserContactData = {
   firstName?: string;
   lastName?: string;
   phone?: string;
@@ -76,3 +80,5 @@ export type UpdateUserData = {
   postalCode?: string;
   country?: string;
 };
+
+export type UpdateUserRequest = UpdateUserData & UpdateUserContactData;

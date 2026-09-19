@@ -1,5 +1,5 @@
-import type { PoolClient } from "pg";
-import type { UserInterface } from "./user.interface.js";
+import type {PoolClient} from "pg";
+import type {UserInterface} from "./user.interface.js";
 import type {
   CreatedUser,
   CreateUserData,
@@ -41,8 +41,7 @@ export class UserPostgresRepository implements UserInterface {
   ): Promise<CreatedUser> {
     const result = await client.query<CreatedUser>(
       `
-        INSERT INTO users (email,
-                           password_hash)
+        INSERT INTO users (email, password_hash)
         VALUES ($1, $2)
         RETURNING
           id,
@@ -65,63 +64,39 @@ export class UserPostgresRepository implements UserInterface {
     userId: number,
     data: UpdateUserData,
   ): Promise<UserDetails | null> {
-    const userFields: string[] = [];
-    const userValues: unknown[] = [];
+    const fields: string[] = [];
+    const values: unknown[] = [];
 
     if (data.email !== undefined) {
-      userFields.push(`email = $${userValues.length + 1}`);
-      userValues.push(data.email);
+      fields.push(`email = $${values.length + 1}`);
+      values.push(data.email);
     }
 
-    if (userFields.length > 0) {
-      userValues.push(userId);
+    if (data.password !== undefined) {
+      fields.push(`password_hash = $${values.length + 1}`);
+      values.push(data.password);
+    }
 
-      await client.query(
-        `
-          UPDATE users
-          SET ${userFields.join(", ")},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $${userValues.length}
+    if (fields.length === 0) {
+      return this.findById(client, userId);
+    }
+
+    fields.push("updated_at = CURRENT_TIMESTAMP");
+
+    values.push(userId);
+
+    const result = await client.query(
+      `UPDATE users
+       SET ${fields.join(", ")}
+       WHERE id = $${values.length}
           AND is_deleted = FALSE
-      `,
-        userValues,
-      );
-    }
+      RETURNING id
+    `,
+      values,
+    );
 
-    const contactFields: string[] = [];
-    const contactValues: unknown[] = [];
-
-    const contactMapping: Record<string, string> = {
-      firstName: "first_name",
-      lastName: "last_name",
-      phone: "phone",
-      address: "address",
-      city: "city",
-      postalCode: "postal_code",
-      country: "country",
-    };
-
-    for (const [inputField, column] of Object.entries(contactMapping)) {
-      const value = data[inputField as keyof UpdateUserData];
-
-      if (value !== undefined) {
-        contactFields.push(`${column} = $${contactValues.length + 1}`);
-        contactValues.push(value);
-      }
-    }
-
-    if (contactFields.length > 0) {
-      contactValues.push(userId);
-
-      await client.query(
-        `
-          UPDATE user_contact_details
-          SET ${contactFields.join(", ")},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE user_id = $${contactValues.length}
-      `,
-        contactValues,
-      );
+    if (result.rows.length === 0) {
+      return null;
     }
 
     return this.findById(client, userId);

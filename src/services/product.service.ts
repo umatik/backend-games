@@ -4,11 +4,11 @@ import type {
   ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
-import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
-import type { ProductRepository } from "../repositories/product/product.interface.js";
-import type { UpdateProductVariantData } from "../types/product-variant.types.js";
-import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
-import type { PoolClient } from "pg";
+import type {ProductVariantRepository} from "../repositories/product-variant/product-variant.interface.js";
+import type {ProductRepository} from "../repositories/product/product.interface.js";
+import type {UpdateProductVariantData} from "../types/product-variant.types.js";
+import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
+import type {PoolClient} from "pg";
 
 export type Database = {
   connect(): Promise<PoolClient>;
@@ -19,7 +19,8 @@ export class ProductService {
     private productRepository: ProductRepository,
     private productVariantRepository: ProductVariantRepository,
     private pool: Database,
-  ) {}
+  ) {
+  }
 
   async createProduct(data: CreateProductData): Promise<Product> {
     const client = await this.pool.connect();
@@ -165,27 +166,7 @@ export class ProductService {
   }
 
   async getAllProducts(): Promise<ProductDetails[]> {
-    const products = await this.productRepository.findAll();
-
-    return Promise.all(
-      products.map(async (product) => {
-        const client = await this.pool.connect();
-
-        try {
-          const variants = await this.productVariantRepository.findByProductId(
-            client,
-            product.id,
-          );
-
-          return {
-            ...product,
-            variants,
-          };
-        } finally {
-          client.release();
-        }
-      }),
-    );
+    return this.productRepository.findAllWithVariants();
   }
 
   async deleteProductVariant(

@@ -1,7 +1,7 @@
-import type { PoolClient } from "pg";
+import type {PoolClient} from "pg";
 import type {
   CreateProductRecord,
-  Product,
+  Product, ProductDetails,
   UpdateProductData,
 } from "../../types/product.types.js";
 
@@ -11,6 +11,8 @@ export interface ProductRepository {
   findById(id: string): Promise<Product | null>;
 
   findAll(): Promise<Product[]>;
+
+  findAllWithVariants(): Promise<ProductDetails[]>;
 
   update(
     client: PoolClient,

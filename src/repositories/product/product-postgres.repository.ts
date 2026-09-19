@@ -1,12 +1,12 @@
 import type {
   CreateProductData,
-  Product,
+  Product, ProductDetails,
   ProductRow,
   UpdateProductData,
 } from "../../types/product.types.js";
-import { pool } from "../../database/db.js";
-import type { PoolClient } from "pg";
-import type { ProductRepository } from "./product.interface.js";
+import {pool} from "../../database/db.js";
+import type {PoolClient} from "pg";
+import type {ProductRepository} from "./product.interface.js";
 
 export class PostgresProductRepository implements ProductRepository {
   private mapProductRow = (row: ProductRow): Product => ({
@@ -56,6 +56,71 @@ export class PostgresProductRepository implements ProductRepository {
     `);
 
     return result.rows.map((row) => this.mapProductRow(row));
+  }
+
+  async findAllWithVariants(): Promise<ProductDetails[]> {
+    const result = await pool.query(`
+      SELECT p.id,
+             p.name,
+             p.is_deleted,
+             p.created_at,
+             p.updated_at,
+             p.deleted_at,
+             pv.id         AS variant_id,
+             pv.color,
+             pv.size,
+             pv.price,
+             pv.quantity,
+             pv.is_deleted AS variant_is_deleted,
+             pv.created_at AS variant_created_at,
+             pv.updated_at AS variant_updated_at,
+             pv.deleted_at AS variant_deleted_at
+      FROM products p
+             LEFT JOIN product_variants pv
+                       ON pv.product_id = p.id
+                         AND pv.is_deleted = FALSE
+      WHERE p.is_deleted = FALSE
+      ORDER BY p.id, pv.id
+    `);
+
+    const products = new Map<number, ProductDetails>();
+
+    for (const row of result.rows) {
+      const productId = Number(row.id);
+
+      let product = products.get(productId);
+
+      if (!product) {
+        product = {
+          id: productId,
+          name: row.name,
+          is_deleted: row.is_deleted,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          deleted_at: row.deleted_at,
+          variants: [],
+        };
+
+        products.set(productId, product);
+      }
+
+      if (row.variant_id !== null) {
+        product.variants.push({
+          id: Number(row.variant_id),
+          productId,
+          color: row.color,
+          size: row.size,
+          price: row.price,
+          quantity: row.quantity,
+          isDeleted: row.variant_is_deleted,
+          createdAt: row.variant_created_at,
+          updatedAt: row.variant_updated_at,
+          deletedAt: row.variant_deleted_at,
+        });
+      }
+    }
+
+    return Array.from(products.values());
   }
 
   async update(

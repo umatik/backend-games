@@ -1,11 +1,11 @@
-import { beforeEach, describe, jest, it, expect } from "@jest/globals";
-import type { PoolClient } from "pg";
+import {beforeEach, describe, jest, it, expect} from "@jest/globals";
+import type {PoolClient} from "pg";
 import {
   type Database,
   ProductService,
 } from "../../services/product.service.js";
-import type { ProductRepository } from "../../repositories/product/product.interface.js";
-import type { ProductVariantRepository } from "../../repositories/product-variant/product-variant.interface.js";
+import type {ProductRepository} from "../../repositories/product/product.interface.js";
+import type {ProductVariantRepository} from "../../repositories/product-variant/product-variant.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -25,6 +25,7 @@ describe("ProductService", () => {
       create: jest.fn(),
       findById: jest.fn(),
       findAll: jest.fn(),
+      findAllWithVariants: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
@@ -585,7 +586,7 @@ describe("ProductService", () => {
   });
 
   it("should get all products with their variants", async () => {
-    productRepository.findAll.mockResolvedValue([
+    productRepository.findAllWithVariants.mockResolvedValue([
       {
         id: 1,
         name: "Product 1",
@@ -593,6 +594,20 @@ describe("ProductService", () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted_at: null,
+        variants: [
+          {
+            id: 1,
+            productId: 1,
+            color: "Black",
+            size: "M",
+            price: 100,
+            quantity: 10,
+            isDeleted: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
       },
       {
         id: 2,
@@ -601,38 +616,22 @@ describe("ProductService", () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted_at: null,
+        variants: [
+          {
+            id: 2,
+            productId: 2,
+            color: "Red",
+            size: "L",
+            price: 200,
+            quantity: 20,
+            isDeleted: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
       },
     ]);
-
-    productVariantRepository.findByProductId
-      .mockResolvedValueOnce([
-        {
-          id: 1,
-          productId: 1,
-          color: "Black",
-          size: "M",
-          price: 100,
-          quantity: 10,
-          isDeleted: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          deletedAt: null,
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          id: 2,
-          productId: 2,
-          color: "Red",
-          size: "L",
-          price: 200,
-          quantity: 20,
-          isDeleted: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          deletedAt: null,
-        },
-      ]);
 
     const result = await productService.getAllProducts();
 
@@ -644,31 +643,25 @@ describe("ProductService", () => {
     expect(result[1]!.id).toBe(2);
     expect(result[1]!.variants).toHaveLength(1);
 
-    expect(productRepository.findAll).toHaveBeenCalledTimes(1);
+    expect(productRepository.findAllWithVariants).toHaveBeenCalledTimes(1);
 
-    expect(productVariantRepository.findByProductId).toHaveBeenNthCalledWith(
-      1,
-      mockClient as unknown as PoolClient,
-      1,
-    );
+    expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
 
-    expect(productVariantRepository.findByProductId).toHaveBeenNthCalledWith(
-      2,
-      mockClient as unknown as PoolClient,
-      2,
-    );
-
-    expect(mockClient.release).toHaveBeenCalledTimes(2);
+    expect(mockPool.connect).not.toHaveBeenCalled();
   });
 
   it("should return an empty array when there are no products", async () => {
-    productRepository.findAll.mockResolvedValue([]);
+    productRepository.findAllWithVariants.mockResolvedValue([]);
 
     const result = await productService.getAllProducts();
 
     expect(result).toEqual([]);
 
+    expect(productRepository.findAllWithVariants).toHaveBeenCalledTimes(1);
+
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
+
+    expect(mockPool.connect).not.toHaveBeenCalled();
   });
 
   it("should delete a product variant", async () => {

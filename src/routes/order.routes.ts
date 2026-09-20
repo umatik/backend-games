@@ -1,9 +1,10 @@
-import { Router } from "express";
-import type { OrderController } from "../controllers/order.controller.js";
-import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
+import {Router} from "express";
+import type {OrderController} from "../controllers/order.controller.js";
+import {authenticationMiddleware} from "../middleware/authentication.middleware.js";
+import {requirePermission} from "../middleware/permission.middleware.js";
+import type {AuthorizationService} from "../services/authorization.service.js";
 
-export const createOrderRouter = (orderController: OrderController) => {
+export const createOrderRouter = (orderController: OrderController, authorizationService: AuthorizationService,) => {
   const router = Router();
 
   /**
@@ -26,7 +27,7 @@ export const createOrderRouter = (orderController: OrderController) => {
   router.get(
     "/",
     authenticationMiddleware,
-    requirePermission("orders:read"),
+    requirePermission(authorizationService, "orders:read"),
     orderController.getOrders,
   );
 
@@ -58,7 +59,7 @@ export const createOrderRouter = (orderController: OrderController) => {
   router.get(
     "/:id",
     authenticationMiddleware,
-    requirePermission("orders:read"),
+    requirePermission(authorizationService, "orders:read"),
     orderController.getOrder,
   );
 
@@ -95,7 +96,7 @@ export const createOrderRouter = (orderController: OrderController) => {
   router.post(
     "/",
     authenticationMiddleware,
-    requirePermission("orders:create"),
+    requirePermission(authorizationService, "orders:create"),
     orderController.createOrder,
   );
 

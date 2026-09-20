@@ -8,17 +8,17 @@ import type {
 export interface ProductRepository {
   create(client: PoolClient, data: CreateProductRecord): Promise<Product>;
 
-  findById(id: string): Promise<Product | null>;
+  findById(id: number, client: PoolClient): Promise<Product | null>;
 
-  findAll(): Promise<Product[]>;
+  findAll(client: PoolClient): Promise<Product[]>;
 
-  findAllWithVariants(): Promise<ProductDetails[]>;
+  findAllWithVariants(client: PoolClient): Promise<ProductDetails[]>;
 
   update(
     client: PoolClient,
-    id: string,
+    id: number,
     data: UpdateProductData,
   ): Promise<Product | null>;
 
-  delete(id: string): Promise<boolean>;
+  delete(client: PoolClient, id: number): Promise<boolean>;
 }

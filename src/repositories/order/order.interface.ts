@@ -1,4 +1,4 @@
-import type { PoolClient } from "pg";
+import type {PoolClient} from "pg";
 import type {
   CreateOrderData,
   CreateOrderItemData,
@@ -11,17 +11,17 @@ export interface OrderInterface {
 
   createItems(
     client: PoolClient,
-    orderId: string,
+    orderId: number,
     items: CreateOrderItemData[],
   ): Promise<void>;
 
-  findUserById(client: PoolClient, userId: string): Promise<boolean>;
+  findUserById(client: PoolClient, userId: number): Promise<boolean>;
 
-  findByUserId(client: PoolClient, userId: string): Promise<OrderDetails[]>;
+  findByUserId(client: PoolClient, userId: number): Promise<OrderDetails[]>;
 
   findById(
     client: PoolClient,
-    orderId: string,
-    userId: string,
+    orderId: number,
+    userId: number,
   ): Promise<OrderDetails | null>;
 }

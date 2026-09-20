@@ -1,5 +1,5 @@
-import type { OrderInterface } from "./order.interface.js";
-import type { PoolClient } from "pg";
+import type {OrderInterface} from "./order.interface.js";
+import type {PoolClient} from "pg";
 import type {
   CreateOrderData,
   CreateOrderItemData,
@@ -8,29 +8,30 @@ import type {
   OrderItem,
   OrderRow,
 } from "../../types/order.types.js";
-import { ProductNotFoundError } from "../../errors/product-not-found.error.js";
-import { InsufficientStockError } from "../../errors/insufficient-stock.error.js";
+import {ProductNotFoundError} from "../../errors/product-not-found.error.js";
+import {InsufficientStockError} from "../../errors/insufficient-stock.error.js";
 
 export class OrderPostgresRepository implements OrderInterface {
   private mapOrderRows(rows: OrderRow[]): OrderDetails[] {
-    const orders = new Map<string, OrderDetails>();
+    const orders = new Map<number, OrderDetails>();
 
     for (const row of rows) {
-      const orderId = String(row.orderId);
+      const orderId = Number(row.orderId);
 
       let order = orders.get(orderId);
 
       if (!order) {
-        order = {
+        const newOrder: OrderDetails = {
           id: orderId,
-          userId: String(row.userId),
+          userId: Number(row.userId),
           status: row.status,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           items: [],
         };
 
-        orders.set(orderId, order);
+        orders.set(orderId, newOrder);
+        order = newOrder;
       }
 
       if (row.itemId !== null) {
@@ -52,7 +53,7 @@ export class OrderPostgresRepository implements OrderInterface {
     return Array.from(orders.values());
   }
 
-  async findUserById(client: PoolClient, userId: string): Promise<boolean> {
+  async findUserById(client: PoolClient, userId: number): Promise<boolean> {
     const result = await client.query(
       `
         SELECT id
@@ -88,8 +89,8 @@ export class OrderPostgresRepository implements OrderInterface {
     }
 
     return {
-      id: String(row.id),
-      userId: String(row.user_id),
+      id: Number(row.id),
+      userId: Number(row.user_id),
       status: row.status,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -98,16 +99,20 @@ export class OrderPostgresRepository implements OrderInterface {
 
   async createItems(
     client: PoolClient,
-    orderId: string,
+    orderId: number,
     items: CreateOrderItemData[],
   ): Promise<void> {
-    for (const item of items) {
+
+    const sortedItems = [...items].sort(
+      (a, b) => a.productVariantId - b.productVariantId,
+    );
+
+    for (const item of sortedItems) {
       const productVariantResult = await client.query(
         `
-          SELECT
-            pv.id,
-            pv.product_id,
-            pv.price
+          SELECT pv.id,
+                 pv.product_id,
+                 pv.price
           FROM product_variants pv
                  JOIN products p ON p.id = pv.product_id
           WHERE pv.id = $1
@@ -141,12 +146,10 @@ export class OrderPostgresRepository implements OrderInterface {
 
       await client.query(
         `
-          INSERT INTO order_items (
-            order_id,
-            product_variant_id,
-            quantity,
-            price
-          )
+          INSERT INTO order_items (order_id,
+                                   product_variant_id,
+                                   quantity,
+                                   price)
           VALUES ($1, $2, $3, $4)
         `,
         [orderId, item.productVariantId, item.quantity, price],
@@ -156,34 +159,33 @@ export class OrderPostgresRepository implements OrderInterface {
 
   async findByUserId(
     client: PoolClient,
-    userId: string,
+    userId: number,
   ): Promise<OrderDetails[]> {
     const result = await client.query(
       `
-        SELECT
-          o.id AS "orderId",
-          o.user_id AS "userId",
-          o.status,
-          o.created_at AS "createdAt",
-          o.updated_at AS "updatedAt",
+        SELECT o.id                  AS "orderId",
+               o.user_id             AS "userId",
+               o.status,
+               o.created_at          AS "createdAt",
+               o.updated_at          AS "updatedAt",
 
-          oi.id AS "itemId",
-          oi.product_variant_id AS "productVariantId",
-          oi.quantity,
-          oi.price,
+               oi.id                 AS "itemId",
+               oi.product_variant_id AS "productVariantId",
+               oi.quantity,
+               oi.price,
 
-          pv.product_id AS "productId",
-          p.name AS "productName",
-          pv.color,
-          pv.size
+               pv.product_id         AS "productId",
+               p.name                AS "productName",
+               pv.color,
+               pv.size
 
         FROM orders o
-        JOIN order_items oi
-          ON oi.order_id = o.id
-        JOIN product_variants pv
-          ON pv.id = oi.product_variant_id
-        JOIN products p
-          ON p.id = pv.product_id
+               JOIN order_items oi
+                    ON oi.order_id = o.id
+               JOIN product_variants pv
+                    ON pv.id = oi.product_variant_id
+               JOIN products p
+                    ON p.id = pv.product_id
 
         WHERE o.user_id = $1
 
@@ -197,35 +199,34 @@ export class OrderPostgresRepository implements OrderInterface {
 
   async findById(
     client: PoolClient,
-    orderId: string,
-    userId: string,
+    orderId: number,
+    userId: number,
   ): Promise<OrderDetails | null> {
     const result = await client.query(
       `
-        SELECT
-          o.id AS "orderId",
-          o.user_id AS "userId",
-          o.status,
-          o.created_at AS "createdAt",
-          o.updated_at AS "updatedAt",
+        SELECT o.id                  AS "orderId",
+               o.user_id             AS "userId",
+               o.status,
+               o.created_at          AS "createdAt",
+               o.updated_at          AS "updatedAt",
 
-          oi.id AS "itemId",
-          oi.product_variant_id AS "productVariantId",
-          oi.quantity,
-          oi.price,
+               oi.id                 AS "itemId",
+               oi.product_variant_id AS "productVariantId",
+               oi.quantity,
+               oi.price,
 
-          pv.product_id AS "productId",
-          p.name AS "productName",
-          pv.color,
-          pv.size
+               pv.product_id         AS "productId",
+               p.name                AS "productName",
+               pv.color,
+               pv.size
 
         FROM orders o
-        JOIN order_items oi
-          ON oi.order_id = o.id
-        JOIN product_variants pv
-          ON pv.id = oi.product_variant_id
-        JOIN products p
-          ON p.id = pv.product_id
+               JOIN order_items oi
+                    ON oi.order_id = o.id
+               JOIN product_variants pv
+                    ON pv.id = oi.product_variant_id
+               JOIN products p
+                    ON p.id = pv.product_id
 
         WHERE o.id = $1
           AND o.user_id = $2

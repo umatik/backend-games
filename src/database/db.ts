@@ -5,7 +5,7 @@ dotenv.config({
   path: process.env.NODE_ENV === "test" ? ".env.test" : ".env",
 });
 
-const { Pool } = pg;
+const {Pool} = pg;
 
 export const pool = new Pool({
   host: process.env.DB_HOST,
@@ -13,4 +13,8 @@ export const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+});
+
+pool.on("error", (error) => {
+  console.error("Unexpected PostgreSQL pool error:", error);
 });

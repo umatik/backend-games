@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import {pool} from "../database/db.js";
 import type {UserInterface} from "../repositories/user/user.interface.js";
 import type {UserContactInterface} from "../repositories/user/user-contact.interface.js";
+import type {RoleInterface} from "../repositories/role/role.interface.js";
 import {EmailAlreadyExistsError} from "../errors/email-already-exists.error.js";
 import type {PoolClient} from "pg";
 import type {
@@ -17,6 +18,7 @@ export class UserService {
   constructor(
     private userRepository: UserInterface,
     private userContactRepository: UserContactInterface,
+    private roleRepository: RoleInterface,
   ) {
   }
 
@@ -42,6 +44,8 @@ export class UserService {
         email: data.email,
         passwordHash,
       });
+
+      await this.roleRepository.assignToUser(client, user.id, "user");
 
       const contactData: CreateUserContactData = {
         userId: user.id,

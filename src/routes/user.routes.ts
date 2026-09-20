@@ -1,9 +1,13 @@
-import { Router } from "express";
-import type { UserController } from "../controllers/user.controller.js";
-import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
+import {Router} from "express";
+import type {UserController} from "../controllers/user.controller.js";
+import {authenticationMiddleware} from "../middleware/authentication.middleware.js";
+import {requirePermission} from "../middleware/permission.middleware.js";
+import type {AuthorizationService} from "../services/authorization.service.js";
 
-export const createUserRouter = (userController: UserController) => {
+export const createUserRouter = (
+  userController: UserController,
+  authorizationService: AuthorizationService,
+) => {
   const router = Router();
 
   /**
@@ -53,7 +57,8 @@ export const createUserRouter = (userController: UserController) => {
    *         name: id
    *         required: true
    *         schema:
-   *           type: string
+   *           type: integer
+   *           format: int64
    *     responses:
    *       200:
    *         description: User found
@@ -67,7 +72,7 @@ export const createUserRouter = (userController: UserController) => {
   router.get(
     "/:id",
     authenticationMiddleware,
-    requirePermission("users:read"),
+    requirePermission(authorizationService, "users:read"),
     userController.getUser,
   );
 
@@ -85,7 +90,8 @@ export const createUserRouter = (userController: UserController) => {
    *         name: id
    *         required: true
    *         schema:
-   *           type: string
+   *           type: integer
+   *           format: int64
    *     requestBody:
    *       required: true
    *       content:
@@ -96,9 +102,6 @@ export const createUserRouter = (userController: UserController) => {
    *               email:
    *                 type: string
    *                 format: email
-   *               password:
-   *                 type: string
-   *                 format: password
    *     responses:
    *       200:
    *         description: User updated
@@ -116,7 +119,7 @@ export const createUserRouter = (userController: UserController) => {
   router.patch(
     "/:id",
     authenticationMiddleware,
-    requirePermission("users:update"),
+    requirePermission(authorizationService, "users:update"),
     userController.updateUser,
   );
 

@@ -54,7 +54,7 @@ export class ProductService {
   }
 
   async updateProduct(
-    id: string,
+    id: number,
     data: UpdateProductData,
   ): Promise<ProductDetails | null> {
     const client = await this.pool.connect();
@@ -69,7 +69,7 @@ export class ProductService {
           name: data.name,
         });
       } else {
-        product = await this.productRepository.findById(id);
+        product = await this.productRepository.findById(id, client);
       }
 
       if (!product) {
@@ -141,16 +141,16 @@ export class ProductService {
     }
   }
 
-  async getProduct(id: string): Promise<ProductDetails | null> {
-    const product = await this.productRepository.findById(id);
-
-    if (!product) {
-      return null;
-    }
-
+  async getProduct(id: number): Promise<ProductDetails | null> {
     const client = await this.pool.connect();
 
     try {
+      const product = await this.productRepository.findById(id, client);
+
+      if (!product) {
+        return null;
+      }
+
       const variants = await this.productVariantRepository.findByProductId(
         client,
         product.id,
@@ -166,7 +166,13 @@ export class ProductService {
   }
 
   async getAllProducts(): Promise<ProductDetails[]> {
-    return this.productRepository.findAllWithVariants();
+    const client = await this.pool.connect();
+
+    try {
+      return await this.productRepository.findAllWithVariants(client);
+    } finally {
+      client.release();
+    }
   }
 
   async deleteProductVariant(
@@ -209,7 +215,31 @@ export class ProductService {
     }
   }
 
-  async deleteProduct(id: string): Promise<boolean> {
-    return this.productRepository.delete(id);
+  async deleteProduct(id: number): Promise<boolean> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const deleted = await this.productRepository.delete(client, id);
+
+      if (!deleted) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }

@@ -6,6 +6,7 @@ import type { CreateOrderData } from "../types/order.types.js";
 import { OrderService } from "../services/order.service.js";
 import { isValidOrderItems } from "../validators/order.validator.js";
 import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
+import {parseId} from "../validators/id.validator.js";
 
 export class OrderController {
   constructor(private orderService: OrderService) {}
@@ -28,7 +29,7 @@ export class OrderController {
     }
 
     const data: CreateOrderData = {
-      userId: req.user.userId,
+      userId: Number(req.user.userId),
       items,
     };
 
@@ -73,7 +74,7 @@ export class OrderController {
       return;
     }
 
-    const orders = await this.orderService.getOrdersByUserId(req.user.userId);
+    const orders = await this.orderService.getOrdersByUserId(Number(req.user.userId));
 
     res.status(200).json({
       message: "Orders found",
@@ -89,16 +90,16 @@ export class OrderController {
       return;
     }
 
-    const { id } = req.params;
+    const id = parseId(req.params.id);
 
-    if (typeof id !== "string") {
+    if (id === null) {
       res.status(400).json({
         message: "Invalid order id",
       });
       return;
     }
 
-    const order = await this.orderService.getOrderById(id, req.user.userId);
+    const order = await this.orderService.getOrderById(id, Number(req.user.userId));
 
     if (!order) {
       res.status(404).json({

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "@jest/globals";
+import {describe, it, expect} from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import { loginAsUser } from "../../__test-helpers__/auth.js";
+import {loginAsUser} from "../../__test-helpers__/auth.js";
 
 describe("Users API", () => {
   it("should register a new user", async () => {
@@ -276,7 +276,7 @@ describe("Users API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).not.toHaveProperty("password_hash");
-    expect(response.body).not.toHaveProperty("passwordHash");
+    expect(response.body.user).not.toHaveProperty("password_hash");
+    expect(response.body.user).not.toHaveProperty("passwordHash");
   });
 });

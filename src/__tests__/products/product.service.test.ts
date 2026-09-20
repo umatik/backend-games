@@ -193,7 +193,7 @@ describe("ProductService", () => {
       deleted_at: null,
     });
 
-    const result = await productService.updateProduct("1", data);
+    const result = await productService.updateProduct(1, data);
 
     expect(result).toEqual({
       id: 1,
@@ -206,7 +206,7 @@ describe("ProductService", () => {
 
     expect(productRepository.update).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
-      "1",
+      1,
       data,
     );
   });
@@ -214,7 +214,7 @@ describe("ProductService", () => {
   it("should return null when product does not exist", async () => {
     productRepository.update.mockResolvedValue(null);
 
-    const result = await productService.updateProduct("999", {
+    const result = await productService.updateProduct(999, {
       name: "Updated Product",
     });
 
@@ -288,7 +288,7 @@ describe("ProductService", () => {
       },
     ]);
 
-    await productService.updateProduct("1", data);
+    await productService.updateProduct(1, data);
 
     expect(productVariantRepository.update).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -351,7 +351,7 @@ describe("ProductService", () => {
       },
     ]);
 
-    await productService.updateProduct("1", data);
+    await productService.updateProduct(1, data);
 
     expect(productVariantRepository.create).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -389,7 +389,7 @@ describe("ProductService", () => {
 
     productVariantRepository.findById.mockResolvedValue(null);
 
-    await expect(productService.updateProduct("1", data)).rejects.toThrow(
+    await expect(productService.updateProduct(1, data)).rejects.toThrow(
       "Product variant 999 not found",
     );
 
@@ -435,7 +435,7 @@ describe("ProductService", () => {
       deletedAt: null,
     });
 
-    await expect(productService.updateProduct("1", data)).rejects.toThrow(
+    await expect(productService.updateProduct(1, data)).rejects.toThrow(
       "Product variant 1 not found",
     );
 
@@ -505,7 +505,7 @@ describe("ProductService", () => {
       },
     ]);
 
-    await productService.updateProduct("1", data);
+    await productService.updateProduct(1, data);
 
     expect(productVariantRepository.update).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -539,7 +539,7 @@ describe("ProductService", () => {
       },
     ]);
 
-    const result = await productService.getProduct("1");
+    const result = await productService.getProduct(1);
 
     expect(result).toEqual({
       id: 1,
@@ -564,7 +564,10 @@ describe("ProductService", () => {
       ],
     });
 
-    expect(productRepository.findById).toHaveBeenCalledWith("1");
+    expect(productRepository.findById).toHaveBeenCalledWith(
+      1,
+      mockClient as unknown as PoolClient,
+    );
 
     expect(productVariantRepository.findByProductId).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -577,12 +580,12 @@ describe("ProductService", () => {
   it("should return null when getting a product that does not exist", async () => {
     productRepository.findById.mockResolvedValue(null);
 
-    const result = await productService.getProduct("999");
+    const result = await productService.getProduct(999);
 
     expect(result).toBeNull();
 
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
-    expect(mockPool.connect).not.toHaveBeenCalled();
+    expect(mockPool.connect).toHaveBeenCalledTimes(1);
   });
 
   it("should get all products with their variants", async () => {
@@ -647,7 +650,7 @@ describe("ProductService", () => {
 
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
 
-    expect(mockPool.connect).not.toHaveBeenCalled();
+    expect(mockPool.connect).toHaveBeenCalledTimes(1);
   });
 
   it("should return an empty array when there are no products", async () => {
@@ -661,7 +664,7 @@ describe("ProductService", () => {
 
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
 
-    expect(mockPool.connect).not.toHaveBeenCalled();
+    expect(mockPool.connect).toHaveBeenCalledTimes(1);
   });
 
   it("should delete a product variant", async () => {
@@ -777,11 +780,13 @@ describe("ProductService", () => {
       deletedAt: null,
     });
 
-    productVariantRepository.delete.mockRejectedValue(new Error("DB error"));
-
-    await expect(productService.deleteProductVariant(1, 1)).rejects.toThrow(
-      "DB error",
+    productVariantRepository.delete.mockRejectedValue(
+      new Error("DB error"),
     );
+
+    await expect(
+      productService.deleteProductVariant(1, 1),
+    ).rejects.toThrow("DB error");
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
@@ -791,20 +796,34 @@ describe("ProductService", () => {
   it("should delete a product", async () => {
     productRepository.delete.mockResolvedValue(true);
 
-    const result = await productService.deleteProduct("1");
+    const result = await productService.deleteProduct(1);
 
     expect(result).toBe(true);
 
-    expect(productRepository.delete).toHaveBeenCalledWith("1");
+    expect(productRepository.delete).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
   it("should return false when product deletion fails", async () => {
     productRepository.delete.mockResolvedValue(false);
 
-    const result = await productService.deleteProduct("999");
+    const result = await productService.deleteProduct(999);
 
     expect(result).toBe(false);
 
-    expect(productRepository.delete).toHaveBeenCalledWith("999");
+    expect(productRepository.delete).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      999,
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 });

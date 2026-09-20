@@ -1,9 +1,9 @@
-import type { Request, Response } from "express";
+import type {Request, Response} from "express";
 import type {
   CreateProductData,
   UpdateProductData,
 } from "../types/product.types.js";
-import { ProductService } from "../services/product.service.js";
+import {ProductService} from "../services/product.service.js";
 import {
   isValidProductName,
   isValidProductOption,
@@ -11,7 +11,8 @@ import {
   isValidProductQuantity,
   isValidProductVariantId,
 } from "../validators/product.validator.js";
-import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
+import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
+import {parseId} from "../validators/id.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -30,10 +31,16 @@ export class ProductController {
   };
 
   getProduct = async (req: Request, res: Response) => {
-    const product = await this.productService.getProduct(
-      req.params.id as string,
-    );
+    const productId = parseId(req.params.id);
 
+    if (productId === null) {
+      res.status(400).json({
+        message: "Invalid product id",
+      });
+      return;
+    }
+
+    const product = await this.productService.getProduct(productId);
     if (!product) {
       res.status(404).json({
         message: "Product not found",
@@ -49,7 +56,7 @@ export class ProductController {
   };
 
   createProduct = async (req: Request, res: Response) => {
-    const { name, variants } = req.body;
+    const {name, variants} = req.body;
 
     if (!isValidProductName(name)) {
       res.status(400).json({
@@ -115,8 +122,16 @@ export class ProductController {
   };
 
   updateProduct = async (req: Request, res: Response) => {
-    const id = req.params.id as string;
-    const { name, variants } = req.body;
+    const id: number | null = parseId(req.params.id);
+
+    if (id === null) {
+      res.status(400).json({
+        message: "Invalid product id",
+      });
+      return;
+    }
+
+    const {name, variants} = req.body;
 
     if (name === undefined && variants === undefined) {
       res.status(400).json({
@@ -251,7 +266,15 @@ export class ProductController {
   };
 
   deleteProduct = async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id: number | null = parseId(req.params.id);
+
+    if (id === null) {
+      res.status(400).json({
+        message: "Invalid product id",
+      });
+      return;
+    }
+
     const deleted = await this.productService.deleteProduct(id);
 
     if (!deleted) {

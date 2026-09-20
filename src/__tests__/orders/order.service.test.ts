@@ -41,7 +41,7 @@ describe("OrderService", () => {
 
   it("should create an order", async () => {
     const data: CreateOrderData = {
-      userId: "user-1",
+      userId: 1,
       items: [
         {
           productVariantId: 1,
@@ -51,8 +51,8 @@ describe("OrderService", () => {
     };
 
     const order: Order = {
-      id: "order-1",
-      userId: "user-1",
+      id: 1,
+      userId: 1,
       status: "pending",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -68,7 +68,7 @@ describe("OrderService", () => {
 
     expect(orderRepository.findUserById).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
-      "user-1",
+      1,
     );
 
     expect(orderRepository.create).toHaveBeenCalledWith(
@@ -78,7 +78,7 @@ describe("OrderService", () => {
 
     expect(orderRepository.createItems).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
-      "order-1",
+      1,
       data.items,
     );
 
@@ -89,7 +89,7 @@ describe("OrderService", () => {
 
   it("should rollback transaction when user does not exist", async () => {
     const data: CreateOrderData = {
-      userId: "user-1",
+      userId: 1,
       items: [
         {
           productVariantId: 1,
@@ -112,7 +112,7 @@ describe("OrderService", () => {
 
   it("should rollback transaction when order creation fails", async () => {
     const data: CreateOrderData = {
-      userId: "user-1",
+      userId: 1,
       items: [],
     };
 
@@ -130,7 +130,7 @@ describe("OrderService", () => {
 
   it("should rollback transaction when order items creation fails", async () => {
     const data: CreateOrderData = {
-      userId: "user-1",
+      userId: 1,
       items: [
         {
           productVariantId: 1,
@@ -140,8 +140,8 @@ describe("OrderService", () => {
     };
 
     const order: Order = {
-      id: "order-1",
-      userId: "user-1",
+      id: 1,
+      userId: 1,
       status: "pending",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -163,8 +163,8 @@ describe("OrderService", () => {
   it("should return orders for a user", async () => {
     const orders: OrderDetails[] = [
       {
-        id: "order-1",
-        userId: "user-1",
+        id: 1,
+        userId: 1,
         status: "pending",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -174,13 +174,13 @@ describe("OrderService", () => {
 
     orderRepository.findByUserId.mockResolvedValue(orders);
 
-    const result = await orderService.getOrdersByUserId("user-1");
+    const result = await orderService.getOrdersByUserId(1);
 
     expect(result).toEqual(orders);
 
     expect(orderRepository.findByUserId).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
-      "user-1",
+      1,
     );
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);
@@ -188,8 +188,8 @@ describe("OrderService", () => {
 
   it("should return an order by id", async () => {
     const order: OrderDetails = {
-      id: "order-1",
-      userId: "user-1",
+      id: 1,
+      userId: 1,
       status: "pending",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -198,14 +198,14 @@ describe("OrderService", () => {
 
     orderRepository.findById.mockResolvedValue(order);
 
-    const result = await orderService.getOrderById("order-1", "user-1");
+    const result = await orderService.getOrderById(1, 1);
 
     expect(result).toEqual(order);
 
     expect(orderRepository.findById).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
-      "order-1",
-      "user-1",
+      1,
+      1,
     );
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);
@@ -214,7 +214,7 @@ describe("OrderService", () => {
   it("should return null when order does not exist", async () => {
     orderRepository.findById.mockResolvedValue(null);
 
-    const result = await orderService.getOrderById("order-999", "user-1");
+    const result = await orderService.getOrderById(999, 1);
 
     expect(result).toBeNull();
 
@@ -224,7 +224,7 @@ describe("OrderService", () => {
   it("should release client when getOrdersByUserId fails", async () => {
     orderRepository.findByUserId.mockRejectedValue(new Error("DB error"));
 
-    await expect(orderService.getOrdersByUserId("user-1")).rejects.toThrow(
+    await expect(orderService.getOrdersByUserId(1)).rejects.toThrow(
       "DB error",
     );
 
@@ -235,7 +235,7 @@ describe("OrderService", () => {
     orderRepository.findById.mockRejectedValue(new Error("DB error"));
 
     await expect(
-      orderService.getOrderById("order-1", "user-1"),
+      orderService.getOrderById(1, 1),
     ).rejects.toThrow("DB error");
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);

@@ -4,13 +4,13 @@ export type CreateOrderItemData = {
 };
 
 export type CreateOrderData = {
-  userId: string;
+  userId: number;
   items: CreateOrderItemData[];
 };
 
 export type Order = {
-  id: string;
-  userId: string;
+  id: number;
+  userId: number;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -32,8 +32,8 @@ export type OrderDetails = Order & {
 };
 
 export type OrderRow = {
-  orderId: string;
-  userId: string;
+  orderId: number;
+  userId: number;
   status: string;
   createdAt: string;
   updatedAt: string;

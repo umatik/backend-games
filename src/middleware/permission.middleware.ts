@@ -1,8 +1,8 @@
-import type { Response, NextFunction } from "express";
-import { authorizationService } from "../dependency-injection.js";
-import type { AuthenticatedRequest } from "./authentication.middleware.js";
+import type {Response, NextFunction} from "express";
+import type {AuthenticatedRequest} from "./authentication.middleware.js";
+import type {AuthorizationService} from "../services/authorization.service.js";
 
-export const requirePermission = (permission: string) => {
+export const requirePermission = (authorizationService: AuthorizationService, permission: string) => {
   return async (
     req: AuthenticatedRequest,
     res: Response,

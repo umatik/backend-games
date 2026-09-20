@@ -1,9 +1,13 @@
-import { Router } from "express";
-import type { ProductController } from "../controllers/product.controller.js";
-import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
+import {Router} from "express";
+import type {ProductController} from "../controllers/product.controller.js";
+import {authenticationMiddleware} from "../middleware/authentication.middleware.js";
+import {requirePermission} from "../middleware/permission.middleware.js";
+import type {AuthorizationService} from "../services/authorization.service.js";
 
-export const createProductRouter = (productController: ProductController) => {
+export const createProductRouter = (
+  productController: ProductController,
+  authorizationService: AuthorizationService,
+) => {
   const router = Router();
 
   /**
@@ -57,11 +61,8 @@ export const createProductRouter = (productController: ProductController) => {
    *             type: object
    *             required:
    *               - name
-   *               - description
    *             properties:
    *               name:
-   *                 type: string
-   *               description:
    *                 type: string
    *     responses:
    *       201:
@@ -76,7 +77,7 @@ export const createProductRouter = (productController: ProductController) => {
   router.post(
     "/",
     authenticationMiddleware,
-    requirePermission("products:create"),
+    requirePermission(authorizationService, "products:create"),
     productController.createProduct,
   );
 
@@ -121,7 +122,7 @@ export const createProductRouter = (productController: ProductController) => {
   router.patch(
     "/:id",
     authenticationMiddleware,
-    requirePermission("products:update"),
+    requirePermission(authorizationService, "products:update"),
     productController.updateProduct,
   );
 
@@ -153,7 +154,7 @@ export const createProductRouter = (productController: ProductController) => {
   router.delete(
     "/:id",
     authenticationMiddleware,
-    requirePermission("products:delete"),
+    requirePermission(authorizationService, "products:delete"),
     productController.deleteProduct,
   );
 
@@ -190,7 +191,7 @@ export const createProductRouter = (productController: ProductController) => {
   router.delete(
     "/:productId/variants/:variantId",
     authenticationMiddleware,
-    requirePermission("products:delete"),
+    requirePermission(authorizationService, "products:delete"),
     productController.deleteProductVariant,
   );
 

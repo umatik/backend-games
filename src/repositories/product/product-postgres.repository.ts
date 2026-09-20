@@ -4,7 +4,6 @@ import type {
   ProductRow,
   UpdateProductData,
 } from "../../types/product.types.js";
-import {pool} from "../../database/db.js";
 import type {PoolClient} from "pg";
 import type {ProductRepository} from "./product.interface.js";
 
@@ -31,8 +30,8 @@ export class PostgresProductRepository implements ProductRepository {
     return this.mapProductRow(result.rows[0]);
   }
 
-  async findById(id: string): Promise<Product | null> {
-    const result = await pool.query(
+  async findById(id: number, client: PoolClient): Promise<Product | null> {
+    const result = await client.query(
       `
         SELECT id, name, is_deleted, created_at, updated_at, deleted_at
         FROM products
@@ -48,8 +47,8 @@ export class PostgresProductRepository implements ProductRepository {
     return null;
   }
 
-  async findAll(): Promise<Product[]> {
-    const result = await pool.query(`
+  async findAll(client: PoolClient): Promise<Product[]> {
+    const result = await client.query(`
       SELECT id, name, is_deleted, created_at, updated_at, deleted_at
       FROM products
       WHERE is_deleted = FALSE
@@ -58,8 +57,8 @@ export class PostgresProductRepository implements ProductRepository {
     return result.rows.map((row) => this.mapProductRow(row));
   }
 
-  async findAllWithVariants(): Promise<ProductDetails[]> {
-    const result = await pool.query(`
+  async findAllWithVariants(client: PoolClient): Promise<ProductDetails[]> {
+    const result = await client.query(`
       SELECT p.id,
              p.name,
              p.is_deleted,
@@ -125,7 +124,7 @@ export class PostgresProductRepository implements ProductRepository {
 
   async update(
     client: PoolClient,
-    id: string,
+    id: number,
     data: UpdateProductData,
   ): Promise<Product | null> {
     const result = await client.query(
@@ -147,8 +146,8 @@ export class PostgresProductRepository implements ProductRepository {
     return null;
   }
 
-  async delete(id: string): Promise<boolean> {
-    const result = await pool.query(
+  async delete(client: PoolClient, id: number): Promise<boolean> {
+    const result = await client.query(
       `
         UPDATE products
         SET is_deleted = TRUE,

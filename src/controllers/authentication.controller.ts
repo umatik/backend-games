@@ -1,11 +1,13 @@
-import type { Request, Response } from "express";
-import { AuthenticationService } from "../services/authentication.service.js";
+import type {Request, Response} from "express";
+import {AuthenticationService} from "../services/authentication.service.js";
+import {InvalidCredentialsError} from "../errors/invalid-credentials.error.js";
 
 export class AuthenticationController {
-  constructor(private authService: AuthenticationService) {}
+  constructor(private authService: AuthenticationService) {
+  }
 
   login = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
+    const {email, password} = req.body;
 
     if (
       typeof email !== "string" ||
@@ -31,7 +33,7 @@ export class AuthenticationController {
         token: result.token,
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "Invalid credentials") {
+      if (error instanceof InvalidCredentialsError) {
         res.status(401).json({
           message: "Invalid credentials",
         });

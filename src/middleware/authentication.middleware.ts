@@ -1,5 +1,5 @@
-import type { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
+import type {NextFunction, Request, Response} from "express";
+import {JwtService} from "../services/jwt.service.js";
 
 export type AuthenticatedRequest = Request & {
   user?: {
@@ -7,6 +7,8 @@ export type AuthenticatedRequest = Request & {
     email: string;
   };
 };
+
+const jwtService = new JwtService();
 
 export const authenticationMiddleware = (
   req: AuthenticatedRequest,
@@ -31,18 +33,8 @@ export const authenticationMiddleware = (
     return;
   }
 
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error("JWT_SECRET is not defined");
-  }
-
   try {
-    const payload = jwt.verify(token, secret, {
-      algorithms: ["HS256"],
-      issuer: "ecommerce-api",
-      audience: "ecommerce-client",
-    });
+    const payload = jwtService.verifyToken(token);
 
     if (
       typeof payload !== "object" ||

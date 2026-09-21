@@ -1,18 +1,19 @@
-import type { Response } from "express";
-import { ProductNotFoundError } from "../errors/product-not-found.error.js";
-import { UserNotFoundError } from "../errors/user-not-found.error.js";
-import { InsufficientStockError } from "../errors/insufficient-stock.error.js";
-import type { CreateOrderData } from "../types/order.types.js";
-import { OrderService } from "../services/order.service.js";
-import { isValidOrderItems } from "../validators/order.validator.js";
-import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
-import {parseId} from "../validators/id.validator.js";
+import type {Response} from "express";
+import {ProductNotFoundError} from "../errors/product-not-found.error.js";
+import {UserNotFoundError} from "../errors/user-not-found.error.js";
+import {InsufficientStockError} from "../errors/insufficient-stock.error.js";
+import type {CreateOrderData} from "../types/order.types.js";
+import {OrderService} from "../services/order.service.js";
+import {isValidOrderItems} from "../validators/order.validator.js";
+import type {AuthenticatedRequest} from "../middleware/authentication.middleware.js";
+import {parseId} from "../validators/helpers/id.validator.js";
 
 export class OrderController {
-  constructor(private orderService: OrderService) {}
+  constructor(private orderService: OrderService) {
+  }
 
   createOrder = async (req: AuthenticatedRequest, res: Response) => {
-    const { items } = req.body;
+    const {items} = req.body;
 
     if (!isValidOrderItems(items)) {
       res.status(400).json({

@@ -12,7 +12,7 @@ import {
   isValidProductVariantId,
 } from "../validators/product.validator.js";
 import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
-import {parseId} from "../validators/id.validator.js";
+import {parseId} from "../validators/helpers/id.validator.js";
 
 export class ProductController {
   private productService: ProductService;

@@ -2,7 +2,6 @@
   "name": "ecommerce-api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest",
     "dev": "tsx src/server.ts",

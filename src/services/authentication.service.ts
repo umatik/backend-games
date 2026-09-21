@@ -18,21 +18,27 @@ export class AuthenticationService {
   ) {
   }
 
-  async login(email: string, password: string) {
+  async login(
+    email: string,
+    password: string,
+    ipAddress: string | null = null,
+    userAgent: string | null = null,
+  ) {
     const client = await this.pool.connect();
+    const fixedEmail = email.trim().toLowerCase();
 
     try {
-      const user = await this.authRepository.findUserByEmail(client, email);
+      const user = await this.authRepository.findUserByEmail(client, fixedEmail);
       const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
       const isPasswordValid = await bcrypt.compare(password, passwordHash);
 
       if (!user) {
         await this.authRepository.logLogin(client, {
           userId: null,
-          email,
+          email: fixedEmail,
           success: false,
-          ipAddress: null,
-          userAgent: null,
+          ipAddress,
+          userAgent,
         });
 
         throw new InvalidCredentialsError();
@@ -41,10 +47,10 @@ export class AuthenticationService {
       if (!isPasswordValid) {
         await this.authRepository.logLogin(client, {
           userId: user.id,
-          email,
+          email: fixedEmail,
           success: false,
-          ipAddress: null,
-          userAgent: null,
+          ipAddress,
+          userAgent,
         });
 
         throw new InvalidCredentialsError();
@@ -52,10 +58,10 @@ export class AuthenticationService {
 
       await this.authRepository.logLogin(client, {
         userId: user.id,
-        email,
+        email: fixedEmail,
         success: true,
-        ipAddress: null,
-        userAgent: null,
+        ipAddress,
+        userAgent,
       });
 
       const token = this.jwtService.generateToken(user.id, user.email);

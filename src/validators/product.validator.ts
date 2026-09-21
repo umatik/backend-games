@@ -1,19 +1,28 @@
+import {isValidString} from "./helpers/string.validator.js";
+
 export const isValidProductName = (name: unknown): boolean => {
-  return typeof name === "string" && name.trim() !== "";
+  return isValidString(name, 255);
 };
 
 export const isValidProductQuantity = (quantity: unknown): boolean => {
   return (
-    typeof quantity === "number" && Number.isInteger(quantity) && quantity >= 0
+    typeof quantity === "number" &&
+    Number.isInteger(quantity) &&
+    quantity >= 0
   );
 };
 
 export const isValidProductPrice = (price: unknown): boolean => {
-  return typeof price === "number" && !Number.isNaN(price) && price >= 0;
+  return (
+    typeof price === "number" &&
+    Number.isFinite(price) &&
+    price >= 0 &&
+    price <= 99_999_999.99
+  );
 };
 
 export const isValidProductOption = (value: unknown): boolean => {
-  return value === null || (typeof value === "string" && value.trim() !== "");
+  return value === null || isValidString(value, 100);
 };
 
 export const isValidProductVariantId = (id: unknown): boolean => {

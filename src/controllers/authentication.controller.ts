@@ -22,7 +22,12 @@ export class AuthenticationController {
     }
 
     try {
-      const result = await this.authService.login(email, password);
+      const result = await this.authService.login(
+        email,
+        password,
+        req.ip ?? null,
+        req.get("user-agent") ?? null,
+      );
 
       res.status(200).json({
         message: "Login successful",

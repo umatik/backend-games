@@ -9,8 +9,10 @@ import type {
   CreatedUser,
   CreateUserContactData,
   CreateUserData,
-  RegisterUserData, UpdateUserContactData,
-  UpdateUserData, UpdateUserRequest,
+  RegisterUserData,
+  UpdateUserContactData,
+  UpdateUserData,
+  UpdateUserRequest,
   UserDetails,
 } from "../types/user.types.js";
 
@@ -41,7 +43,7 @@ export class UserService {
       const passwordHash = await bcrypt.hash(data.password, 12);
 
       const user = await this.createUser(client, {
-        email: data.email,
+        email: data.email.trim().toLowerCase(),
         passwordHash,
       });
 
@@ -90,7 +92,6 @@ export class UserService {
       throw error;
     }
   }
-
 
   async updateUser(
     userId: number,

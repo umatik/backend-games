@@ -1,3 +1,5 @@
+import {isValidString} from "./helpers/string.validator.js";
+
 export const isValidRegisterUser = (data: unknown): boolean => {
   if (typeof data !== "object" || data === null) {
     return false;
@@ -11,22 +13,15 @@ export const isValidRegisterUser = (data: unknown): boolean => {
 
   return (
     emailRegex.test(email) &&
-    typeof user.password === "string" &&
-    user.password.trim() !== "" &&
-    typeof user.firstName === "string" &&
-    user.firstName.trim() !== "" &&
-    typeof user.lastName === "string" &&
-    user.lastName.trim() !== "" &&
-    typeof user.phone === "string" &&
-    user.phone.trim() !== "" &&
-    typeof user.address === "string" &&
-    user.address.trim() !== "" &&
-    typeof user.city === "string" &&
-    user.city.trim() !== "" &&
-    typeof user.postalCode === "string" &&
-    user.postalCode.trim() !== "" &&
-    typeof user.country === "string" &&
-    user.country.trim() !== ""
+    email.length <= 255 &&
+    isValidString(user.password, 255) &&
+    isValidString(user.firstName, 100) &&
+    isValidString(user.lastName, 100) &&
+    isValidString(user.phone, 50) &&
+    isValidString(user.address, Number.MAX_SAFE_INTEGER) &&
+    isValidString(user.city, 100) &&
+    isValidString(user.postalCode, 20) &&
+    isValidString(user.country, 100)
   );
 };
 
@@ -58,7 +53,20 @@ export const isValidUpdateUser = (data: unknown): boolean => {
     return false;
   }
 
+  const fieldMaxLengths: Record<string, number> = {
+    email: 255,
+    firstName: 100,
+    lastName: 100,
+    phone: 50,
+    address: Number.MAX_SAFE_INTEGER,
+    city: 100,
+    postalCode: 20,
+    country: 100,
+  };
+
   return fields.every((field) => {
-    return typeof user[field] === "string" && user[field].trim() !== "";
+    const maxLength = fieldMaxLengths[field];
+
+    return maxLength !== undefined && isValidString(user[field], maxLength);
   });
 };

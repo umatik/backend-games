@@ -1,11 +1,24 @@
 import type {
   CreateProductData,
-  Product, ProductDetails,
+  Product,
+  ProductDetails,
   ProductRow,
   UpdateProductData,
 } from "../../types/product.types.js";
 import type {PoolClient} from "pg";
 import type {ProductRepository} from "./product.interface.js";
+
+type ProductDetailsRow = ProductRow & {
+  variant_id: number | null;
+  color: string | null;
+  size: string | null;
+  price: number;
+  quantity: number;
+  variant_is_deleted: boolean;
+  variant_created_at: Date;
+  variant_updated_at: Date;
+  variant_deleted_at: Date | null;
+};
 
 export class PostgresProductRepository implements ProductRepository {
   async countAll(client: PoolClient): Promise<number> {
@@ -29,87 +42,12 @@ export class PostgresProductRepository implements ProductRepository {
     deleted_at: row.deleted_at,
   });
 
-  async create(client: PoolClient, data: CreateProductData): Promise<Product> {
-    const result = await client.query(
-      `
-        INSERT INTO products (name)
-        VALUES ($1)
-        RETURNING id, name, is_deleted, created_at, deleted_at, updated_at
-      `,
-      [data.name],
-    );
-
-    return this.mapProductRow(result.rows[0]);
-  }
-
-  async findById(id: number, client: PoolClient): Promise<Product | null> {
-    const result = await client.query(
-      `
-        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
-        FROM products
-        WHERE id = $1
-          AND is_deleted = FALSE`,
-      [id],
-    );
-
-    if (result.rows.length > 0) {
-      return this.mapProductRow(result.rows[0]);
-    }
-
-    return null;
-  }
-
-  async findAll(
-    client: PoolClient,
-    page: number,
-    limit: number,
-  ): Promise<Product[]> {
-    const offset = (page - 1) * limit;
-
-    const result = await client.query(
-      `
-        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
-        FROM products
-        WHERE is_deleted = FALSE
-        ORDER BY id
-        LIMIT $1 OFFSET $2
-      `,
-      [limit, offset],
-    );
-
-    return result.rows.map((row) => this.mapProductRow(row));
-  }
-
-  async findAllWithVariants(client: PoolClient, page: number, limit: number): Promise<ProductDetails[]> {
-    const offset = (page - 1) * limit;
-    const result = await client.query(`
-      SELECT p.id,
-             p.name,
-             p.is_deleted,
-             p.created_at,
-             p.updated_at,
-             p.deleted_at,
-             pv.id         AS variant_id,
-             pv.color,
-             pv.size,
-             pv.price,
-             pv.quantity,
-             pv.is_deleted AS variant_is_deleted,
-             pv.created_at AS variant_created_at,
-             pv.updated_at AS variant_updated_at,
-             pv.deleted_at AS variant_deleted_at
-      FROM products p
-             LEFT JOIN product_variants pv
-                       ON pv.product_id = p.id
-                         AND pv.is_deleted = FALSE
-      WHERE p.is_deleted = FALSE
-      ORDER BY p.id, pv.id
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
-
+  private mapProductDetailsRows = (
+    rows: ProductDetailsRow[],
+  ): ProductDetails[] => {
     const products = new Map<number, ProductDetails>();
 
-    for (const row of result.rows) {
+    for (const row of rows) {
       const productId = Number(row.id);
 
       let product = products.get(productId);
@@ -145,6 +83,103 @@ export class PostgresProductRepository implements ProductRepository {
     }
 
     return Array.from(products.values());
+  };
+
+  async create(client: PoolClient, data: CreateProductData): Promise<Product> {
+    const result = await client.query(
+      `
+        INSERT INTO products (name)
+        VALUES ($1)
+        RETURNING id, name, is_deleted, created_at, deleted_at, updated_at
+      `,
+      [data.name],
+    );
+
+    return this.mapProductRow(result.rows[0]);
+  }
+
+  async findById(id: number, client: PoolClient): Promise<Product | null> {
+    const result = await client.query(
+      `
+        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
+        FROM products
+        WHERE id = $1
+          AND is_deleted = FALSE
+      `,
+      [id],
+    );
+
+    if (result.rows.length > 0) {
+      return this.mapProductRow(result.rows[0]);
+    }
+
+    return null;
+  }
+
+  async findAll(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<Product[]> {
+    const offset = (page - 1) * limit;
+
+    const result = await client.query(
+      `
+        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
+        FROM products
+        WHERE is_deleted = FALSE
+        ORDER BY id
+        LIMIT $1 OFFSET $2
+      `,
+      [limit, offset],
+    );
+
+    return result.rows.map((row) => this.mapProductRow(row));
+  }
+
+  async findAllWithVariants(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<ProductDetails[]> {
+    const offset = (page - 1) * limit;
+
+    const result = await client.query<ProductDetailsRow>(
+      `
+        SELECT p.id,
+               p.name,
+               p.is_deleted,
+               p.created_at,
+               p.updated_at,
+               p.deleted_at,
+               pv.id         AS variant_id,
+               pv.color,
+               pv.size,
+               pv.price,
+               pv.quantity,
+               pv.is_deleted AS variant_is_deleted,
+               pv.created_at AS variant_created_at,
+               pv.updated_at AS variant_updated_at,
+               pv.deleted_at AS variant_deleted_at
+        FROM (SELECT id,
+                     name,
+                     is_deleted,
+                     created_at,
+                     updated_at,
+                     deleted_at
+              FROM products
+              WHERE is_deleted = FALSE
+              ORDER BY id
+              LIMIT $1 OFFSET $2) p
+               LEFT JOIN product_variants pv
+                         ON pv.product_id = p.id
+                           AND pv.is_deleted = FALSE
+        ORDER BY p.id, pv.id
+      `,
+      [limit, offset],
+    );
+
+    return this.mapProductDetailsRows(result.rows);
   }
 
   async update(

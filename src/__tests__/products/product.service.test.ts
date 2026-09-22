@@ -6,6 +6,8 @@ import {
 } from "../../services/product.service.js";
 import type {ProductRepository} from "../../repositories/product/product.interface.js";
 import type {ProductVariantRepository} from "../../repositories/product-variant/product-variant.interface.js";
+import type {Cache} from "../../cache/cache.interface.js";
+import type {ProductDetails} from "../../types/product.types.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -17,6 +19,13 @@ describe("ProductService", () => {
   let productRepository: jest.Mocked<ProductRepository>;
   let productVariantRepository: jest.Mocked<ProductVariantRepository>;
   let mockPool: Database;
+
+  let cache: jest.Mocked<
+    Cache<{
+      products: ProductDetails[];
+      total: number;
+    }>
+  >;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,10 +54,18 @@ describe("ProductService", () => {
         .mockResolvedValue(mockClient as unknown as PoolClient),
     };
 
+    cache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      delete: jest.fn(),
+      clear: jest.fn(),
+    };
+
     productService = new ProductService(
       productRepository,
       productVariantRepository,
       mockPool,
+      cache,
     );
   });
 
@@ -589,8 +606,8 @@ describe("ProductService", () => {
     expect(mockPool.connect).toHaveBeenCalledTimes(1);
   });
 
-  it("should get all products with their variants and total", async () => {
-    productRepository.findAllWithVariants.mockResolvedValue([
+  it("should load products from database on cache miss", async () => {
+    const products: ProductDetails[] = [
       {
         id: 1,
         name: "Product 1",
@@ -598,59 +615,24 @@ describe("ProductService", () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted_at: null,
-        variants: [
-          {
-            id: 1,
-            productId: 1,
-            color: "Black",
-            size: "M",
-            price: 100,
-            quantity: 10,
-            isDeleted: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null,
-          },
-        ],
+        variants: [],
       },
-      {
-        id: 2,
-        name: "Product 2",
-        is_deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        variants: [
-          {
-            id: 2,
-            productId: 2,
-            color: "Red",
-            size: "L",
-            price: 200,
-            quantity: 20,
-            isDeleted: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null,
-          },
-        ],
-      },
-    ]);
+    ];
 
+    cache.get.mockReturnValue(null);
+    productRepository.findAllWithVariants.mockResolvedValue(products);
     productRepository.countAll.mockResolvedValue(87);
 
     const result = await productService.getAllProducts(2, 10);
 
-    expect(result.products).toHaveLength(2);
-    expect(result.total).toBe(87);
+    expect(result).toEqual({
+      products,
+      total: 87,
+    });
 
-    expect(result.products[0]!.id).toBe(1);
-    expect(result.products[0]!.variants).toHaveLength(1);
-
-    expect(result.products[1]!.id).toBe(2);
-    expect(result.products[1]!.variants).toHaveLength(1);
-
-    expect(productRepository.findAllWithVariants).toHaveBeenCalledTimes(1);
+    expect(cache.get).toHaveBeenCalledWith(
+      "products:page=2:limit=10",
+    );
 
     expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -658,16 +640,50 @@ describe("ProductService", () => {
       10,
     );
 
-    expect(productRepository.countAll).toHaveBeenCalledTimes(1);
-
     expect(productRepository.countAll).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
     );
 
-    expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
+    expect(cache.set).toHaveBeenCalledWith(
+      "products:page=2:limit=10",
+      {
+        products,
+        total: 87,
+      },
+      60,
+    );
+  });
 
-    expect(mockPool.connect).toHaveBeenCalledTimes(1);
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  it("should return products from cache on cache hit", async () => {
+    const cachedResult = {
+      products: [
+        {
+          id: 1,
+          name: "Cached Product",
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          deleted_at: null,
+          variants: [],
+        },
+      ],
+      total: 87,
+    };
+
+    cache.get.mockReturnValue(cachedResult);
+
+    const result = await productService.getAllProducts(2, 10);
+
+    expect(result).toBe(cachedResult);
+
+    expect(cache.get).toHaveBeenCalledWith(
+      "products:page=2:limit=10",
+    );
+
+    expect(productRepository.findAllWithVariants).not.toHaveBeenCalled();
+    expect(productRepository.countAll).not.toHaveBeenCalled();
+    expect(mockPool.connect).not.toHaveBeenCalled();
+    expect(cache.set).not.toHaveBeenCalled();
   });
 
   it("should return empty products with total", async () => {

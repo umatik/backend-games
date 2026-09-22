@@ -9,6 +9,7 @@ import type {ProductRepository} from "../repositories/product/product.interface.
 import type {UpdateProductVariantData} from "../types/product-variant.types.js";
 import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
 import type {PoolClient} from "pg";
+import type {Cache} from "../cache/cache.interface.js";
 
 export type Database = {
   connect(): Promise<PoolClient>;
@@ -19,6 +20,10 @@ export class ProductService {
     private productRepository: ProductRepository,
     private productVariantRepository: ProductVariantRepository,
     private pool: Database,
+    private cache: Cache<{
+      products: ProductDetails[];
+      total: number;
+    }>,
   ) {
   }
 
@@ -43,6 +48,7 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
+      this.cache.clear()
 
       return product;
     } catch (error) {
@@ -128,6 +134,7 @@ export class ProductService {
       );
 
       await client.query("COMMIT");
+      this.cache.clear()
 
       return {
         ...product,
@@ -138,6 +145,7 @@ export class ProductService {
       throw error;
     } finally {
       client.release();
+
     }
   }
 
@@ -172,6 +180,13 @@ export class ProductService {
     products: ProductDetails[];
     total: number;
   }> {
+    const cacheKey = `products:page=${page}:limit=${limit}`;
+    const cached = this.cache.get(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
     const client = await this.pool.connect();
 
     try {
@@ -182,11 +197,14 @@ export class ProductService {
       );
 
       const total = await this.productRepository.countAll(client);
-
-      return {
+      const result = {
         products,
         total,
       };
+
+      this.cache.set(cacheKey, result, 60);
+
+      return result;
     } finally {
       client.release();
     }
@@ -222,6 +240,7 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
+      this.cache.clear()
 
       return true;
     } catch (error) {
@@ -246,6 +265,8 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
+      this.cache.clear()
+
       return true;
     } catch (error) {
       try {
@@ -257,6 +278,7 @@ export class ProductService {
       throw error;
     } finally {
       client.release();
+
     }
   }
 }

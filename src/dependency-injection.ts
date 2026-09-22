@@ -28,6 +28,10 @@ import {PermissionPostgresRepository} from "./repositories/permissions/permissio
 import {pool} from "./database/db.js";
 import {AuthorizationService} from "./services/authorization.service.js";
 
+import {InMemoryCache} from "./cache/in-memory-cache.js";
+import type {ProductDetails} from "./types/product.types.js";
+
+
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
 const authService = new AuthenticationService(authRepository, jwtService, pool);
@@ -43,10 +47,16 @@ const authorizationService = new AuthorizationService(
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
 
+const productCache = new InMemoryCache<{
+  products: ProductDetails[];
+  total: number;
+}>();
+
 const productService = new ProductService(
   productRepository,
   productVariantRepository,
   pool,
+  productCache
 );
 
 const productController = new ProductController(productService);

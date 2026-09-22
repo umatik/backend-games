@@ -35,803 +35,162 @@ Główny nacisk:
 > Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
 > pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
 
-> **Historia i ewolucja projektu**
->
-> Historia commitów Git dokumentuje rzeczywisty rozwój projektu w trakcie kursu, jego kolejne etapy oraz czas trwania
-> nauki.
-> Kurs był realizowany systematycznie, dzień po dniu, w rzeczywistym cyklu developerskim — wraz z implementacją,
-> testowaniem, poprawkami, refaktoryzacją i podejmowaniem decyzji technicznych.
->
-> Historia commitów odpowiada kolejnym etapom opisanym w README. Poszczególne commity mogą jednak przedstawiać zupełnie
-> różne podejścia, eksperymenty lub zmiany implementacyjne. Ostateczna logika i architektura projektu są zgodne z
-> aktualnym opisem kursu w README.
+## Plan kursu
 
-## Stack technologiczny
+Kurs został podzielony na kolejne etapy. Każdy etap był realizowany na tym samym projekcie e-commerce, tak aby nowe
+zagadnienia wynikały z rzeczywistych problemów aplikacji.
 
-### Runtime / język
+### Etap 1 — Fundament: Node.js + TypeScript
 
 - Node.js
 - TypeScript
 - ES Modules
-- tsx
-
-### HTTP / API
-
 - Express
-- REST API
-- Helmet
-- cors
-- express-rate-limit
-
-### Baza danych
-
-- PostgreSQL
-- Docker
-- pg
-- Pool / PoolClient
-- SQL
+- konfiguracja projektu
+- zmienne środowiskowe
+- PostgreSQL w Dockerze
+- połączenie aplikacji z bazą danych
+- podstawowa struktura API
+- users, products, orders
 - database migrations
 
-### Authentication / Authorization
+### Etap 2 — Database
 
+- relacje między tabelami
+- PRIMARY KEY / FOREIGN KEY
+- JOIN
+- indeksy
+- UNIQUE
+- constraints
+- soft delete
+- transakcje
+- COMMIT / ROLLBACK
+- isolation levels
+- race conditions
+- spójność danych
+- optymalizacja zapytań
+
+### Etap 3 — Proper Backend
+
+- controllers
+- services
+- repositories
+- Repository Pattern
+- interfejsy repository
+- Dependency Injection
+- Composition Root
+- validation
+- error handling
+- własne błędy aplikacyjne
+- authentication
 - JWT
-- bcrypt
+- authorization
 - RBAC
 - permissions
-- Bearer Authentication
+- security hardening
+- testy jednostkowe i API
 
-### Validation / Security
+### Etap 4 — Performance
 
-- request validation
-- Helmet
-- CORS
-- rate limiting
-- JWT hardening
-- parameterized SQL queries
-- request body limits
-- npm audit
+- pagination
+- N+1 problem
+- query optimization
+- indeksy
+- analiza zapytań
+- caching
+- Redis
+- ograniczanie niepotrzebnych zapytań do bazy
 
-### Testing
+### Etap 5 — Code Review i refaktoryzacja
 
-- Jest
-- Supertest
-- ts-jest
-- osobna baza PostgreSQL `ecommerce_test`
+- pełny audyt architektury
+- separation of responsibilities
+- analiza Dependency Injection
+- Composition Root
+- kontrola granic warstw
+- analiza technical debt
+- bezpieczeństwo
+- jakość kodu
+- test coverage i jakość testów
+- izolacja testowej bazy danych
+- database indexes
+- request limits
+- API documentation
+- production readiness
 
-### API Documentation
+Etap audytu został zakończony. W ramach audytu uporządkowano m.in. konfigurację JWT, walidację, normalizację danych
+wejściowych, login logs, indeksy kluczy obcych, migracje oraz drobne elementy projektu.
 
-- OpenAPI 3.0
-- swagger-jsdoc
-- Swagger UI
+### Etap 6 — Production Preparation
 
-### Tooling
-
-- dotenv
-- Git
-- npm
-
----
-
-## Architektura
-
-```text
-HTTP Request
-     ↓
-Middleware
-     ↓
-Controller
-     ↓
-Service
-     ↓
-Repository
-     ↓
-PostgreSQL
-```
-
-Za składanie zależności odpowiada Composition Root:
-
-```text
-src/dependency-injection.ts
-```
-
-Aktualna architektura wykorzystuje Dependency Injection do składania:
-
-```text
-Repository
-   ↓
-Service
-   ↓
-Controller
-   ↓
-Router
-```
-
-Jednym z celów końcowego code review jest ocena, czy obecna forma Composition Root i DI jest optymalna dla małego
-e-commerce, który może ewoluować w większy system.
-
----
-
-# Zrealizowane zagadnienia
-
-## 1. Node.js + TypeScript
-
-- konfiguracja projektu Node.js
-- TypeScript
-- ES Modules
-- package.json
-- tsx
-- typowanie
-- async/await
-- obsługa błędów
-- struktura aplikacji
-
-## 2. Express
-
-- Express
-- routing
-- middleware
-- request / response
-- status codes
-- JSON API
-- separacja routerów
-- kontrolery
-
-## 3. PostgreSQL
-
-- PostgreSQL
+- production configuration
+- environment variables
 - Docker
-- połączenie Node.js ↔ PostgreSQL
-- pg
-- Pool
-- PoolClient
-- SQL queries
-- parametryzowane zapytania
-- JOIN-y
-- klucze obce
-- indeksy
-- constraints
+- production build
+- database migrations w środowisku produkcyjnym
+- graceful shutdown
+- PostgreSQL connection handling
+- health checks
+- security configuration
+- logging
+- deployment considerations
 
-## 4. Database migrations
+### Etap 7 — Cart → Checkout → Payment → Order
 
-Zbudowany został system migracji bazy danych obejmujący m.in.:
-
-- users
-- products
-- product variants
-- orders
-- order items
-- roles
-- permissions
-- soft delete
-- constraints
-- indeksy
-- relacje między tabelami
-
-## 5. Users
-
-System użytkowników:
+Rozszerzenie obecnego API o rzeczywisty przepływ zakupowy:
 
 ```text
-users
-└── user_contact_details
-```
-
-Zaimplementowane:
-
-- rejestracja
-- pobieranie użytkownika
-- aktualizacja użytkownika
-- dane kontaktowe
-- soft delete
-- unikalny email
-
-## 6. Authentication
-
-Uwierzytelnianie użytkownika:
-
-```text
-POST /login
-```
-
-Wykorzystujemy:
-
-- bcrypt
-- JWT
-- Authorization header
-- Bearer token
-- authentication middleware
-
-Flow:
-
-```text
-login
+Cart
  ↓
-email + password
+Checkout
  ↓
-bcrypt.compare()
+Payment
  ↓
-JWT
+Order
  ↓
-Authorization: Bearer <token>
+Webhook
  ↓
-authentication middleware
- ↓
-req.user
+Order status
 ```
 
-## 7. Authorization
-
-Rozdzielone zostały dwa pojęcia:
-
-```text
-Authentication
-→ Kim jesteś?
-
-Authorization
-→ Co możesz zrobić?
-```
-
-System wykorzystuje RBAC + permissions:
-
-```text
-users
-   ↓
-user_roles
-   ↓
-roles
-   ↓
-role_permissions
-   ↓
-permissions
-```
-
-Przykładowe permissions:
-
-```text
-products:read
-products:create
-products:update
-products:delete
-
-orders:read
-orders:create
-orders:update
-
-users:read
-users:update
-```
-
-Role:
-
-```text
-user
-admin
-```
-
-Middleware:
-
-```text
-requirePermission(...)
-```
-
-## 8. Products
-
-System produktów:
-
-```text
-products
-   ↓
-product_variants
-```
-
-Produkt może posiadać wiele wariantów.
-
-Wariant zawiera m.in.:
-
-```text
-color
-size
-price
-quantity
-```
-
-Zaimplementowane:
-
-- pobieranie produktów
-- pobieranie produktu
-- tworzenie produktu
-- aktualizacja produktu
-- soft delete produktu
-- usuwanie wariantu
-- filtrowanie usuniętych rekordów
-
-## 9. Soft delete
-
-Zamiast fizycznego usuwania rekordów stosujemy:
-
-```text
-is_deleted
-deleted_at
-```
-
-Mechanizm wykorzystujemy dla:
-
-- users
-- products
-- product variants
-
-## 10. Orders
-
-System zamówień:
-
-```text
-orders
-   ↓
-order_items
-   ↓
-product_variants
-```
-
-Zaimplementowane:
-
-- pobieranie zamówień
-- pobieranie pojedynczego zamówienia
-- tworzenie zamówienia
-- wiele produktów w jednym zamówieniu
-- sprawdzanie istnienia wariantu
-- sprawdzanie ilości
-- kontrola właściciela zamówienia
-
-## 11. Inventory / Stock
-
-Stan magazynowy znajduje się bezpośrednio na wariancie:
-
-```text
-product_variants.quantity
-```
-
-Przy utworzeniu zamówienia:
-
-```text
-quantity -= ordered quantity
-```
-
-Sprawdzamy:
-
-```text
-requested quantity <= available quantity
-```
-
-Jeżeli ilość jest niewystarczająca:
-
-```text
-409 Conflict
-```
-
-## 12. Transactions
-
-Tworzenie zamówienia wykorzystuje transakcję PostgreSQL:
-
-```text
-BEGIN
- ↓
-sprawdzenie danych
- ↓
-sprawdzenie stocku
- ↓
-utworzenie order
- ↓
-utworzenie order_items
- ↓
-zmniejszenie stocku
- ↓
-COMMIT
-```
-
-W przypadku błędu:
-
-```text
-ROLLBACK
-```
-
-oraz zawsze:
-
-```text
-client.release()
-```
-
-## 13. Dependency Injection
-
-Zależności są składane w:
-
-```text
-src/dependency-injection.ts
-```
-
-Flow:
-
-```text
-Repository
-   ↓
-Service
-   ↓
-Controller
-   ↓
-Router
-```
-
-Pozwala to m.in. na:
-
-- łatwiejsze testowanie
-- mockowanie zależności
-- wymianę implementacji
-- kontrolowanie architektury
-
-Końcowy refactor / code review obejmuje również ocenę granic Composition Root oraz sposobu udostępniania zależności
-pomiędzy middleware, routerami i pozostałymi warstwami.
-
-## 14. Unit tests
-
-Testujemy m.in.:
-
-- Services
-- Repository interactions
-- mockowanie PoolClient
-- transakcje
-- commit
-- rollback
-- release
-
-## 15. API tests
-
-Wykorzystujemy:
-
-```text
-Jest
-+
-Supertest
-```
-
-Testujemy:
-
-- authentication
-- users API
-- products API
-- orders API
-- status codes
-- response body
-- błędne requesty
-- brak tokena
-- niepoprawny token
-- brak zasobu
-- brak uprawnień
-- stock
-- ownership
-- izolację testowej bazy danych
-
-Testy wykorzystują osobną bazę PostgreSQL:
-
-```text
-ecommerce_test
-```
-
-Konfiguracja środowiska testowego znajduje się w:
-
-```text
-.env.test
-```
-
-Baza testowa jest całkowicie oddzielona od bazy developerskiej:
-
-```text
-Development
-    ↓
-ecommerce
-
-Tests
-    ↓
-ecommerce_test
-```
-
-Przed uruchomieniem testów baza testowa jest resetowana i wypełniana deterministycznymi danymi.
-
-Dzięki temu:
-
-- testy nigdy nie modyfikują bazy developerskiej
-- każdy test run korzysta ze znanego stanu danych
-- dane testowe są deterministyczne
-- API tests mogą korzystać z prawdziwego PostgreSQL
-- testy nie pozostawiają danych w bazie developerskiej
-
-Aktualny stan:
-
-```text
-Test Suites: 8 passed
-Tests:       112 passed
-Snapshots:   0 total
-```
-
-## 16. Testowanie przypadków brzegowych
-
-Testujemy również przypadki błędne:
-
-```text
-brak Authorization header
-niepoprawny JWT
-nieistniejący user
-nieistniejący product
-nieistniejący variant
-pusta lista items
-quantity = 0
-quantity < 0
-quantity większe niż stock
-dostęp do cudzego orderu
-```
+Zakres:
+
+- cart
+- cart items
+- checkout
+- adres dostawy
+- shipping
+- payment
+- integracja Stripe
+- payment status
+- webhooki Stripe
+- idempotency
+- order creation po poprawnej płatności
+- aktualizacja statusu zamówienia
+- obsługa błędów płatności
+- ochrona przed podwójnym przetworzeniem płatności
+
+### Etap 8 — Dalszy rozwój e-commerce
+
+Kolejne elementy będą dodawane tylko wtedy, gdy wynikną z realnych potrzeb projektu:
+
+- rozszerzenie modelu produktów
+- inventory / stock reservations
+- shipping workflow
+- refund / cancellation
+- order lifecycle
+- dalsza optymalizacja wydajności
+- caching
+- background jobs
+- observability
+- dalsze security hardening
+
+Celem nie jest implementowanie wszystkich możliwych funkcji e-commerce, lecz stopniowe rozwijanie systemu bez
+niepotrzebnego overengineeringu.
 
 ---
 
-## 17. Error handling / Error cleanup
-
-Zaimplementowano centralną obsługę błędów Express.
-
-Zaimplementowane:
-
-- centralna obsługa błędów Express
-- własna klasa AppError
-- własne klasy błędów aplikacyjnych
-- next (error)
-- rozdzielenie błędów biznesowych od technicznych
-- poprawne status codes
-- usunięcie powtarzającego się error handlingu
-- bezpieczne komunikaty dla klienta
-- obsługa nieoczekiwanych błędów
-- cleanup po błędach
-- poprawne ROLLBACK
-- poprawne zwalnianie PoolClient
-
-Błędy aplikacyjne wykorzystują odpowiednie statusy HTTP, m.in.:
-
-```text
-404 Not Found
-409 Conflict
-```
-
-Nieoczekiwane błędy są zwracane klientowi jako:
-
-```text
-500 Internal Server Error
-```
-
-bez ujawniania szczegółów implementacji.
-
----
-
-## 18. API Security
-
-Zaimplementowane zostało podstawowe security hardening API.
-
-### Security headers
-
-Wykorzystujemy:
-
-```text
-Helmet
-```
-
-Helmet dodaje podstawowe security headers do odpowiedzi HTTP.
-
-### CORS
-
-API posiada konfigurację CORS:
-
-```text
-cors
-```
-
-Aktualnie API pozwala na żądania cross-origin.
-
-### Rate limiting
-
-Endpoint logowania posiada ograniczenie liczby prób:
-
-```text
-POST /login
-```
-
-Konfiguracja:
-
-```text
-10 requests
-/
-15 minutes
-```
-
-Po przekroczeniu limitu API zwraca:
-
-```text
-429 Too Many Requests
-```
-
-### JWT security
-
-JWT został dodatkowo zabezpieczony poprzez:
-
-- jawne określenie algorytmu HS256
-- wymagany JWT_SECRET
-- issuer
-- audience
-- expiration time
-
-Token:
-
-```text
-expiresIn: 1h
-```
-
-### Password security
-
-Hasła użytkowników są hashowane przy użyciu:
-
-```text
-bcrypt
-```
-
-Przy rejestracji używany jest odpowiedni koszt hashowania.
-
-### Input validation
-
-Endpointy posiadają walidację danych wejściowych.
-
-Walidowane są m.in.:
-
-- wymagane pola
-- typy danych
-- wartości liczbowe
-- quantity
-- dane produktów
-- dane zamówień
-- dane użytkowników
-
-### SQL Injection
-
-Zapytania PostgreSQL wykorzystują parametryzowane wartości:
-
-```text
-$1
-$2
-$3
-```
-
-Dzięki temu dane użytkownika nie są bezpośrednio składane w SQL.
-
-### Mass assignment
-
-Dane przyjmowane przez API są jawnie mapowane na pola obsługiwane przez aplikację.
-
-Nie przekazujemy bezpośrednio całego req.body do warstwy bazy danych.
-
-### Sensitive data
-
-API nie zwraca w odpowiedziach:
-
-```text
-password_hash
-```
-
-Wrażliwe dane nie są również umieszczane w komunikatach błędów.
-
-### Request size limits
-
-JSON request body posiada ograniczenie:
-
-```text
-1 MB
-```
-
-Konfiguracja:
-
-```ts
-express.json({limit: "1mb"})
-```
-
-Przekroczenie limitu zwraca:
-
-```text
-413 Payload Too Large
-```
-
-z bezpiecznym komunikatem:
-
-```json
-{
-  "message": "Request body too large"
-}
-```
-
-### Dependency security audit
-
-Zależności projektu zostały sprawdzone:
-
-```bash
-npm audit
-```
-
-Aktualny wynik:
-
-```text
-found 0 vulnerabilities
-```
-
----
-
-## 19. Logging — bonus
-
-Podstawowe logowanie requestów istnieje w aplikacji.
-
-Obecny logger zapisuje m.in.:
-
-```text
-GET /products 200 12ms
-```
-
-Rozbudowane logging zostało świadomie potraktowane jako **bonus**, a nie wymagany element podstawowej architektury.
-
-Potencjalne rozszerzenia na przyszłość:
-
-- logging błędów
-- poziomy logowania
-- strukturalne logi
-- correlation/request ID
-- centralne logowanie
-- zasady dotyczące danych, których nie należy logować
-
-Nie ma potrzeby wprowadzać rozbudowanego systemu logowania dla obecnej skali projektu, chyba że code review wykaże
-konkretną potrzebę.
-
----
-
-## 20. API Documentation
-
-API zostało udokumentowane przy użyciu:
-
-```text
-OpenAPI 3.0
-+
-swagger-jsdoc
-+
-Swagger UI
-```
-
-Swagger UI dostępny jest pod:
-
-```text
-/api-docs
-```
-
-Dokumentacja obejmuje:
-
-- endpointy Users
-- endpointy Products
-- endpointy Orders
-- Authentication
-- parametry path
-- request bodies
-- response codes
-- wymagania dotyczące autoryzacji
-- tagowanie endpointów
-
-Endpointy są grupowane w Swagger UI według obszarów:
-
-```text
-Users
-Products
-Orders
-Authentication
-```
-
----
-
-# 21. Final refactor / Code review
+# Final refactor / Code review
 
 Ten etap nie jest kolejną funkcjonalnością API.
 
@@ -842,7 +201,7 @@ Główne kryterium:
 > Czy jest to dobrze zaprojektowany mały e-commerce, który może rosnąć bez konieczności przepisywania podstaw
 > architektury?
 
-Code review powinien ocenić m.in.:
+Code review obejmował m.in.:
 
 - Architecture
 - Code quality
@@ -864,47 +223,33 @@ Code review powinien ocenić m.in.:
 - Maintainability
 - Production readiness
 
-### Technical debt
+### Wyniki audytu
 
-Technical debt musi być analizowany osobno.
+Audyt został zakończony.
 
-W review należy rozróżniać:
+Poprawiono i zweryfikowano m.in.:
 
-```text
-OK
-↓
-zostawić
+- konfigurację JWT
+- walidację danych
+- normalizację email
+- login logs oraz IP/User-Agent
+- indeksy kluczy obcych
+- migracje
+- request body limits
+- drobne elementy organizacji projektu
 
-Do poprawy teraz
-↓
-realna wartość / ryzyko
-
-Technical debt
-↓
-obecnie działa, ale może wymagać zmiany przy rozwoju
-
-Realny problem / ryzyko
-↓
-wymaga działania
-```
-
-Nie każda niedoskonałość wymaga natychmiastowego refaktoru.
-
-Celem jest znalezienie rozsądnego balansu pomiędzy:
+Dodatkowo:
 
 ```text
-prostota
-     +
-maintainability
-     +
-skalowalność
-     +
-brak overengineeringu
+TypeScript: bez błędów
+Test Suites: 8 passed
+Tests: 112 passed
+npm audit: 0 vulnerabilities
 ```
 
 ---
 
-# 22. Production preparation
+# Production preparation
 
 Planowane przygotowanie aplikacji do środowiska produkcyjnego:
 
@@ -993,28 +338,15 @@ przechodzenia na mikroserwisy lub inne rozwiązania infrastrukturalne.
 18. API Security
 19. Logging — bonus
 20. API Documentation
-```
-
-### Aktualny stan testów
-
-```text
-Test Suites: 8 passed
-Tests:       112 passed
-Snapshots:   0 total
-```
-
-### Aktualny stan zależności
-
-```text
-npm audit
-found 0 vulnerabilities
-```
-
-### Pozostało
-
-```text
 21. Final refactor / Code review
+```
+
+### Następne etapy
+
+```text
 22. Production preparation
+23. Cart → Checkout → Payment → Order
+24. Dalszy rozwój e-commerce
 ```
 
 ---

@@ -1,7 +1,12 @@
-import {describe, it, expect} from "@jest/globals";
+import {afterAll, describe, it, expect} from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
+import {redisClient} from "../../dependency-injection.js";
 import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
+
+afterAll(async () => {
+  await redisClient.close();
+});
 
 describe("Users API", () => {
   it("should register a new user", async () => {

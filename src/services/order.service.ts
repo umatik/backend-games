@@ -102,4 +102,14 @@ export class OrderService {
       client.release();
     }
   }
+
+  async deleteOrder(orderId: number, userId: number): Promise<boolean> {
+    const client = await this.pool.connect();
+
+    try {
+      return await this.orderRepository.delete(client, orderId, userId);
+    } finally {
+      client.release();
+    }
+  }
 }

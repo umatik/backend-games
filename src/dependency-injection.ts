@@ -30,16 +30,13 @@ import {AuthorizationService} from "./services/authorization.service.js";
 
 import {createClient} from "redis";
 import {RedisCache} from "./cache/redis-cache.js";
-import {InMemoryCache} from "./cache/in-memory-cache.js";
 import type {ProductDetails} from "./types/product.types.js";
 
 export const redisClient = createClient({
   url: "redis://localhost:6379",
 });
 
-if (process.env.NODE_ENV !== "test") {
-  await redisClient.connect();
-}
+await redisClient.connect();
 
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
@@ -56,16 +53,10 @@ const authorizationService = new AuthorizationService(
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
 
-const productCache =
-  process.env.NODE_ENV === "test"
-    ? new InMemoryCache<{
-      products: ProductDetails[];
-      total: number;
-    }>()
-    : new RedisCache<{
-      products: ProductDetails[];
-      total: number;
-    }>(redisClient);
+const productCache = new RedisCache<{
+  products: ProductDetails[];
+  total: number;
+}>(redisClient);
 
 const productService = new ProductService(
   productRepository,
@@ -98,7 +89,11 @@ const userService = new UserService(
   roleRepository,
 );
 
-const userController = new UserController(userService);
+const userController = new UserController(
+  userService,
+  authorizationService,
+);
+
 export const userRouter = createUserRouter(
   userController,
   authorizationService,

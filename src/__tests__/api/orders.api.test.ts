@@ -1,311 +1,349 @@
-import {beforeEach, describe, jest, it, expect} from "@jest/globals";
-import type {PoolClient} from "pg";
-import {OrderService} from "../../services/order.service.js";
-import type {OrderInterface} from "../../repositories/order/order.interface.js";
-import type {Database} from "../../services/order.service.js";
-import type {
-  CreateOrderData,
-  Order,
-  OrderDetails,
-} from "../../types/order.types.js";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  it,
+  expect,
+} from "@jest/globals";
+import request from "supertest";
+import app from "../../app.js";
+import {redisClient} from "../../dependency-injection.js";
+import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
 
-const mockClient = {
-  query: jest.fn(),
-  release: jest.fn(),
-};
+let adminToken: string;
+let userToken: string;
+let userId: number;
+let productId: number;
+let variantId: number;
+let orderId: number;
 
-describe("OrderService", () => {
-  let orderService: OrderService;
-  let orderRepository: jest.Mocked<OrderInterface>;
-  let mockPool: Database;
+beforeEach(async () => {
+  adminToken = await loginAsAdmin();
+  userToken = await loginAsUser();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  const userResponse = await request(app)
+    .get("/users/1")
+    .set("Authorization", `Bearer ${userToken}`);
 
-    orderRepository = {
-      create: jest.fn(),
-      createItems: jest.fn(),
-      findUserById: jest.fn(),
-      findAll: jest.fn(),
-      findByUserId: jest.fn(),
-      findById: jest.fn(),
-      countAll: jest.fn(),
-    };
+  expect(userResponse.status).toBe(200);
 
-    mockPool = {
-      connect: jest
-        .fn<() => Promise<PoolClient>>()
-        .mockResolvedValue(mockClient as unknown as PoolClient),
-    };
+  userId = Number(userResponse.body.user.id);
 
-    orderService = new OrderService(orderRepository, mockPool);
-  });
-
-  it("should create an order", async () => {
-    const data: CreateOrderData = {
-      userId: 1,
-      items: [
+  const productResponse = await request(app)
+    .post("/products")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send({
+      name: "API Test Order Product",
+      variants: [
         {
-          productVariantId: 1,
-          quantity: 2,
+          color: "Black",
+          size: "M",
+          price: 100,
+          quantity: 10,
         },
       ],
-    };
-
-    const order: Order = {
-      id: 1,
-      userId: 1,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    orderRepository.findUserById.mockResolvedValue(true);
-    orderRepository.create.mockResolvedValue(order);
-    orderRepository.createItems.mockResolvedValue();
-
-    const result = await orderService.createOrder(data);
-
-    expect(result).toEqual(order);
-
-    expect(orderRepository.findUserById).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-    );
-
-    expect(orderRepository.create).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      data,
-    );
-
-    expect(orderRepository.createItems).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      data.items,
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback transaction when user does not exist", async () => {
-    const data: CreateOrderData = {
-      userId: 1,
-      items: [
-        {
-          productVariantId: 1,
-          quantity: 2,
-        },
-      ],
-    };
-
-    orderRepository.findUserById.mockResolvedValue(false);
-
-    await expect(orderService.createOrder(data)).rejects.toThrow();
-
-    expect(orderRepository.create).not.toHaveBeenCalled();
-    expect(orderRepository.createItems).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-  });
-
-  it("should rollback transaction when order creation fails", async () => {
-    const data: CreateOrderData = {
-      userId: 1,
-      items: [],
-    };
-
-    orderRepository.findUserById.mockResolvedValue(true);
-    orderRepository.create.mockRejectedValue(new Error("DB error"));
-
-    await expect(orderService.createOrder(data)).rejects.toThrow("DB error");
-
-    expect(orderRepository.createItems).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback transaction when order items creation fails", async () => {
-    const data: CreateOrderData = {
-      userId: 1,
-      items: [
-        {
-          productVariantId: 1,
-          quantity: 2,
-        },
-      ],
-    };
-
-    const order: Order = {
-      id: 1,
-      userId: 1,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    orderRepository.findUserById.mockResolvedValue(true);
-    orderRepository.create.mockResolvedValue(order);
-    orderRepository.createItems.mockRejectedValue(new Error("Items DB error"));
-
-    await expect(orderService.createOrder(data)).rejects.toThrow(
-      "Items DB error",
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should get all orders with pagination and total", async () => {
-    const orders: OrderDetails[] = [
-      {
-        id: 1,
-        userId: 1,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        items: [],
-      },
-      {
-        id: 2,
-        userId: 2,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        items: [],
-      },
-    ];
-
-    orderRepository.findAll.mockResolvedValue(orders);
-    orderRepository.countAll.mockResolvedValue(87);
-
-    const result = await orderService.getOrders(2, 10);
-
-    expect(result).toEqual({
-      orders,
-      total: 87,
     });
 
-    expect(orderRepository.findAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      2,
-      10,
-    );
+  expect(productResponse.status).toBe(201);
 
-    expect(orderRepository.countAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-    );
+  productId = productResponse.body.product.id;
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
+  const product = await request(app)
+    .get(`/products/${productId}`);
 
-  it("should return empty orders with total", async () => {
-    orderRepository.findAll.mockResolvedValue([]);
-    orderRepository.countAll.mockResolvedValue(0);
+  expect(product.status).toBe(200);
+  expect(product.body.product.variants).toBeDefined();
+  expect(product.body.product.variants.length).toBeGreaterThan(0);
 
-    const result = await orderService.getOrders(1, 20);
+  variantId = product.body.product.variants[0].id;
 
-    expect(result).toEqual({
-      orders: [],
-      total: 0,
+  const orderResponse = await request(app)
+    .post("/orders")
+    .set("Authorization", `Bearer ${userToken}`)
+    .send({
+      items: [
+        {
+          productVariantId: variantId,
+          quantity: 1,
+        },
+      ],
     });
 
-    expect(orderRepository.findAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      20,
-    );
+  expect(orderResponse.status).toBe(201);
 
-    expect(orderRepository.countAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-    );
+  orderId = orderResponse.body.order.id;
+});
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+afterAll(async () => {
+  await redisClient.close();
+});
+
+describe("POST /orders", () => {
+  it("should create an order with valid data", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: 2,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty("order.id");
+    expect(response.body.order.userId).toBe(userId);
   });
 
-  it("should return orders for a user", async () => {
-    const orders: OrderDetails[] = [
-      {
-        id: 1,
-        userId: 1,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        items: [],
-      },
-    ];
+  it("should fail without token", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: 1,
+          },
+        ],
+      });
 
-    orderRepository.findByUserId.mockResolvedValue(orders);
+    expect(response.status).toBe(401);
+  });
 
-    const result = await orderService.getOrdersByUserId(1);
+  it("should fail with invalid token", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", "Bearer wrongtoken")
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: 1,
+          },
+        ],
+      });
 
-    expect(result).toEqual(orders);
+    expect(response.status).toBe(401);
+  });
 
-    expect(orderRepository.findByUserId).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
+  it("should ignore userId from request body", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        userId: 999999,
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: 1,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.order.userId).toBe(userId);
+  });
+
+  it("should fail for non-existing variant", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: 999999,
+            quantity: 1,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toMatch(/product/i);
+  });
+
+  it("should fail for quantity <= 0", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: 0,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid order items");
+  });
+
+  it("should fail for quantity > stock", async () => {
+    const productResponse = await request(app)
+      .get(`/products/${productId}`);
+
+    expect(productResponse.status).toBe(200);
+
+    const variant = productResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
     );
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(variant).toBeDefined();
+
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity: variant.quantity + 1,
+          },
+        ],
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toMatch(/stock/i);
   });
 
-  it("should return an order by id", async () => {
-    const order: OrderDetails = {
-      id: 1,
-      userId: 1,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      items: [],
-    };
+  it("should decrease stock after order", async () => {
+    const beforeResponse = await request(app)
+      .get(`/products/${productId}`);
 
-    orderRepository.findById.mockResolvedValue(order);
+    expect(beforeResponse.status).toBe(200);
 
-    const result = await orderService.getOrderById(1, 1);
-
-    expect(result).toEqual(order);
-
-    expect(orderRepository.findById).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      1,
+    const variantBefore = beforeResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
     );
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
+    expect(variantBefore).toBeDefined();
 
-  it("should return null when order does not exist", async () => {
-    orderRepository.findById.mockResolvedValue(null);
+    const initialQuantity = variantBefore.quantity;
+    const quantity = 2;
 
-    const result = await orderService.getOrderById(999, 1);
+    const orderResponse = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity,
+          },
+        ],
+      });
 
-    expect(result).toBeNull();
+    expect(orderResponse.status).toBe(201);
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
+    const afterResponse = await request(app)
+      .get(`/products/${productId}`);
 
-  it("should release client when getOrdersByUserId fails", async () => {
-    orderRepository.findByUserId.mockRejectedValue(new Error("DB error"));
+    expect(afterResponse.status).toBe(200);
 
-    await expect(orderService.getOrdersByUserId(1)).rejects.toThrow(
-      "DB error",
+    const variantAfter = afterResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
     );
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(variantAfter).toBeDefined();
+    expect(variantAfter.quantity).toBe(initialQuantity - quantity);
+  });
+});
+
+describe("GET /orders", () => {
+  it("should return orders with pagination and total", async () => {
+    const response = await request(app)
+      .get("/orders?page=1&limit=2")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body.orders)).toBe(true);
+    expect(typeof response.body.pagination.total).toBe("number");
+    expect(response.body.orders.length).toBeLessThanOrEqual(2);
   });
 
-  it("should release client when getOrderById fails", async () => {
-    orderRepository.findById.mockRejectedValue(new Error("DB error"));
+  it("should fail without token", async () => {
+    const response = await request(app)
+      .get("/orders?page=1&limit=2");
 
-    await expect(
-      orderService.getOrderById(1, 1),
-    ).rejects.toThrow("DB error");
+    expect(response.status).toBe(401);
+  });
 
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  it("should fail with invalid token", async () => {
+    const response = await request(app)
+      .get("/orders?page=1&limit=2")
+      .set("Authorization", "Bearer wrongtoken");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should fail without orders:read permission", async () => {
+    const response = await request(app)
+      .get("/orders?page=1&limit=2")
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("GET /orders/:id", () => {
+  it("should return order for owner", async () => {
+    const response = await request(app)
+      .get(`/orders/${orderId}`)
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty("order.id", orderId);
+    expect(response.body.order.userId).toBe(userId);
+  });
+
+  it("should return order for admin", async () => {
+    const response = await request(app)
+      .get(`/orders/${orderId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("should return 404 for non-existing order", async () => {
+    const response = await request(app)
+      .get("/orders/999999")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("should fail without token", async () => {
+    const response = await request(app)
+      .get(`/orders/${orderId}`);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should fail with invalid token", async () => {
+    const response = await request(app)
+      .get(`/orders/${orderId}`)
+      .set("Authorization", "Bearer wrongtoken");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should fail with invalid order id", async () => {
+    const response = await request(app)
+      .get("/orders/abc")
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid order id");
+  });
+
+  it("should not allow access to another user's order", async () => {
+    const response = await request(app)
+      .get(`/orders/${orderId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Order not found");
   });
 });

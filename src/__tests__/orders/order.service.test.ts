@@ -29,6 +29,7 @@ describe("OrderService", () => {
       findAll: jest.fn(),
       findByUserId: jest.fn(),
       findById: jest.fn(),
+      delete: jest.fn(),
       countAll: jest.fn(),
     };
 

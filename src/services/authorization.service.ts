@@ -1,5 +1,5 @@
-import type { PermissionInterface } from "../repositories/permissions/permission.interface.js";
-import type { PoolClient } from "pg";
+import type {PermissionInterface} from "../repositories/permissions/permission.interface.js";
+import type {PoolClient} from "pg";
 
 export type Database = {
   connect(): Promise<PoolClient>;
@@ -9,7 +9,8 @@ export class AuthorizationService {
   constructor(
     private permissionRepository: PermissionInterface,
     private pool: Database,
-  ) {}
+  ) {
+  }
 
   async hasPermission(userId: number, permission: string): Promise<boolean> {
     const client = await this.pool.connect();
@@ -21,6 +22,16 @@ export class AuthorizationService {
       );
 
       return permissions.includes(permission);
+    } finally {
+      client.release();
+    }
+  }
+
+  async hasRole(userId: number, role: string): Promise<boolean> {
+    const client = await this.pool.connect();
+
+    try {
+      return await this.permissionRepository.hasRole(client, userId, role);
     } finally {
       client.release();
     }

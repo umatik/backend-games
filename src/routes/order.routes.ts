@@ -4,7 +4,10 @@ import {authenticationMiddleware} from "../middleware/authentication.middleware.
 import {requirePermission} from "../middleware/permission.middleware.js";
 import type {AuthorizationService} from "../services/authorization.service.js";
 
-export const createOrderRouter = (orderController: OrderController, authorizationService: AuthorizationService,) => {
+export const createOrderRouter = (
+  orderController: OrderController,
+  authorizationService: AuthorizationService,
+) => {
   const router = Router();
 
   /**
@@ -59,8 +62,40 @@ export const createOrderRouter = (orderController: OrderController, authorizatio
   router.get(
     "/:id",
     authenticationMiddleware,
-    requirePermission(authorizationService, "orders:read"),
     orderController.getOrder,
+  );
+
+  /**
+   * @openapi
+   * /orders/{id}:
+   *   delete:
+   *     tags:
+   *       - Orders
+   *     summary: Delete order
+   *     description: Soft delete an order
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       204:
+   *         description: Order deleted
+   *       401:
+   *         description: Unauthorized
+   *       403:
+   *         description: Forbidden
+   *       404:
+   *         description: Order not found
+   */
+  router.delete(
+    "/:id",
+    authenticationMiddleware,
+    requirePermission(authorizationService, "orders:delete"),
+    orderController.deleteOrder,
   );
 
   /**

@@ -120,4 +120,36 @@ export class OrderController {
       order,
     });
   };
+
+  deleteOrder = async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    const id = parseId(req.params.id);
+
+    if (id === null) {
+      res.status(400).json({
+        message: "Invalid order id",
+      });
+      return;
+    }
+
+    const deleted = await this.orderService.deleteOrder(
+      id,
+      Number(req.user.userId),
+    );
+
+    if (!deleted) {
+      res.status(404).json({
+        message: "Order not found",
+      });
+      return;
+    }
+
+    res.status(204).send();
+  };
 }

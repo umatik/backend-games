@@ -32,4 +32,10 @@ export interface OrderInterface {
   ): Promise<OrderDetails | null>;
 
   countAll(client: PoolClient): Promise<number>;
+
+  delete(
+    client: PoolClient,
+    orderId: number,
+    userId: number,
+  ): Promise<boolean>;
 }

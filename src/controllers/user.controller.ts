@@ -1,6 +1,7 @@
 import type {Request, Response} from "express";
 import type {AuthenticatedRequest} from "../middleware/authentication.middleware.js";
 import {UserService} from "../services/user.service.js";
+import {AuthorizationService} from "../services/authorization.service.js";
 import {
   isValidRegisterUser,
   isValidUpdateUser,
@@ -10,7 +11,10 @@ import {createPagination} from "../utils/pagination.js";
 import {isValidPagination} from "../validators/helpers/pagination.validator.js";
 
 export class UserController {
-  constructor(private userService: UserService) {
+  constructor(
+    private userService: UserService,
+    private authorizationService: AuthorizationService,
+  ) {
   }
 
   getUsers = async (req: Request, res: Response) => {
@@ -50,7 +54,12 @@ export class UserController {
       return;
     }
 
-    if (userId !== Number(req.user.userId)) {
+    const isAdmin = await this.authorizationService.hasRole(
+      Number(req.user.userId),
+      "admin",
+    );
+
+    if (userId !== Number(req.user.userId) && !isAdmin) {
       res.status(403).json({
         message: "Forbidden",
       });

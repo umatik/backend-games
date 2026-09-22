@@ -315,4 +315,25 @@ export class OrderPostgresRepository implements OrderInterface {
 
     return this.mapOrderRows(result.rows)[0] ?? null;
   }
+
+  async delete(
+    client: PoolClient,
+    orderId: number,
+    userId: number,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `
+        UPDATE orders
+        SET is_deleted = TRUE,
+            deleted_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1
+          AND user_id = $2
+          AND is_deleted = FALSE
+      `,
+      [orderId, userId],
+    );
+
+    return result.rowCount === 1;
+  }
 }

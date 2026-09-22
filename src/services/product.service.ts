@@ -48,7 +48,7 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
-      this.cache.clear()
+      await this.cache.clear();
 
       return product;
     } catch (error) {
@@ -134,7 +134,7 @@ export class ProductService {
       );
 
       await client.query("COMMIT");
-      this.cache.clear()
+      await this.cache.clear();
 
       return {
         ...product,
@@ -145,7 +145,6 @@ export class ProductService {
       throw error;
     } finally {
       client.release();
-
     }
   }
 
@@ -181,7 +180,7 @@ export class ProductService {
     total: number;
   }> {
     const cacheKey = `products:page=${page}:limit=${limit}`;
-    const cached = this.cache.get(cacheKey);
+    const cached = await this.cache.get(cacheKey);
 
     if (cached) {
       return cached;
@@ -197,12 +196,13 @@ export class ProductService {
       );
 
       const total = await this.productRepository.countAll(client);
+
       const result = {
         products,
         total,
       };
 
-      this.cache.set(cacheKey, result, 60);
+      await this.cache.set(cacheKey, result, 60);
 
       return result;
     } finally {
@@ -240,7 +240,7 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
-      this.cache.clear()
+      await this.cache.clear();
 
       return true;
     } catch (error) {
@@ -265,7 +265,7 @@ export class ProductService {
       }
 
       await client.query("COMMIT");
-      this.cache.clear()
+      await this.cache.clear();
 
       return true;
     } catch (error) {
@@ -278,7 +278,6 @@ export class ProductService {
       throw error;
     } finally {
       client.release();
-
     }
   }
 }

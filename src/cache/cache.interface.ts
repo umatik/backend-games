@@ -1,9 +1,9 @@
 export interface Cache<T> {
-  get(key: string): T | null;
+  get(key: string): Promise<T | null>;
 
-  set(key: string, value: T, ttlSeconds: number): void;
+  set(key: string, value: T, ttlSeconds: number): Promise<void>;
 
-  delete(key: string): void;
+  delete(key: string): Promise<void>;
 
-  clear(): void;
+  clear(): Promise<void>;
 }

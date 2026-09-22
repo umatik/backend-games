@@ -28,9 +28,18 @@ import {PermissionPostgresRepository} from "./repositories/permissions/permissio
 import {pool} from "./database/db.js";
 import {AuthorizationService} from "./services/authorization.service.js";
 
+import {createClient} from "redis";
+import {RedisCache} from "./cache/redis-cache.js";
 import {InMemoryCache} from "./cache/in-memory-cache.js";
 import type {ProductDetails} from "./types/product.types.js";
 
+export const redisClient = createClient({
+  url: "redis://localhost:6379",
+});
+
+if (process.env.NODE_ENV !== "test") {
+  await redisClient.connect();
+}
 
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
@@ -47,36 +56,52 @@ const authorizationService = new AuthorizationService(
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
 
-const productCache = new InMemoryCache<{
-  products: ProductDetails[];
-  total: number;
-}>();
+const productCache =
+  process.env.NODE_ENV === "test"
+    ? new InMemoryCache<{
+      products: ProductDetails[];
+      total: number;
+    }>()
+    : new RedisCache<{
+      products: ProductDetails[];
+      total: number;
+    }>(redisClient);
 
 const productService = new ProductService(
   productRepository,
   productVariantRepository,
   pool,
-  productCache
+  productCache,
 );
 
 const productController = new ProductController(productService);
-export const productRouter = createProductRouter(productController, authorizationService);
+export const productRouter = createProductRouter(
+  productController,
+  authorizationService,
+);
 
 const orderRepository = new OrderPostgresRepository();
 const orderService = new OrderService(orderRepository, pool);
 const orderController = new OrderController(orderService);
-export const orderRouter = createOrderRouter(orderController, authorizationService);
+export const orderRouter = createOrderRouter(
+  orderController,
+  authorizationService,
+);
 
 const userRepository = new UserPostgresRepository();
 const userContactRepository = new UserContactPostgresRepository();
 const roleRepository = new RolePostgresRepository();
+
 const userService = new UserService(
   userRepository,
   userContactRepository,
   roleRepository,
 );
-const userController = new UserController(userService);
-export const userRouter = createUserRouter(userController, authorizationService);
 
+const userController = new UserController(userService);
+export const userRouter = createUserRouter(
+  userController,
+  authorizationService,
+);
 
 export {authorizationService};

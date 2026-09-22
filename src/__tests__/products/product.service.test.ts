@@ -619,7 +619,7 @@ describe("ProductService", () => {
       },
     ];
 
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     productRepository.findAllWithVariants.mockResolvedValue(products);
     productRepository.countAll.mockResolvedValue(87);
 
@@ -670,7 +670,7 @@ describe("ProductService", () => {
       total: 87,
     };
 
-    cache.get.mockReturnValue(cachedResult);
+    cache.get.mockResolvedValue(cachedResult);
 
     const result = await productService.getAllProducts(2, 10);
 

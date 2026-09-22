@@ -8,6 +8,18 @@ import type {PoolClient} from "pg";
 import type {ProductRepository} from "./product.interface.js";
 
 export class PostgresProductRepository implements ProductRepository {
+  async countAll(client: PoolClient): Promise<number> {
+    const result = await client.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM products
+        WHERE is_deleted = FALSE
+      `,
+    );
+
+    return Number(result.rows[0].total);
+  }
+
   private mapProductRow = (row: ProductRow): Product => ({
     id: Number(row.id),
     name: row.name,
@@ -47,17 +59,29 @@ export class PostgresProductRepository implements ProductRepository {
     return null;
   }
 
-  async findAll(client: PoolClient): Promise<Product[]> {
-    const result = await client.query(`
-      SELECT id, name, is_deleted, created_at, updated_at, deleted_at
-      FROM products
-      WHERE is_deleted = FALSE
-    `);
+  async findAll(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<Product[]> {
+    const offset = (page - 1) * limit;
+
+    const result = await client.query(
+      `
+        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
+        FROM products
+        WHERE is_deleted = FALSE
+        ORDER BY id
+        LIMIT $1 OFFSET $2
+      `,
+      [limit, offset],
+    );
 
     return result.rows.map((row) => this.mapProductRow(row));
   }
 
-  async findAllWithVariants(client: PoolClient): Promise<ProductDetails[]> {
+  async findAllWithVariants(client: PoolClient, page: number, limit: number): Promise<ProductDetails[]> {
+    const offset = (page - 1) * limit;
     const result = await client.query(`
       SELECT p.id,
              p.name,
@@ -80,7 +104,8 @@ export class PostgresProductRepository implements ProductRepository {
                          AND pv.is_deleted = FALSE
       WHERE p.is_deleted = FALSE
       ORDER BY p.id, pv.id
-    `);
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
 
     const products = new Map<number, ProductDetails>();
 

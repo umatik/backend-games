@@ -13,6 +13,8 @@ import {
 } from "../validators/product.validator.js";
 import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
 import {parseId} from "../validators/helpers/id.validator.js";
+import {createPagination} from "../utils/pagination.js";
+import {isValidPagination} from "../validators/helpers/pagination.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -22,13 +24,28 @@ export class ProductController {
   }
 
   getProducts = async (req: Request, res: Response) => {
-    const products = await this.productService.getAllProducts();
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 20);
+
+    if (!isValidPagination(page, limit)) {
+      res.status(400).json({
+        message: "Invalid pagination parameters",
+      });
+      return;
+    }
+
+    const {products, total} = await this.productService.getAllProducts(
+      page,
+      limit,
+    );
+
 
     res.status(200).json({
       message: "Products found",
       products,
+      pagination: createPagination(page, limit, total),
     });
-  };
+  }
 
   getProduct = async (req: Request, res: Response) => {
     const productId = parseId(req.params.id);

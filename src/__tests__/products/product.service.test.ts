@@ -26,6 +26,7 @@ describe("ProductService", () => {
       findById: jest.fn(),
       findAll: jest.fn(),
       findAllWithVariants: jest.fn(),
+      countAll: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
@@ -588,7 +589,7 @@ describe("ProductService", () => {
     expect(mockPool.connect).toHaveBeenCalledTimes(1);
   });
 
-  it("should get all products with their variants", async () => {
+  it("should get all products with their variants and total", async () => {
     productRepository.findAllWithVariants.mockResolvedValue([
       {
         id: 1,
@@ -636,35 +637,62 @@ describe("ProductService", () => {
       },
     ]);
 
-    const result = await productService.getAllProducts();
+    productRepository.countAll.mockResolvedValue(87);
 
-    expect(result).toHaveLength(2);
+    const result = await productService.getAllProducts(2, 10);
 
-    expect(result[0]!.id).toBe(1);
-    expect(result[0]!.variants).toHaveLength(1);
+    expect(result.products).toHaveLength(2);
+    expect(result.total).toBe(87);
 
-    expect(result[1]!.id).toBe(2);
-    expect(result[1]!.variants).toHaveLength(1);
+    expect(result.products[0]!.id).toBe(1);
+    expect(result.products[0]!.variants).toHaveLength(1);
+
+    expect(result.products[1]!.id).toBe(2);
+    expect(result.products[1]!.variants).toHaveLength(1);
 
     expect(productRepository.findAllWithVariants).toHaveBeenCalledTimes(1);
+
+    expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      2,
+      10,
+    );
+
+    expect(productRepository.countAll).toHaveBeenCalledTimes(1);
+
+    expect(productRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+    );
 
     expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
 
     expect(mockPool.connect).toHaveBeenCalledTimes(1);
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  it("should return an empty array when there are no products", async () => {
+  it("should return empty products with total", async () => {
     productRepository.findAllWithVariants.mockResolvedValue([]);
+    productRepository.countAll.mockResolvedValue(0);
 
-    const result = await productService.getAllProducts();
+    const result = await productService.getAllProducts(1, 20);
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({
+      products: [],
+      total: 0,
+    });
 
-    expect(productRepository.findAllWithVariants).toHaveBeenCalledTimes(1);
+    expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      20,
+    );
 
-    expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
+    expect(productRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+    );
 
     expect(mockPool.connect).toHaveBeenCalledTimes(1);
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
   it("should delete a product variant", async () => {

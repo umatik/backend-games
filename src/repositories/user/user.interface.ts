@@ -1,4 +1,4 @@
-import type { PoolClient } from "pg";
+import type {PoolClient} from "pg";
 import type {
   CreatedUser,
   CreateUserData,
@@ -11,9 +11,13 @@ export interface UserInterface {
 
   findById(client: PoolClient, userId: number): Promise<UserDetails | null>;
 
+  findAll(client: PoolClient, page: number, limit: number): Promise<UserDetails[]>;
+
   update(
     client: PoolClient,
     userId: number,
     data: UpdateUserData,
   ): Promise<UserDetails | null>;
+
+  countAll(client: PoolClient): Promise<number>;
 }

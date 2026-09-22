@@ -12,36 +12,40 @@ export const createUserRouter = (
 
   /**
    * @openapi
-   * /users/register:
-   *   post:
+   * /users:
+   *   get:
    *     tags:
    *       - Users
-   *     summary: Register a new user
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - email
-   *               - password
-   *             properties:
-   *               email:
-   *                 type: string
-   *                 format: email
-   *               password:
-   *                 type: string
-   *                 format: password
+   *     summary: Get users
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 20
    *     responses:
-   *       201:
-   *         description: User registered successfully
-   *       400:
-   *         description: Invalid request
-   *       409:
-   *         description: Email already exists
+   *       200:
+   *         description: Users found
+   *       401:
+   *         description: Unauthorized
+   *       403:
+   *         description: Forbidden
    */
-  router.post("/register", userController.register);
+  router.get(
+    "/",
+    authenticationMiddleware,
+    requirePermission(authorizationService, "users:read"),
+    userController.getUsers,
+  );
 
   /**
    * @openapi
@@ -72,9 +76,42 @@ export const createUserRouter = (
   router.get(
     "/:id",
     authenticationMiddleware,
-    requirePermission(authorizationService, "users:read"),
     userController.getUser,
   );
+
+
+  /**
+   * @openapi
+   * /users/register:
+   *   post:
+   *     tags:
+   *       - Users
+   *     summary: Register a new user
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - email
+   *               - password
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               password:
+   *                 type: string
+   *                 format: password
+   *     responses:
+   *       201:
+   *         description: User registered successfully
+   *       400:
+   *         description: Invalid request
+   *       409:
+   *         description: Email already exists
+   */
+  router.post("/register", userController.register);
 
   /**
    * @openapi

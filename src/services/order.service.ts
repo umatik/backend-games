@@ -53,6 +53,33 @@ export class OrderService {
     }
   }
 
+  async getOrders(
+    page: number,
+    limit: number,
+  ): Promise<{
+    orders: OrderDetails[];
+    total: number;
+  }> {
+    const client = await this.pool.connect();
+
+    try {
+      const orders = await this.orderRepository.findAll(
+        client,
+        page,
+        limit,
+      );
+
+      const total = await this.orderRepository.countAll(client);
+
+      return {
+        orders,
+        total,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async getOrdersByUserId(userId: number): Promise<OrderDetails[]> {
     const client = await this.pool.connect();
 

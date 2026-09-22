@@ -7,6 +7,8 @@ import {OrderService} from "../services/order.service.js";
 import {isValidOrderItems} from "../validators/order.validator.js";
 import type {AuthenticatedRequest} from "../middleware/authentication.middleware.js";
 import {parseId} from "../validators/helpers/id.validator.js";
+import {createPagination} from "../utils/pagination.js";
+import {isValidPagination} from "../validators/helpers/pagination.validator.js";
 
 export class OrderController {
   constructor(private orderService: OrderService) {
@@ -68,18 +70,22 @@ export class OrderController {
   };
 
   getOrders = async (req: AuthenticatedRequest, res: Response) => {
-    if (!req.user) {
-      res.status(401).json({
-        message: "Unauthorized",
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 20);
+
+    if (!isValidPagination(page, limit)) {
+      res.status(400).json({
+        message: "Invalid pagination parameters",
       });
       return;
     }
 
-    const orders = await this.orderService.getOrdersByUserId(Number(req.user.userId));
+    const {orders, total} = await this.orderService.getOrders(page, limit);
 
     res.status(200).json({
       message: "Orders found",
       orders,
+      pagination: createPagination(page, limit, total),
     });
   };
 

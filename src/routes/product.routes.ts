@@ -168,7 +168,7 @@ export const createProductRouter = (
    *     security:
    *       - bearerAuth: []
    *     parameters:
-   *       - in: path
+   *       - in: path_
    *         name: productId
    *         required: true
    *         schema:

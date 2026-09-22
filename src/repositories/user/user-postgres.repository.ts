@@ -8,6 +8,49 @@ import type {
 } from "../../types/user.types.js";
 
 export class UserPostgresRepository implements UserInterface {
+  async countAll(client: PoolClient): Promise<number> {
+    const result = await client.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM users
+        WHERE is_deleted = FALSE
+      `,
+    );
+
+    return Number(result.rows[0].total);
+  }
+
+  async findAll(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<UserDetails[]> {
+    const offset = (page - 1) * limit;
+
+    const result = await client.query<UserDetails>(
+      `
+        SELECT u.id,
+               u.email,
+               ucd.first_name  AS "firstName",
+               ucd.last_name   AS "lastName",
+               ucd.phone,
+               ucd.address,
+               ucd.city,
+               ucd.postal_code AS "postalCode",
+               ucd.country
+        FROM users u
+               JOIN user_contact_details ucd
+                    ON ucd.user_id = u.id
+        WHERE u.is_deleted = FALSE
+        ORDER BY u.id
+        LIMIT $1 OFFSET $2
+      `,
+      [limit, offset],
+    );
+
+    return result.rows;
+  }
+
   async findById(
     client: PoolClient,
     userId: number,

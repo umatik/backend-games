@@ -1,7 +1,7 @@
 import {describe, it, expect} from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import {loginAsUser} from "../../__test-helpers__/auth.js";
+import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
 
 describe("Users API", () => {
   it("should register a new user", async () => {
@@ -278,5 +278,112 @@ describe("Users API", () => {
     expect(response.status).toBe(200);
     expect(response.body.user).not.toHaveProperty("password_hash");
     expect(response.body.user).not.toHaveProperty("passwordHash");
+  });
+
+  it("should return 401 when getting users without authentication", async () => {
+    const response = await request(app).get("/users");
+
+    expect(response.status).toBe(401);
+    expect(response.body.message).toBe("Authorization header is required");
+  });
+
+  it("should return 403 when getting users as a regular user", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .get("/users?page=1&limit=20")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Forbidden");
+  });
+
+  it("should paginate users", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=1&limit=2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.users).toHaveLength(2);
+
+    expect(response.body.pagination).toEqual({
+      page: 1,
+      limit: 2,
+      total: expect.any(Number),
+      totalPages: expect.any(Number),
+    });
+
+    expect(response.body.pagination.total).toBeGreaterThan(0);
+    expect(response.body.pagination.totalPages).toBeGreaterThan(0);
+  });
+
+  it("should get the second page of users", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=2&limit=2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.pagination.page).toBe(2);
+    expect(response.body.pagination.limit).toBe(2);
+
+    expect(response.body.users).toHaveLength(2);
+  });
+
+  it("should return 400 when page is invalid", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=0&limit=2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when limit is invalid", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=1&limit=0")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when page is not an integer", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=abc&limit=2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when limit is not an integer", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=1&limit=abc")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
   });
 });

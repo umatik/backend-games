@@ -1,8 +1,8 @@
-import { beforeEach, describe, jest, it, expect } from "@jest/globals";
-import type { PoolClient } from "pg";
-import { OrderService } from "../../services/order.service.js";
-import type { OrderInterface } from "../../repositories/order/order.interface.js";
-import type { Database } from "../../services/order.service.js";
+import {beforeEach, describe, jest, it, expect} from "@jest/globals";
+import type {PoolClient} from "pg";
+import {OrderService} from "../../services/order.service.js";
+import type {OrderInterface} from "../../repositories/order/order.interface.js";
+import type {Database} from "../../services/order.service.js";
 import type {
   CreateOrderData,
   Order,
@@ -26,8 +26,10 @@ describe("OrderService", () => {
       create: jest.fn(),
       createItems: jest.fn(),
       findUserById: jest.fn(),
+      findAll: jest.fn(),
       findByUserId: jest.fn(),
       findById: jest.fn(),
+      countAll: jest.fn(),
     };
 
     mockPool = {
@@ -107,7 +109,6 @@ describe("OrderService", () => {
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
   it("should rollback transaction when order creation fails", async () => {
@@ -157,6 +158,73 @@ describe("OrderService", () => {
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should get all orders with pagination and total", async () => {
+    const orders: OrderDetails[] = [
+      {
+        id: 1,
+        userId: 1,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+      {
+        id: 2,
+        userId: 2,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+    ];
+
+    orderRepository.findAll.mockResolvedValue(orders);
+    orderRepository.countAll.mockResolvedValue(87);
+
+    const result = await orderService.getOrders(2, 10);
+
+    expect(result).toEqual({
+      orders,
+      total: 87,
+    });
+
+    expect(orderRepository.findAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      2,
+      10,
+    );
+
+    expect(orderRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+    );
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should return empty orders with total", async () => {
+    orderRepository.findAll.mockResolvedValue([]);
+    orderRepository.countAll.mockResolvedValue(0);
+
+    const result = await orderService.getOrders(1, 20);
+
+    expect(result).toEqual({
+      orders: [],
+      total: 0,
+    });
+
+    expect(orderRepository.findAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      20,
+    );
+
+    expect(orderRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+    );
+
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 

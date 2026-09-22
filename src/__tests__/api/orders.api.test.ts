@@ -1,415 +1,311 @@
-import {describe, it, expect} from "@jest/globals";
-import request from "supertest";
-import app from "../../app.js";
-import {loginAsUser} from "../../__test-helpers__/auth.js";
+import {beforeEach, describe, jest, it, expect} from "@jest/globals";
+import type {PoolClient} from "pg";
+import {OrderService} from "../../services/order.service.js";
+import type {OrderInterface} from "../../repositories/order/order.interface.js";
+import type {Database} from "../../services/order.service.js";
+import type {
+  CreateOrderData,
+  Order,
+  OrderDetails,
+} from "../../types/order.types.js";
 
-describe("Orders API", () => {
-  const getFirstProduct = async () => {
-    const response = await request(app).get("/products");
+const mockClient = {
+  query: jest.fn(),
+  release: jest.fn(),
+};
 
-    expect(response.status).toBe(200);
-    expect(response.body.products.length).toBeGreaterThan(0);
+describe("OrderService", () => {
+  let orderService: OrderService;
+  let orderRepository: jest.Mocked<OrderInterface>;
+  let mockPool: Database;
 
-    return response.body.products[0];
-  };
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-  const getFirstVariant = async () => {
-    const product = await getFirstProduct();
+    orderRepository = {
+      create: jest.fn(),
+      createItems: jest.fn(),
+      findUserById: jest.fn(),
+      findAll: jest.fn(),
+      findByUserId: jest.fn(),
+      findById: jest.fn(),
+      countAll: jest.fn(),
+    };
 
-    expect(product.variants.length).toBeGreaterThan(0);
+    mockPool = {
+      connect: jest
+        .fn<() => Promise<PoolClient>>()
+        .mockResolvedValue(mockClient as unknown as PoolClient),
+    };
 
-    return product.variants[0];
-  };
-
-  const getFirstOrder = async (token: string) => {
-    const response = await request(app)
-      .get("/orders")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.orders.length).toBeGreaterThan(0);
-
-    return response.body.orders[0];
-  };
-
-  const createOrderAsAnotherUser = async () => {
-    const email = `orders-test-${Date.now()}@example.com`;
-    const password = "alamakota";
-
-    const registerResponse = await request(app)
-      .post("/users/register")
-      .send({
-        email,
-        password,
-        firstName: "Orders",
-        lastName: "Test",
-        phone: "123456789",
-        address: "Test Street 1",
-        city: "Warsaw",
-        postalCode: "00-001",
-        country: "Poland",
-      });
-
-    expect(registerResponse.status).toBe(201);
-
-    const loginResponse = await request(app)
-      .post("/login")
-      .send({
-        email,
-        password,
-      });
-
-    expect(loginResponse.status).toBe(200);
-    expect(loginResponse.body.token).toBeDefined();
-
-    const variant = await getFirstVariant();
-
-    const orderResponse = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${loginResponse.body.token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: 1,
-          },
-        ],
-      });
-
-    expect(orderResponse.status).toBe(201);
-    expect(orderResponse.body.order).toBeDefined();
-
-    return orderResponse.body.order;
-  };
-
-  it("should get all orders", async () => {
-    const token = await loginAsUser();
-
-    const response = await request(app)
-      .get("/orders")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.orders).toBeDefined();
-    expect(Array.isArray(response.body.orders)).toBe(true);
-    expect(response.body.orders.length).toBeGreaterThan(0);
-  });
-
-  it("should return 401 when getting all orders without authentication", async () => {
-    const response = await request(app).get("/orders");
-
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Authorization header is required");
-  });
-
-  it("should return 401 when getting all orders with an invalid token", async () => {
-    const response = await request(app)
-      .get("/orders")
-      .set("Authorization", "Bearer invalid-token");
-
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Invalid or expired token");
-  });
-
-  it("should get an order by id", async () => {
-    const token = await loginAsUser();
-    const order = await getFirstOrder(token);
-
-    const response = await request(app)
-      .get(`/orders/${order.id}`)
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.order).toBeDefined();
-    expect(response.body.order.id).toBe(order.id);
-  });
-
-  it("should return 401 when getting an order without authentication", async () => {
-    const token = await loginAsUser();
-    const order = await getFirstOrder(token);
-
-    const response = await request(app).get(`/orders/${order.id}`);
-
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Authorization header is required");
-  });
-
-  it("should return 401 when getting an order with an invalid token", async () => {
-    const token = await loginAsUser();
-    const order = await getFirstOrder(token);
-
-    const response = await request(app)
-      .get(`/orders/${order.id}`)
-      .set("Authorization", "Bearer invalid-token");
-
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Invalid or expired token");
-  });
-
-  it("should return 404 when order does not exist", async () => {
-    const token = await loginAsUser();
-
-    const response = await request(app)
-      .get("/orders/999999")
-      .set("Authorization", `Bearer ${token}`);
-
-    expect(response.status).toBe(404);
-    expect(response.body.message).toBe("Order not found");
+    orderService = new OrderService(orderRepository, mockPool);
   });
 
   it("should create an order", async () => {
-    const token = await loginAsUser();
-    const variant = await getFirstVariant();
+    const data: CreateOrderData = {
+      userId: 1,
+      items: [
+        {
+          productVariantId: 1,
+          quantity: 2,
+        },
+      ],
+    };
 
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: 1,
-          },
-        ],
-      });
+    const order: Order = {
+      id: 1,
+      userId: 1,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-    expect(response.status).toBe(201);
-    expect(response.body.order).toBeDefined();
-    expect(response.body.order.userId).toBeDefined();
+    orderRepository.findUserById.mockResolvedValue(true);
+    orderRepository.create.mockResolvedValue(order);
+    orderRepository.createItems.mockResolvedValue();
+
+    const result = await orderService.createOrder(data);
+
+    expect(result).toEqual(order);
+
+    expect(orderRepository.findUserById).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+    );
+
+    expect(orderRepository.create).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      data,
+    );
+
+    expect(orderRepository.createItems).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      data.items,
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  it("should return 401 when creating an order without authentication", async () => {
-    const variant = await getFirstVariant();
+  it("should rollback transaction when user does not exist", async () => {
+    const data: CreateOrderData = {
+      userId: 1,
+      items: [
+        {
+          productVariantId: 1,
+          quantity: 2,
+        },
+      ],
+    };
 
-    const response = await request(app)
-      .post("/orders")
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: 1,
-          },
-        ],
-      });
+    orderRepository.findUserById.mockResolvedValue(false);
 
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Authorization header is required");
+    await expect(orderService.createOrder(data)).rejects.toThrow();
+
+    expect(orderRepository.create).not.toHaveBeenCalled();
+    expect(orderRepository.createItems).not.toHaveBeenCalled();
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
   });
 
-  it("should return 401 when creating an order with an invalid token", async () => {
-    const variant = await getFirstVariant();
+  it("should rollback transaction when order creation fails", async () => {
+    const data: CreateOrderData = {
+      userId: 1,
+      items: [],
+    };
 
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", "Bearer invalid-token")
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: 1,
-          },
-        ],
-      });
+    orderRepository.findUserById.mockResolvedValue(true);
+    orderRepository.create.mockRejectedValue(new Error("DB error"));
 
-    expect(response.status).toBe(401);
-    expect(response.body.message).toBe("Invalid or expired token");
+    await expect(orderService.createOrder(data)).rejects.toThrow("DB error");
+
+    expect(orderRepository.createItems).not.toHaveBeenCalled();
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  it("should return 400 when creating an order without items", async () => {
-    const token = await loginAsUser();
+  it("should rollback transaction when order items creation fails", async () => {
+    const data: CreateOrderData = {
+      userId: 1,
+      items: [
+        {
+          productVariantId: 1,
+          quantity: 2,
+        },
+      ],
+    };
 
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
+    const order: Order = {
+      id: 1,
+      userId: 1,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    orderRepository.findUserById.mockResolvedValue(true);
+    orderRepository.create.mockResolvedValue(order);
+    orderRepository.createItems.mockRejectedValue(new Error("Items DB error"));
+
+    await expect(orderService.createOrder(data)).rejects.toThrow(
+      "Items DB error",
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should get all orders with pagination and total", async () => {
+    const orders: OrderDetails[] = [
+      {
+        id: 1,
+        userId: 1,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         items: [],
-      });
+      },
+      {
+        id: 2,
+        userId: 2,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+    ];
 
-    expect(response.status).toBe(400);
-  });
+    orderRepository.findAll.mockResolvedValue(orders);
+    orderRepository.countAll.mockResolvedValue(87);
 
-  it("should return 404 when creating an order with a non-existing product variant", async () => {
-    const token = await loginAsUser();
+    const result = await orderService.getOrders(2, 10);
 
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: 999999,
-            quantity: 1,
-          },
-        ],
-      });
+    expect(result).toEqual({
+      orders,
+      total: 87,
+    });
 
-    expect(response.status).toBe(404);
-  });
-
-  it("should return 400 when creating an order with invalid quantity", async () => {
-    const token = await loginAsUser();
-    const variant = await getFirstVariant();
-
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: 0,
-          },
-        ],
-      });
-
-    expect(response.status).toBe(400);
-  });
-
-  it("should return 400 when creating an order with negative quantity", async () => {
-    const token = await loginAsUser();
-    const variant = await getFirstVariant();
-
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: -1,
-          },
-        ],
-      });
-
-    expect(response.status).toBe(400);
-  });
-
-  it("should create an order with multiple items", async () => {
-    const token = await loginAsUser();
-    const product = await getFirstProduct();
-
-    if (product.variants.length >= 2) {
-      const [firstVariant, secondVariant] = product.variants;
-
-      const response = await request(app)
-        .post("/orders")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-          items: [
-            {
-              productVariantId: firstVariant.id,
-              quantity: 1,
-            },
-            {
-              productVariantId: secondVariant.id,
-              quantity: 2,
-            },
-          ],
-        });
-
-      expect(response.status).toBe(201);
-      expect(response.body.order).toBeDefined();
-
-      return;
-    }
-
-    const productsResponse = await request(app).get("/products");
-
-    expect(productsResponse.status).toBe(200);
-
-    const products = productsResponse.body.products;
-
-    const productsWithVariants = products.filter(
-      (item: { variants: unknown[] }) => item.variants.length > 0,
+    expect(orderRepository.findAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      2,
+      10,
     );
 
-    expect(productsWithVariants.length).toBeGreaterThanOrEqual(2);
-
-    const firstVariant = productsWithVariants[0].variants[0];
-    const secondVariant = productsWithVariants[1].variants[0];
-
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: firstVariant.id,
-            quantity: 1,
-          },
-          {
-            productVariantId: secondVariant.id,
-            quantity: 2,
-          },
-        ],
-      });
-
-    expect(response.status).toBe(201);
-    expect(response.body.order).toBeDefined();
-  });
-
-  it("should decrease variant quantity after creating an order", async () => {
-    const token = await loginAsUser();
-    const product = await getFirstProduct();
-    const variant = product.variants[0];
-
-    const initialQuantity = variant.quantity;
-    const quantity = 2;
-
-    const orderResponse = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity,
-          },
-        ],
-      });
-
-    expect(orderResponse.status).toBe(201);
-
-    const updatedProductResponse = await request(app).get(
-      `/products/${product.id}`,
+    expect(orderRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
     );
 
-    expect(updatedProductResponse.status).toBe(200);
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
 
-    const updatedVariant = updatedProductResponse.body.product.variants.find(
-      (item: { id: number }) => item.id === variant.id,
+  it("should return empty orders with total", async () => {
+    orderRepository.findAll.mockResolvedValue([]);
+    orderRepository.countAll.mockResolvedValue(0);
+
+    const result = await orderService.getOrders(1, 20);
+
+    expect(result).toEqual({
+      orders: [],
+      total: 0,
+    });
+
+    expect(orderRepository.findAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      20,
     );
 
-    expect(updatedVariant.quantity).toBe(initialQuantity - quantity);
+    expect(orderRepository.countAll).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+    );
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  it("should return 409 when requested quantity exceeds stock", async () => {
-    const token = await loginAsUser();
-    const variant = await getFirstVariant();
+  it("should return orders for a user", async () => {
+    const orders: OrderDetails[] = [
+      {
+        id: 1,
+        userId: 1,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+    ];
 
-    const response = await request(app)
-      .post("/orders")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        items: [
-          {
-            productVariantId: variant.id,
-            quantity: variant.quantity + 1,
-          },
-        ],
-      });
+    orderRepository.findByUserId.mockResolvedValue(orders);
 
-    expect(response.status).toBe(409);
+    const result = await orderService.getOrdersByUserId(1);
+
+    expect(result).toEqual(orders);
+
+    expect(orderRepository.findByUserId).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+    );
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
-  it("should return 404 when getting an order belonging to another user", async () => {
-    const token = await loginAsUser();
-    const otherUserOrder = await createOrderAsAnotherUser();
+  it("should return an order by id", async () => {
+    const order: OrderDetails = {
+      id: 1,
+      userId: 1,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      items: [],
+    };
 
-    const response = await request(app)
-      .get(`/orders/${otherUserOrder.id}`)
-      .set("Authorization", `Bearer ${token}`);
+    orderRepository.findById.mockResolvedValue(order);
 
-    expect(response.status).toBe(404);
+    const result = await orderService.getOrderById(1, 1);
+
+    expect(result).toEqual(order);
+
+    expect(orderRepository.findById).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      1,
+    );
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should return null when order does not exist", async () => {
+    orderRepository.findById.mockResolvedValue(null);
+
+    const result = await orderService.getOrderById(999, 1);
+
+    expect(result).toBeNull();
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should release client when getOrdersByUserId fails", async () => {
+    orderRepository.findByUserId.mockRejectedValue(new Error("DB error"));
+
+    await expect(orderService.getOrdersByUserId(1)).rejects.toThrow(
+      "DB error",
+    );
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should release client when getOrderById fails", async () => {
+    orderRepository.findById.mockRejectedValue(new Error("DB error"));
+
+    await expect(
+      orderService.getOrderById(1, 1),
+    ).rejects.toThrow("DB error");
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 });

@@ -31,7 +31,6 @@ WHERE r.name = 'user'
                  'products:read',
                  'orders:read',
                  'orders:create',
-                 'users:read',
                  'users:update'
     );
 
@@ -58,14 +57,15 @@ VALUES ('alice@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz
        ('irene@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
        ('jack@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6');
 
--- All seeded users are regular users.
+-- Users are regular users, except Bob (user_id = 2).
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM users u
          CROSS JOIN roles r
-WHERE r.name = 'user';
+WHERE r.name = 'user'
+  AND u.id <> 2;
 
--- Make Bob an admin as well.
+-- Bob (user_id = 2) is the admin.
 INSERT INTO user_roles (user_id, role_id)
 SELECT 2, r.id
 FROM roles r

@@ -1,14 +1,37 @@
-import type { Request, Response } from "express";
-import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
-import { UserService } from "../services/user.service.js";
+import type {Request, Response} from "express";
+import type {AuthenticatedRequest} from "../middleware/authentication.middleware.js";
+import {UserService} from "../services/user.service.js";
 import {
   isValidRegisterUser,
   isValidUpdateUser,
 } from "../validators/user.validator.js";
-import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
+import {EmailAlreadyExistsError} from "../errors/email-already-exists.error.js";
+import {createPagination} from "../utils/pagination.js";
+import {isValidPagination} from "../validators/helpers/pagination.validator.js";
 
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(private userService: UserService) {
+  }
+
+  getUsers = async (req: Request, res: Response) => {
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 20);
+
+    if (!isValidPagination(page, limit)) {
+      res.status(400).json({
+        message: "Invalid pagination parameters",
+      });
+      return;
+    }
+
+    const {users, total} = await this.userService.getUsers(page, limit);
+
+    res.status(200).json({
+      message: "Users found",
+      users,
+      pagination: createPagination(page, limit, total),
+    });
+  };
 
   getUser = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {

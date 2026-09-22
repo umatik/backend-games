@@ -24,6 +24,34 @@ export class UserService {
   ) {
   }
 
+
+  async getUsers(
+    page: number,
+    limit: number,
+  ): Promise<{
+    users: UserDetails[];
+    total: number;
+  }> {
+    const client = await pool.connect();
+
+    try {
+      const users = await this.userRepository.findAll(
+        client,
+        page,
+        limit,
+      );
+
+      const total = await this.userRepository.countAll(client);
+
+      return {
+        users,
+        total,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async getUserById(userId: number): Promise<UserDetails | null> {
     const client = await pool.connect();
 

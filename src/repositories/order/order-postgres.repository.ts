@@ -12,6 +12,18 @@ import {ProductNotFoundError} from "../../errors/product-not-found.error.js";
 import {InsufficientStockError} from "../../errors/insufficient-stock.error.js";
 
 export class OrderPostgresRepository implements OrderInterface {
+  async countAll(client: PoolClient): Promise<number> {
+    const result = await client.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM orders
+        WHERE is_deleted = FALSE
+      `,
+    );
+
+    return Number(result.rows[0].total);
+  }
+
   private mapOrderRows(rows: OrderRow[]): OrderDetails[] {
     const orders = new Map<number, OrderDetails>();
 
@@ -53,7 +65,10 @@ export class OrderPostgresRepository implements OrderInterface {
     return Array.from(orders.values());
   }
 
-  async findUserById(client: PoolClient, userId: number): Promise<boolean> {
+  async findUserById(
+    client: PoolClient,
+    userId: number,
+  ): Promise<boolean> {
     const result = await client.query(
       `
         SELECT id
@@ -67,7 +82,10 @@ export class OrderPostgresRepository implements OrderInterface {
     return result.rows.length > 0;
   }
 
-  async create(client: PoolClient, data: CreateOrderData): Promise<Order> {
+  async create(
+    client: PoolClient,
+    data: CreateOrderData,
+  ): Promise<Order> {
     const result = await client.query(
       `
         INSERT INTO orders (user_id, status)
@@ -102,7 +120,6 @@ export class OrderPostgresRepository implements OrderInterface {
     orderId: number,
     items: CreateOrderItemData[],
   ): Promise<void> {
-
     const sortedItems = [...items].sort(
       (a, b) => a.productVariantId - b.productVariantId,
     );
@@ -152,9 +169,63 @@ export class OrderPostgresRepository implements OrderInterface {
                                    price)
           VALUES ($1, $2, $3, $4)
         `,
-        [orderId, item.productVariantId, item.quantity, price],
+        [
+          orderId,
+          item.productVariantId,
+          item.quantity,
+          price,
+        ],
       );
     }
+  }
+
+  async findAll(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<OrderDetails[]> {
+    const offset = (page - 1) * limit;
+
+    const result = await client.query(
+      `
+        SELECT o.id                  AS "orderId",
+               o.user_id             AS "userId",
+               o.status,
+               o.created_at          AS "createdAt",
+               o.updated_at          AS "updatedAt",
+
+               oi.id                 AS "itemId",
+               oi.product_variant_id AS "productVariantId",
+               oi.quantity,
+               oi.price,
+
+               pv.product_id         AS "productId",
+               p.name                AS "productName",
+               pv.color,
+               pv.size
+
+        FROM (SELECT id,
+                     user_id,
+                     status,
+                     created_at,
+                     updated_at
+              FROM orders
+              WHERE is_deleted = FALSE
+              ORDER BY id DESC
+              LIMIT $1 OFFSET $2) o
+               JOIN order_items oi
+                    ON oi.order_id = o.id
+               JOIN product_variants pv
+                    ON pv.id = oi.product_variant_id
+               JOIN products p
+                    ON p.id = pv.product_id
+
+        ORDER BY o.id DESC, oi.id
+      `,
+      [limit, offset],
+    );
+
+    return this.mapOrderRows(result.rows);
   }
 
   async findByUserId(
@@ -188,6 +259,7 @@ export class OrderPostgresRepository implements OrderInterface {
                     ON p.id = pv.product_id
 
         WHERE o.user_id = $1
+          AND o.is_deleted = FALSE
 
         ORDER BY o.id DESC, oi.id
       `,
@@ -230,6 +302,7 @@ export class OrderPostgresRepository implements OrderInterface {
 
         WHERE o.id = $1
           AND o.user_id = $2
+          AND o.is_deleted = FALSE
 
         ORDER BY oi.id
       `,

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "@jest/globals";
+import {describe, it, expect} from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
+import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
 
 describe("Products API", () => {
   it("should get a product by id", async () => {
@@ -20,6 +20,86 @@ describe("Products API", () => {
     expect(response.body.products).toBeDefined();
     expect(Array.isArray(response.body.products)).toBe(true);
     expect(response.body.products.length).toBeGreaterThan(0);
+  });
+
+  it("should get products with pagination", async () => {
+    const response = await request(app).get(
+      "/products?page=1&limit=2",
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.products).toBeDefined();
+    expect(Array.isArray(response.body.products)).toBe(true);
+    expect(response.body.products.length).toBeLessThanOrEqual(2);
+
+    expect(response.body.pagination).toEqual({
+      page: 1,
+      limit: 2,
+      total: expect.any(Number),
+      totalPages: expect.any(Number),
+    });
+
+    expect(response.body.pagination.total).toBeGreaterThan(0);
+    expect(response.body.pagination.totalPages).toBeGreaterThan(0);
+  });
+
+  it("should get the second page of products", async () => {
+    const response = await request(app).get(
+      "/products?page=2&limit=2",
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.pagination.page).toBe(2);
+    expect(response.body.pagination.limit).toBe(2);
+    expect(response.body.products).toBeDefined();
+    expect(Array.isArray(response.body.products)).toBe(true);
+    expect(response.body.products.length).toBeLessThanOrEqual(2);
+  });
+
+  it("should return 400 when page is invalid", async () => {
+    const response = await request(app).get(
+      "/products?page=0&limit=2",
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when limit is invalid", async () => {
+    const response = await request(app).get(
+      "/products?page=1&limit=0",
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when page is not an integer", async () => {
+    const response = await request(app).get(
+      "/products?page=abc&limit=2",
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
+  });
+
+  it("should return 400 when limit is not an integer", async () => {
+    const response = await request(app).get(
+      "/products?page=1&limit=abc",
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Invalid pagination parameters",
+    );
   });
 
   it("should return 404 when product does not exist", async () => {

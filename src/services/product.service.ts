@@ -165,11 +165,28 @@ export class ProductService {
     }
   }
 
-  async getAllProducts(): Promise<ProductDetails[]> {
+  async getAllProducts(
+    page: number,
+    limit: number,
+  ): Promise<{
+    products: ProductDetails[];
+    total: number;
+  }> {
     const client = await this.pool.connect();
 
     try {
-      return await this.productRepository.findAllWithVariants(client);
+      const products = await this.productRepository.findAllWithVariants(
+        client,
+        page,
+        limit,
+      );
+
+      const total = await this.productRepository.countAll(client);
+
+      return {
+        products,
+        total,
+      };
     } finally {
       client.release();
     }

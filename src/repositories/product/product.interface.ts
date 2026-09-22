@@ -10,9 +10,9 @@ export interface ProductRepository {
 
   findById(id: number, client: PoolClient): Promise<Product | null>;
 
-  findAll(client: PoolClient): Promise<Product[]>;
+  findAll(client: PoolClient, page: number, limit: number): Promise<Product[]>;
 
-  findAllWithVariants(client: PoolClient): Promise<ProductDetails[]>;
+  findAllWithVariants(client: PoolClient, page: number, limit: number): Promise<ProductDetails[]>;
 
   update(
     client: PoolClient,
@@ -21,4 +21,6 @@ export interface ProductRepository {
   ): Promise<Product | null>;
 
   delete(client: PoolClient, id: number): Promise<boolean>;
+
+  countAll(client: PoolClient): Promise<number>;
 }

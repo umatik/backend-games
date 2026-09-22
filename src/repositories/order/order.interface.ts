@@ -9,6 +9,12 @@ import type {
 export interface OrderInterface {
   create(client: PoolClient, data: CreateOrderData): Promise<Order>;
 
+  findAll(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<OrderDetails[]>;
+
   createItems(
     client: PoolClient,
     orderId: number,
@@ -24,4 +30,6 @@ export interface OrderInterface {
     orderId: number,
     userId: number,
   ): Promise<OrderDetails | null>;
+
+  countAll(client: PoolClient): Promise<number>;
 }

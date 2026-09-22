@@ -28,9 +28,11 @@ Główny nacisk:
 
 > **Rola ChatGPT w kursie**
 >
-> Kurs był prowadzony w formie praktycznej współpracy z ChatGPT. ChatGPT pełnił rolę prowadzącego / mentora
-> technicznego: zadawał kolejne zadania, wyjaśniał zagadnienia, analizował decyzje architektoniczne, pomagał diagnozować
-> problemy, przygotowywał testy i prowadził przez refaktoryzacje.
+> ChatGPT pełnił w projekcie kilka różnych ról — zależnie od aktualnego etapu pracy. Czasami był inteligentną
+> dokumentacją i źródłem wiedzy technicznej, pomagając wyjaśniać zagadnienia i porządkować informacje. Czasami pełnił rolę
+> doradcy technicznego, pomagając analizować problemy, porównywać rozwiązania i podejmować decyzje architektoniczne. W
+> innych momentach, szczególnie podczas pracy nad testami, pełnił rolę prowadzącego: przygotowywał zadania, prowadził
+> przez kolejne zagadnienia i weryfikował ich praktyczne zastosowanie.
 >
 > Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
 > pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.

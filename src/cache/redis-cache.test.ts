@@ -1,12 +1,6 @@
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from "@jest/globals";
-import type {RedisClientType} from "redis";
-import {RedisCache} from "./redis-cache.js";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { RedisClientType } from "redis";
+import { RedisCache } from "./redis-cache.js";
 
 describe("RedisCache", () => {
   let redisClient: jest.Mocked<RedisClientType>;
@@ -17,7 +11,7 @@ describe("RedisCache", () => {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn(),
-      flushDb: jest.fn(),
+      scan: jest.fn(),
     } as unknown as jest.Mocked<RedisClientType>;
 
     cache = new RedisCache(redisClient);
@@ -33,9 +27,7 @@ describe("RedisCache", () => {
   });
 
   it("should return parsed value", async () => {
-    redisClient.get.mockResolvedValue(
-      JSON.stringify("bar"),
-    );
+    redisClient.get.mockResolvedValue(JSON.stringify("bar"));
 
     const result = await cache.get("foo");
 
@@ -48,13 +40,9 @@ describe("RedisCache", () => {
 
     await cache.set("foo", "bar", 60);
 
-    expect(redisClient.set).toHaveBeenCalledWith(
-      "foo",
-      JSON.stringify("bar"),
-      {
-        EX: 60,
-      },
-    );
+    expect(redisClient.set).toHaveBeenCalledWith("foo", JSON.stringify("bar"), {
+      EX: 60,
+    });
   });
 
   it("should delete value", async () => {
@@ -66,10 +54,18 @@ describe("RedisCache", () => {
   });
 
   it("should clear cache", async () => {
-    redisClient.flushDb.mockResolvedValue("OK");
+    redisClient.scan.mockResolvedValue({
+      cursor: "0",
+      keys: [],
+    });
 
     await cache.clear();
 
-    expect(redisClient.flushDb).toHaveBeenCalled();
+    expect(redisClient.scan).toHaveBeenCalledWith("0", {
+      MATCH: "products:*",
+      COUNT: 100,
+    });
+
+    expect(redisClient.del).not.toHaveBeenCalled();
   });
 });

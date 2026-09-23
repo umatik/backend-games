@@ -1,11 +1,12 @@
-import {UserNotFoundError} from "../errors/user-not-found.error.js";
+import { UserNotFoundError } from "../errors/user-not-found.error.js";
 import type {
   CreateOrderData,
   Order,
   OrderDetails,
 } from "../types/order.types.js";
-import type {OrderInterface} from "../repositories/order/order.interface.js";
-import type {PoolClient} from "pg";
+import type { OrderInterface } from "../repositories/order/order.interface.js";
+import type { PoolClient } from "pg";
+import type { Cache } from "../cache/cache.interface.js";
 
 export type Database = {
   connect(): Promise<PoolClient>;
@@ -15,8 +16,8 @@ export class OrderService {
   constructor(
     private orderRepository: OrderInterface,
     private pool: Database,
-  ) {
-  }
+    private productCache: Cache<unknown>,
+  ) {}
 
   async createOrder(data: CreateOrderData): Promise<Order> {
     const client = await this.pool.connect();
@@ -38,6 +39,8 @@ export class OrderService {
       await this.orderRepository.createItems(client, order.id, data.items);
 
       await client.query("COMMIT");
+
+      await this.productCache.clear();
 
       return order;
     } catch (error) {
@@ -63,11 +66,7 @@ export class OrderService {
     const client = await this.pool.connect();
 
     try {
-      const orders = await this.orderRepository.findAll(
-        client,
-        page,
-        limit,
-      );
+      const orders = await this.orderRepository.findAll(client, page, limit);
 
       const total = await this.orderRepository.countAll(client);
 
@@ -103,11 +102,19 @@ export class OrderService {
     }
   }
 
-  async deleteOrder(orderId: number, userId: number): Promise<boolean> {
+  async deleteOrder(
+    orderId: number,
+    userId: number,
+    isAdmin: boolean,
+  ): Promise<boolean> {
     const client = await this.pool.connect();
 
     try {
-      return await this.orderRepository.delete(client, orderId, userId);
+      return await this.orderRepository.delete(
+        client,
+        orderId,
+        isAdmin ? undefined : userId,
+      );
     } finally {
       client.release();
     }

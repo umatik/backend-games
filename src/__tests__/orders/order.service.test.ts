@@ -1,14 +1,14 @@
-import {beforeEach, describe, jest, it, expect} from "@jest/globals";
-import type {PoolClient} from "pg";
-import {OrderService} from "../../services/order.service.js";
-import type {OrderInterface} from "../../repositories/order/order.interface.js";
-import type {Database} from "../../services/order.service.js";
+import { beforeEach, describe, jest, it, expect } from "@jest/globals";
+import type { PoolClient } from "pg";
+import { OrderService } from "../../services/order.service.js";
+import type { OrderInterface } from "../../repositories/order/order.interface.js";
+import type { Database } from "../../services/order.service.js";
 import type {
   CreateOrderData,
   Order,
   OrderDetails,
 } from "../../types/order.types.js";
-
+import type { Cache } from "../../cache/cache.interface.js";
 const mockClient = {
   query: jest.fn(),
   release: jest.fn(),
@@ -18,6 +18,7 @@ describe("OrderService", () => {
   let orderService: OrderService;
   let orderRepository: jest.Mocked<OrderInterface>;
   let mockPool: Database;
+  let productCache: jest.Mocked<Cache<unknown>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -39,7 +40,14 @@ describe("OrderService", () => {
         .mockResolvedValue(mockClient as unknown as PoolClient),
     };
 
-    orderService = new OrderService(orderRepository, mockPool);
+    productCache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      delete: jest.fn(),
+      clear: jest.fn(),
+    };
+
+    orderService = new OrderService(orderRepository, mockPool, productCache);
   });
 
   it("should create an order", async () => {
@@ -87,6 +95,7 @@ describe("OrderService", () => {
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+    expect(productCache.clear).toHaveBeenCalledTimes(1);
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
 
@@ -107,6 +116,7 @@ describe("OrderService", () => {
 
     expect(orderRepository.create).not.toHaveBeenCalled();
     expect(orderRepository.createItems).not.toHaveBeenCalled();
+    expect(productCache.clear).not.toHaveBeenCalled();
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
@@ -124,6 +134,7 @@ describe("OrderService", () => {
     await expect(orderService.createOrder(data)).rejects.toThrow("DB error");
 
     expect(orderRepository.createItems).not.toHaveBeenCalled();
+    expect(productCache.clear).not.toHaveBeenCalled();
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
@@ -157,6 +168,7 @@ describe("OrderService", () => {
       "Items DB error",
     );
 
+    expect(productCache.clear).not.toHaveBeenCalled();
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
     expect(mockClient.release).toHaveBeenCalledTimes(1);
@@ -293,9 +305,7 @@ describe("OrderService", () => {
   it("should release client when getOrdersByUserId fails", async () => {
     orderRepository.findByUserId.mockRejectedValue(new Error("DB error"));
 
-    await expect(orderService.getOrdersByUserId(1)).rejects.toThrow(
-      "DB error",
-    );
+    await expect(orderService.getOrdersByUserId(1)).rejects.toThrow("DB error");
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
@@ -303,9 +313,7 @@ describe("OrderService", () => {
   it("should release client when getOrderById fails", async () => {
     orderRepository.findById.mockRejectedValue(new Error("DB error"));
 
-    await expect(
-      orderService.getOrderById(1, 1),
-    ).rejects.toThrow("DB error");
+    await expect(orderService.getOrderById(1, 1)).rejects.toThrow("DB error");
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });

@@ -1,11 +1,8 @@
-import type {RedisClientType} from "redis";
-import type {Cache} from "./cache.interface.js";
+import type { RedisClientType } from "redis";
+import type { Cache } from "./cache.interface.js";
 
 export class RedisCache<T> implements Cache<T> {
-  constructor(
-    private readonly client: RedisClientType,
-  ) {
-  }
+  constructor(private readonly client: RedisClientType) {}
 
   async get(key: string): Promise<T | null> {
     const value = await this.client.get(key);
@@ -17,18 +14,10 @@ export class RedisCache<T> implements Cache<T> {
     return JSON.parse(value) as T;
   }
 
-  async set(
-    key: string,
-    value: T,
-    ttlSeconds: number,
-  ): Promise<void> {
-    await this.client.set(
-      key,
-      JSON.stringify(value),
-      {
-        EX: ttlSeconds,
-      },
-    );
+  async set(key: string, value: T, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, JSON.stringify(value), {
+      EX: ttlSeconds,
+    });
   }
 
   async delete(key: string): Promise<void> {
@@ -36,6 +25,19 @@ export class RedisCache<T> implements Cache<T> {
   }
 
   async clear(): Promise<void> {
-    await this.client.flushDb();
+    let cursor = "0";
+
+    do {
+      const result = await this.client.scan(cursor, {
+        MATCH: "products:*",
+        COUNT: 100,
+      });
+
+      cursor = result.cursor;
+
+      if (result.keys.length > 0) {
+        await this.client.del(result.keys);
+      }
+    } while (cursor !== "0");
   }
 }

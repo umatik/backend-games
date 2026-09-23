@@ -1,14 +1,8 @@
-import {
-  afterAll,
-  beforeEach,
-  describe,
-  it,
-  expect,
-} from "@jest/globals";
+import { afterAll, beforeEach, describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import {redisClient} from "../../dependency-injection.js";
-import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
+import { redisClient } from "../../dependency-injection.js";
+import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
 
 let adminToken: string;
 let userToken: string;
@@ -48,8 +42,7 @@ beforeEach(async () => {
 
   productId = productResponse.body.product.id;
 
-  const product = await request(app)
-    .get(`/products/${productId}`);
+  const product = await request(app).get(`/products/${productId}`);
 
   expect(product.status).toBe(200);
   expect(product.body.product.variants).toBeDefined();
@@ -181,8 +174,7 @@ describe("POST /orders", () => {
   });
 
   it("should fail for quantity > stock", async () => {
-    const productResponse = await request(app)
-      .get(`/products/${productId}`);
+    const productResponse = await request(app).get(`/products/${productId}`);
 
     expect(productResponse.status).toBe(200);
 
@@ -209,8 +201,7 @@ describe("POST /orders", () => {
   });
 
   it("should decrease stock after order", async () => {
-    const beforeResponse = await request(app)
-      .get(`/products/${productId}`);
+    const beforeResponse = await request(app).get(`/products/${productId}`);
 
     expect(beforeResponse.status).toBe(200);
 
@@ -237,8 +228,7 @@ describe("POST /orders", () => {
 
     expect(orderResponse.status).toBe(201);
 
-    const afterResponse = await request(app)
-      .get(`/products/${productId}`);
+    const afterResponse = await request(app).get(`/products/${productId}`);
 
     expect(afterResponse.status).toBe(200);
 
@@ -264,8 +254,7 @@ describe("GET /orders", () => {
   });
 
   it("should fail without token", async () => {
-    const response = await request(app)
-      .get("/orders?page=1&limit=2");
+    const response = await request(app).get("/orders?page=1&limit=2");
 
     expect(response.status).toBe(401);
   });
@@ -315,8 +304,7 @@ describe("GET /orders/:id", () => {
   });
 
   it("should fail without token", async () => {
-    const response = await request(app)
-      .get(`/orders/${orderId}`);
+    const response = await request(app).get(`/orders/${orderId}`);
 
     expect(response.status).toBe(401);
   });
@@ -345,5 +333,34 @@ describe("GET /orders/:id", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.message).toBe("Order not found");
+  });
+});
+
+describe("GET /orders/my", () => {
+  it("should return current user's orders", async () => {
+    const response = await request(app)
+      .get("/orders/my")
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body.length).toBeGreaterThan(0);
+
+    expect(response.body[0]).toHaveProperty("id");
+    expect(response.body[0].userId).toBe(userId);
+  });
+
+  it("should fail without token", async () => {
+    const response = await request(app).get("/orders/my");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should fail with invalid token", async () => {
+    const response = await request(app)
+      .get("/orders/my")
+      .set("Authorization", "Bearer wrongtoken");
+
+    expect(response.status).toBe(401);
   });
 });

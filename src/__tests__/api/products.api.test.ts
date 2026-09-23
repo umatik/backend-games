@@ -1,8 +1,8 @@
-import {afterAll, describe, it, expect} from "@jest/globals";
+import { afterAll, describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import {redisClient} from "../../dependency-injection.js";
-import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
+import { redisClient } from "../../dependency-injection.js";
+import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
 
 afterAll(async () => {
   await redisClient.close();
@@ -28,9 +28,7 @@ describe("Products API", () => {
   });
 
   it("should get products with pagination", async () => {
-    const response = await request(app).get(
-      "/products?page=1&limit=2",
-    );
+    const response = await request(app).get("/products?page=1&limit=2");
 
     expect(response.status).toBe(200);
 
@@ -50,9 +48,7 @@ describe("Products API", () => {
   });
 
   it("should get the second page of products", async () => {
-    const response = await request(app).get(
-      "/products?page=2&limit=2",
-    );
+    const response = await request(app).get("/products?page=2&limit=2");
 
     expect(response.status).toBe(200);
 
@@ -64,47 +60,31 @@ describe("Products API", () => {
   });
 
   it("should return 400 when page is invalid", async () => {
-    const response = await request(app).get(
-      "/products?page=0&limit=2",
-    );
+    const response = await request(app).get("/products?page=0&limit=2");
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when limit is invalid", async () => {
-    const response = await request(app).get(
-      "/products?page=1&limit=0",
-    );
+    const response = await request(app).get("/products?page=1&limit=0");
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when page is not an integer", async () => {
-    const response = await request(app).get(
-      "/products?page=abc&limit=2",
-    );
+    const response = await request(app).get("/products?page=abc&limit=2");
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when limit is not an integer", async () => {
-    const response = await request(app).get(
-      "/products?page=1&limit=abc",
-    );
+    const response = await request(app).get("/products?page=1&limit=abc");
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 404 when product does not exist", async () => {
@@ -616,5 +596,12 @@ describe("Products API", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe("Invalid product name");
+  });
+
+  it("should return 400 when limit exceeds maximum", async () => {
+    const response = await request(app).get("/products?page=1&limit=101");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 });

@@ -1,8 +1,8 @@
-import {afterAll, describe, it, expect} from "@jest/globals";
+import { afterAll, describe, it, expect } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
-import {redisClient} from "../../dependency-injection.js";
-import {loginAsAdmin, loginAsUser} from "../../__test-helpers__/auth.js";
+import { redisClient } from "../../dependency-injection.js";
+import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
 
 afterAll(async () => {
   await redisClient.close();
@@ -348,9 +348,7 @@ describe("Users API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when limit is invalid", async () => {
@@ -361,9 +359,7 @@ describe("Users API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when page is not an integer", async () => {
@@ -374,9 +370,7 @@ describe("Users API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 
   it("should return 400 when limit is not an integer", async () => {
@@ -387,8 +381,17 @@ describe("Users API", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe(
-      "Invalid pagination parameters",
-    );
+    expect(response.body.message).toBe("Invalid pagination parameters");
+  });
+
+  it("should return 400 when limit exceeds maximum", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .get("/users?page=1&limit=101")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid pagination parameters");
   });
 });

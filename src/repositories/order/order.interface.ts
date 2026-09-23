@@ -1,4 +1,4 @@
-import type {PoolClient} from "pg";
+import type { PoolClient } from "pg";
 import type {
   CreateOrderData,
   CreateOrderItemData,
@@ -36,6 +36,6 @@ export interface OrderInterface {
   delete(
     client: PoolClient,
     orderId: number,
-    userId: number,
+    userId?: number,
   ): Promise<boolean>;
 }

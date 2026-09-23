@@ -102,6 +102,7 @@ const userService = new UserService(
   userRepository,
   userContactRepository,
   roleRepository,
+  pool,
 );
 
 const userController = new UserController(userService, authorizationService);

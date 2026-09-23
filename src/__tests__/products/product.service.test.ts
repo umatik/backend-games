@@ -1,13 +1,11 @@
-import {beforeEach, describe, jest, it, expect} from "@jest/globals";
-import type {PoolClient} from "pg";
-import {
-  type Database,
-  ProductService,
-} from "../../services/product.service.js";
-import type {ProductRepository} from "../../repositories/product/product.interface.js";
-import type {ProductVariantRepository} from "../../repositories/product-variant/product-variant.interface.js";
-import type {Cache} from "../../cache/cache.interface.js";
-import type {ProductDetails} from "../../types/product.types.js";
+import { beforeEach, describe, jest, it, expect } from "@jest/globals";
+import type { PoolClient } from "pg";
+import { ProductService } from "../../services/product.service.js";
+import type { ProductRepository } from "../../repositories/product/product.interface.js";
+import type { ProductVariantRepository } from "../../repositories/product-variant/product-variant.interface.js";
+import type { Cache } from "../../cache/cache.interface.js";
+import type { ProductDetails } from "../../types/product.types.js";
+import type { Database } from "../../database/database.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -630,9 +628,7 @@ describe("ProductService", () => {
       total: 87,
     });
 
-    expect(cache.get).toHaveBeenCalledWith(
-      "products:page=2:limit=10",
-    );
+    expect(cache.get).toHaveBeenCalledWith("products:page=2:limit=10");
 
     expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
       mockClient as unknown as PoolClient,
@@ -676,9 +672,7 @@ describe("ProductService", () => {
 
     expect(result).toBe(cachedResult);
 
-    expect(cache.get).toHaveBeenCalledWith(
-      "products:page=2:limit=10",
-    );
+    expect(cache.get).toHaveBeenCalledWith("products:page=2:limit=10");
 
     expect(productRepository.findAllWithVariants).not.toHaveBeenCalled();
     expect(productRepository.countAll).not.toHaveBeenCalled();
@@ -824,13 +818,11 @@ describe("ProductService", () => {
       deletedAt: null,
     });
 
-    productVariantRepository.delete.mockRejectedValue(
-      new Error("DB error"),
-    );
+    productVariantRepository.delete.mockRejectedValue(new Error("DB error"));
 
-    await expect(
-      productService.deleteProductVariant(1, 1),
-    ).rejects.toThrow("DB error");
+    await expect(productService.deleteProductVariant(1, 1)).rejects.toThrow(
+      "DB error",
+    );
 
     expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
     expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");

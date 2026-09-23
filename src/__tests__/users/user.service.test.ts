@@ -1,8 +1,8 @@
-import {beforeEach, describe, expect, it, jest} from "@jest/globals";
-import type {PoolClient} from "pg";
-import type {UserInterface} from "../../repositories/user/user.interface.js";
-import type {UserContactInterface} from "../../repositories/user/user-contact.interface.js";
-import type {RoleInterface} from "../../repositories/role/role.interface.js";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { PoolClient } from "pg";
+import type { UserInterface } from "../../repositories/user/user.interface.js";
+import type { UserContactInterface } from "../../repositories/user/user-contact.interface.js";
+import type { RoleInterface } from "../../repositories/role/role.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -17,9 +17,8 @@ jest.unstable_mockModule("../../database/db.js", () => ({
   pool: mockPool,
 }));
 
-const {UserService: MockedUserService} = await import(
-  "../../services/user.service.js"
-  );
+const { UserService: MockedUserService } =
+  await import("../../services/user.service.js");
 
 describe("UserService", () => {
   let userService: InstanceType<typeof MockedUserService>;
@@ -30,9 +29,7 @@ describe("UserService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockPool.connect.mockResolvedValue(
-      mockClient as unknown as PoolClient,
-    );
+    mockPool.connect.mockResolvedValue(mockClient as unknown as PoolClient);
 
     userRepository = {
       createUser: jest.fn(),
@@ -55,6 +52,7 @@ describe("UserService", () => {
       userRepository,
       userContactRepository,
       roleRepository,
+      mockPool,
     );
   });
 
@@ -229,9 +227,7 @@ describe("UserService", () => {
     });
 
     it("should rollback when registration fails", async () => {
-      userRepository.createUser.mockRejectedValue(
-        new Error("DB error"),
-      );
+      userRepository.createUser.mockRejectedValue(new Error("DB error"));
 
       await expect(
         userService.register({

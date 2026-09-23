@@ -1,21 +1,20 @@
-import type {Request, Response} from "express";
-import type {AuthenticatedRequest} from "../middleware/authentication.middleware.js";
-import {UserService} from "../services/user.service.js";
-import {AuthorizationService} from "../services/authorization.service.js";
+import type { Request, Response } from "express";
+import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
+import { UserService } from "../services/user.service.js";
+import { AuthorizationService } from "../services/authorization.service.js";
 import {
   isValidRegisterUser,
   isValidUpdateUser,
 } from "../validators/user.validator.js";
-import {EmailAlreadyExistsError} from "../errors/email-already-exists.error.js";
-import {createPagination} from "../utils/pagination.js";
-import {isValidPagination} from "../validators/helpers/pagination.validator.js";
+import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
+import { createPagination } from "../utils/pagination.js";
+import { isValidPagination } from "../validators/helpers/pagination.validator.js";
 
 export class UserController {
   constructor(
     private userService: UserService,
     private authorizationService: AuthorizationService,
-  ) {
-  }
+  ) {}
 
   getUsers = async (req: Request, res: Response) => {
     const page = Number(req.query.page ?? 1);
@@ -28,7 +27,7 @@ export class UserController {
       return;
     }
 
-    const {users, total} = await this.userService.getUsers(page, limit);
+    const { users, total } = await this.userService.getUsers(page, limit);
 
     res.status(200).json({
       message: "Users found",
@@ -54,16 +53,18 @@ export class UserController {
       return;
     }
 
-    const isAdmin = await this.authorizationService.hasRole(
-      Number(req.user.userId),
-      "admin",
-    );
+    if (userId !== Number(req.user.userId)) {
+      const isAdmin = await this.authorizationService.hasRole(
+        Number(req.user.userId),
+        "admin",
+      );
 
-    if (userId !== Number(req.user.userId) && !isAdmin) {
-      res.status(403).json({
-        message: "Forbidden",
-      });
-      return;
+      if (!isAdmin) {
+        res.status(403).json({
+          message: "Forbidden",
+        });
+        return;
+      }
     }
 
     const user = await this.userService.getUserById(userId);
@@ -147,16 +148,18 @@ export class UserController {
       return;
     }
 
-    const isAdmin = await this.authorizationService.hasRole(
-      Number(req.user.userId),
-      "admin",
-    );
+    if (userId !== Number(req.user.userId)) {
+      const isAdmin = await this.authorizationService.hasRole(
+        Number(req.user.userId),
+        "admin",
+      );
 
-    if (userId !== Number(req.user.userId) && !isAdmin) {
-      res.status(403).json({
-        message: "Forbidden",
-      });
-      return;
+      if (!isAdmin) {
+        res.status(403).json({
+          message: "Forbidden",
+        });
+        return;
+      }
     }
 
     if (!isValidUpdateUser(req.body)) {
@@ -165,7 +168,7 @@ export class UserController {
       });
       return;
     }
-    
+
     const user = await this.userService.updateUser(userId, req.body);
 
     if (!user) {

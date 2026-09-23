@@ -1,22 +1,18 @@
 import bcrypt from "bcrypt";
-import type {PoolClient} from "pg";
-import type {AuthenticationInterface} from "../repositories/authentication/authentication.interface.js";
-import {JwtService} from "./jwt.service.js";
-import {InvalidCredentialsError} from "../errors/invalid-credentials.error.js";
+import type { AuthenticationInterface } from "../repositories/authentication/authentication.interface.js";
+import { JwtService } from "./jwt.service.js";
+import { InvalidCredentialsError } from "../errors/invalid-credentials.error.js";
+import type { Database } from "../database/database.interface.js";
 
-export type Database = {
-  connect(): Promise<PoolClient>;
-};
-
-const DUMMY_PASSWORD_HASH = "$2b$12$LQv3c1yqBWxq6h7n6n1M5e9w8J7K6L5M4N3P2Q1R0S9T8U7V6W5X4";
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$LQv3c1yqBWxq6h7n6n1M5e9w8J7K6L5M4N3P2Q1R0S9T8U7V6W5X4";
 
 export class AuthenticationService {
   constructor(
     private authRepository: AuthenticationInterface,
     private jwtService: JwtService,
     private pool: Database,
-  ) {
-  }
+  ) {}
 
   async login(
     email: string,
@@ -28,7 +24,10 @@ export class AuthenticationService {
     const fixedEmail = email.trim().toLowerCase();
 
     try {
-      const user = await this.authRepository.findUserByEmail(client, fixedEmail);
+      const user = await this.authRepository.findUserByEmail(
+        client,
+        fixedEmail,
+      );
       const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
       const isPasswordValid = await bcrypt.compare(password, passwordHash);
 

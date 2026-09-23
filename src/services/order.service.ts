@@ -5,12 +5,8 @@ import type {
   OrderDetails,
 } from "../types/order.types.js";
 import type { OrderInterface } from "../repositories/order/order.interface.js";
-import type { PoolClient } from "pg";
 import type { Cache } from "../cache/cache.interface.js";
-
-export type Database = {
-  connect(): Promise<PoolClient>;
-};
+import type { Database } from "../database/database.interface.js";
 
 export class OrderService {
   constructor(

@@ -2,7 +2,7 @@ import { beforeEach, describe, jest, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
 import { OrderService } from "../../services/order.service.js";
 import type { OrderInterface } from "../../repositories/order/order.interface.js";
-import type { Database } from "../../services/order.service.js";
+import type { Database } from "../../database/database.interface.js";
 import type {
   CreateOrderData,
   Order,

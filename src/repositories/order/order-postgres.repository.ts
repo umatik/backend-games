@@ -119,48 +119,55 @@ export class OrderPostgresRepository implements OrderInterface {
     );
 
     for (const item of sortedItems) {
-      const productVariantResult = await client.query(
+      const stockResult = await client.query(
         `
-          SELECT pv.id,
-                 pv.product_id,
-                 pv.price
+          UPDATE product_variants pv
+          SET quantity = pv.quantity - $1
+          FROM products p
+          WHERE pv.id = $2
+            AND pv.product_id = p.id
+            AND pv.is_deleted = FALSE
+            AND p.is_deleted = FALSE
+            AND pv.quantity >= $1
+          RETURNING
+            pv.id,
+            pv.product_id,
+            pv.price,
+            pv.quantity
+        `,
+        [item.quantity, item.productVariantId],
+      );
+
+      if (stockResult.rows.length === 0) {
+        const productVariantResult = await client.query(
+          `
+          SELECT pv.id
           FROM product_variants pv
                  JOIN products p ON p.id = pv.product_id
           WHERE pv.id = $1
             AND pv.is_deleted = FALSE
             AND p.is_deleted = FALSE
         `,
-        [item.productVariantId],
-      );
+          [item.productVariantId],
+        );
 
-      if (productVariantResult.rows.length === 0) {
-        throw new ProductNotFoundError(item.productVariantId);
-      }
+        if (productVariantResult.rows.length === 0) {
+          throw new ProductNotFoundError(item.productVariantId);
+        }
 
-      const price = Number(productVariantResult.rows[0].price);
-
-      const stockResult = await client.query(
-        `
-          UPDATE product_variants
-          SET quantity = quantity - $1
-          WHERE id = $2
-            AND quantity >= $1
-            AND is_deleted = FALSE
-          RETURNING quantity
-        `,
-        [item.quantity, item.productVariantId],
-      );
-
-      if (stockResult.rows.length === 0) {
         throw new InsufficientStockError(item.productVariantId);
       }
 
+      const price = Number(stockResult.rows[0].price);
+
       await client.query(
         `
-          INSERT INTO order_items (order_id,
-                                   product_variant_id,
-                                   quantity,
-                                   price)
+          INSERT INTO order_items (
+            order_id,
+            product_variant_id,
+            quantity,
+            price
+          )
           VALUES ($1, $2, $3, $4)
         `,
         [orderId, item.productVariantId, item.quantity, price],

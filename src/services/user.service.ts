@@ -1,10 +1,9 @@
 import bcrypt from "bcrypt";
-import {pool} from "../database/db.js";
-import type {UserInterface} from "../repositories/user/user.interface.js";
-import type {UserContactInterface} from "../repositories/user/user-contact.interface.js";
-import type {RoleInterface} from "../repositories/role/role.interface.js";
-import {EmailAlreadyExistsError} from "../errors/email-already-exists.error.js";
-import type {PoolClient} from "pg";
+import type { UserInterface } from "../repositories/user/user.interface.js";
+import type { UserContactInterface } from "../repositories/user/user-contact.interface.js";
+import type { RoleInterface } from "../repositories/role/role.interface.js";
+import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
+import type { PoolClient } from "pg";
 import type {
   CreatedUser,
   CreateUserContactData,
@@ -15,14 +14,15 @@ import type {
   UpdateUserRequest,
   UserDetails,
 } from "../types/user.types.js";
+import type { Database } from "../database/database.interface.js";
 
 export class UserService {
   constructor(
     private userRepository: UserInterface,
     private userContactRepository: UserContactInterface,
     private roleRepository: RoleInterface,
-  ) {
-  }
+    private pool: Database,
+  ) {}
 
   async getUsers(
     page: number,
@@ -31,14 +31,10 @@ export class UserService {
     users: UserDetails[];
     total: number;
   }> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
-      const users = await this.userRepository.findAll(
-        client,
-        page,
-        limit,
-      );
+      const users = await this.userRepository.findAll(client, page, limit);
 
       const total = await this.userRepository.countAll(client);
 
@@ -52,7 +48,7 @@ export class UserService {
   }
 
   async getUserById(userId: number): Promise<UserDetails | null> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       return await this.userRepository.findById(client, userId);
@@ -62,7 +58,7 @@ export class UserService {
   }
 
   async register(data: RegisterUserData) {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
@@ -124,7 +120,7 @@ export class UserService {
     userId: number,
     data: UpdateUserRequest,
   ): Promise<UserDetails | null> {
-    const client = await pool.connect();
+    const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
@@ -140,11 +136,7 @@ export class UserService {
       }
 
       if (Object.keys(userData).length > 0) {
-        const user = await this.userRepository.update(
-          client,
-          userId,
-          userData,
-        );
+        const user = await this.userRepository.update(client, userId, userData);
 
         if (!user) {
           await client.query("ROLLBACK");

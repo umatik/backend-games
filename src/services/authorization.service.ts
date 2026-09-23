@@ -1,16 +1,11 @@
-import type {PermissionInterface} from "../repositories/permissions/permission.interface.js";
-import type {PoolClient} from "pg";
-
-export type Database = {
-  connect(): Promise<PoolClient>;
-};
+import type { PermissionInterface } from "../repositories/permissions/permission.interface.js";
+import type { Database } from "../database/database.interface.js";
 
 export class AuthorizationService {
   constructor(
     private permissionRepository: PermissionInterface,
     private pool: Database,
-  ) {
-  }
+  ) {}
 
   async hasPermission(userId: number, permission: string): Promise<boolean> {
     const client = await this.pool.connect();

@@ -4,16 +4,12 @@ import type {
   ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
-import type {ProductVariantRepository} from "../repositories/product-variant/product-variant.interface.js";
-import type {ProductRepository} from "../repositories/product/product.interface.js";
-import type {UpdateProductVariantData} from "../types/product-variant.types.js";
-import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
-import type {PoolClient} from "pg";
-import type {Cache} from "../cache/cache.interface.js";
-
-export type Database = {
-  connect(): Promise<PoolClient>;
-};
+import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
+import type { ProductRepository } from "../repositories/product/product.interface.js";
+import type { UpdateProductVariantData } from "../types/product-variant.types.js";
+import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
+import type { Cache } from "../cache/cache.interface.js";
+import type { Database } from "../database/database.interface.js";
 
 export class ProductService {
   constructor(
@@ -24,8 +20,7 @@ export class ProductService {
       products: ProductDetails[];
       total: number;
     }>,
-  ) {
-  }
+  ) {}
 
   async createProduct(data: CreateProductData): Promise<Product> {
     const client = await this.pool.connect();

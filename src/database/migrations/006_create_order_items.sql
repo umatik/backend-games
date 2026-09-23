@@ -24,9 +24,3 @@ CREATE INDEX idx_order_items_order_id
 
 CREATE INDEX idx_order_items_product_variant_id
   ON order_items (product_variant_id);
-
-CREATE INDEX idx_order_items_order_id
-  ON order_items (order_id);
-
-CREATE INDEX idx_order_items_product_variant_id
-  ON order_items (product_variant_id);

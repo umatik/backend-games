@@ -87,7 +87,7 @@ const orderRepository = new OrderPostgresRepository();
 
 const orderService = new OrderService(orderRepository, pool, productCache);
 
-const orderController = new OrderController(orderService);
+const orderController = new OrderController(orderService, authorizationService);
 
 export const orderRouter = createOrderRouter(
   orderController,

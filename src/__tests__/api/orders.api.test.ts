@@ -426,12 +426,12 @@ describe("DELETE /orders/:id", () => {
     expect(response.status).toBe(404);
   });
 
-  it("should not allow deleting another user's order", async () => {
+  it("should allow admin to delete another user's order", async () => {
     const response = await request(app)
       .delete(`/orders/${orderId}`)
       .set("Authorization", `Bearer ${adminToken}`);
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(204);
   });
 });
 
@@ -462,5 +462,4 @@ describe("GET /orders/my", () => {
 
     expect(response.status).toBe(401);
   });
-
 });

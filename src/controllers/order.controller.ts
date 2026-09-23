@@ -9,9 +9,13 @@ import type { AuthenticatedRequest } from "../middleware/authentication.middlewa
 import { parseId } from "../validators/helpers/id.validator.js";
 import { createPagination } from "../utils/pagination.js";
 import { isValidPagination } from "../validators/helpers/pagination.validator.js";
+import type { AuthorizationService } from "../services/authorization.service.js";
 
 export class OrderController {
-  constructor(private orderService: OrderService) {}
+  constructor(
+    private orderService: OrderService,
+    private authorizationService: AuthorizationService,
+  ) {}
 
   createOrder = async (req: AuthenticatedRequest, res: Response) => {
     const { items } = req.body;
@@ -155,10 +159,15 @@ export class OrderController {
       return;
     }
 
+    const isAdmin = await this.authorizationService.hasRole(
+      Number(req.user.userId),
+      "admin",
+    );
+
     const deleted = await this.orderService.deleteOrder(
       id,
       Number(req.user.userId),
-      false,
+      isAdmin,
     );
 
     if (!deleted) {

@@ -6,7 +6,7 @@ CREATE TABLE login_logs
   success    BOOLEAN      NOT NULL,
   ip_address VARCHAR(255),
   user_agent TEXT,
-  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_login_logs_user
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );

@@ -8,6 +8,8 @@ import {
 } from "@jest/globals";
 import {InMemoryCache} from "./in-memory-cache.js";
 
+// Tests for InMemoryCache.
+// Currently unused because dependency injection uses RedisCache.
 describe("InMemoryCache", () => {
   beforeEach(() => {
     jest.useFakeTimers();

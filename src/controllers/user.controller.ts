@@ -147,20 +147,25 @@ export class UserController {
       return;
     }
 
-    if (!isValidUpdateUser(req.body)) {
-      res.status(400).json({
-        message: "Invalid update data",
-      });
-      return;
-    }
+    const isAdmin = await this.authorizationService.hasRole(
+      Number(req.user.userId),
+      "admin",
+    );
 
-    if (userId !== Number(req.user.userId)) {
+    if (userId !== Number(req.user.userId) && !isAdmin) {
       res.status(403).json({
         message: "Forbidden",
       });
       return;
     }
 
+    if (!isValidUpdateUser(req.body)) {
+      res.status(400).json({
+        message: "Invalid update data",
+      });
+      return;
+    }
+    
     const user = await this.userService.updateUser(userId, req.body);
 
     if (!user) {

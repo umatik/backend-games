@@ -8,8 +8,8 @@ CREATE TABLE user_contact_details
     city        VARCHAR(100),
     postal_code VARCHAR(20),
     country     VARCHAR(100),
-    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at  TIMESTAMPTZ    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_contact_details_user
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );

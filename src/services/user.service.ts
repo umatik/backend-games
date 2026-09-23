@@ -24,7 +24,6 @@ export class UserService {
   ) {
   }
 
-
   async getUsers(
     page: number,
     limit: number,
@@ -133,7 +132,7 @@ export class UserService {
       const userData: UpdateUserData = {};
 
       if (data.email !== undefined) {
-        userData.email = data.email;
+        userData.email = data.email.trim().toLowerCase();
       }
 
       if (data.password !== undefined) {

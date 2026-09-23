@@ -5,6 +5,9 @@ type CacheEntry<T> = {
   expiresAt: number;
 };
 
+// Currently unused.
+// Dependency injection uses RedisCache in all environments.
+// Kept as a lightweight cache implementation for potential future use.
 export class InMemoryCache<T> implements Cache<T> {
   private readonly store = new Map<string, CacheEntry<T>>();
 

@@ -3,7 +3,7 @@ import "dotenv/config";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import openapi from "./docs/openapi.js";
-import express, { type ErrorRequestHandler } from "express";
+import express, {type ErrorRequestHandler} from "express";
 
 import {
   productRouter,
@@ -11,13 +11,19 @@ import {
   userRouter,
   authRouter,
 } from "./dependency-injection.js";
-import { AppError } from "./errors/app.error.js";
+import {AppError} from "./errors/app.error.js";
 
 const app = express();
-app.use(helmet());
-app.use(cors());
 
-app.use(express.json({ limit: "1mb" }));
+// Adds security-related HTTP headers to protect the API from common web attacks.
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN,
+  }),
+);
+
+app.use(express.json({limit: "1mb"}));
 
 // Middleware, Request logging
 app.use((req, res, next) => {

@@ -1,10 +1,10 @@
-import { beforeEach, describe, jest, it, expect } from "@jest/globals";
-import type { PoolClient } from "pg";
+import {beforeEach, describe, jest, it, expect} from "@jest/globals";
+import type {PoolClient} from "pg";
 import {
   type Database,
   AuthorizationService,
 } from "../../services/authorization.service.js";
-import type { PermissionInterface } from "../../repositories/permissions/permission.interface.js";
+import type {PermissionInterface} from "../../repositories/permissions/permission.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -21,6 +21,7 @@ describe("AuthorizationService", () => {
 
     permissionRepository = {
       findByUserId: jest.fn(),
+      hasRole: jest.fn(),
     };
 
     mockPool = {

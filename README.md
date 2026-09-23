@@ -1,5 +1,74 @@
 # Node.js Backend Course — E-commerce API
 
+## Uruchomienie projektu
+
+### Wymagania
+
+- Node.js
+- pnpm
+- Docker
+- Docker Compose
+
+### Instalacja
+
+```bash
+pnpm install
+```
+
+### Uruchomienie infrastruktury
+
+Projekt wymaga PostgreSQL oraz Redis. Uruchom je przez Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Sprawdzenie kontenerów:
+
+```bash
+docker compose ps
+```
+
+### Migracje bazy danych
+
+Baza developerska:
+
+```bash
+pnpm migrate
+```
+
+Baza testowa:
+
+```bash
+pnpm migrate:test
+```
+
+### Uruchomienie API
+
+```bash
+pnpm dev
+```
+
+### Testy
+
+Testy wymagają działającego PostgreSQL oraz Redis.
+
+```bash
+pnpm test
+```
+
+Jeżeli infrastruktura nie jest uruchomiona, testy mogą zakończyć się błędem połączenia z PostgreSQL lub Redis.
+
+### Swagger
+
+Po uruchomieniu API dokumentacja Swagger jest dostępna pod:
+
+```text
+http://localhost:3000/api-docs
+```
+
+---
+
 ## Cel kursu
 
 Celem kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od

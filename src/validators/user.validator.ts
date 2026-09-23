@@ -15,6 +15,7 @@ export const isValidRegisterUser = (data: unknown): boolean => {
     emailRegex.test(email) &&
     email.length <= 255 &&
     isValidString(user.password, 255) &&
+    typeof user.password === "string" && user.password.length >= 8 &&
     isValidString(user.firstName, 100) &&
     isValidString(user.lastName, 100) &&
     isValidString(user.phone, 50) &&

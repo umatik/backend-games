@@ -317,4 +317,74 @@ describe("OrderService", () => {
 
     expect(mockClient.release).toHaveBeenCalledTimes(1);
   });
+
+  it("should delete order in transaction and clear product cache", async () => {
+    orderRepository.delete.mockResolvedValue(true);
+
+    const result = await orderService.deleteOrder(1, 1, false);
+
+    expect(result).toBe(true);
+
+    expect(orderRepository.delete).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      1,
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+
+    expect(productCache.clear).toHaveBeenCalledTimes(1);
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should delete order as admin without user restriction", async () => {
+    orderRepository.delete.mockResolvedValue(true);
+
+    const result = await orderService.deleteOrder(1, 1, true);
+
+    expect(result).toBe(true);
+
+    expect(orderRepository.delete).toHaveBeenCalledWith(
+      mockClient as unknown as PoolClient,
+      1,
+      undefined,
+    );
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+
+    expect(productCache.clear).toHaveBeenCalledTimes(1);
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not clear product cache when order does not exist", async () => {
+    orderRepository.delete.mockResolvedValue(false);
+
+    const result = await orderService.deleteOrder(999, 1, false);
+
+    expect(result).toBe(false);
+
+    expect(productCache.clear).not.toHaveBeenCalled();
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("should rollback transaction when order deletion fails", async () => {
+    orderRepository.delete.mockRejectedValue(new Error("DB error"));
+
+    await expect(orderService.deleteOrder(1, 1, false)).rejects.toThrow(
+      "DB error",
+    );
+
+    expect(productCache.clear).not.toHaveBeenCalled();
+
+    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
+
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
 });

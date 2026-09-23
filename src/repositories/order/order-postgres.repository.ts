@@ -1,5 +1,5 @@
-import type {OrderInterface} from "./order.interface.js";
-import type {PoolClient} from "pg";
+import type { OrderInterface } from "./order.interface.js";
+import type { PoolClient } from "pg";
 import type {
   CreateOrderData,
   CreateOrderItemData,
@@ -8,8 +8,8 @@ import type {
   OrderItem,
   OrderRow,
 } from "../../types/order.types.js";
-import {ProductNotFoundError} from "../../errors/product-not-found.error.js";
-import {InsufficientStockError} from "../../errors/insufficient-stock.error.js";
+import { ProductNotFoundError } from "../../errors/product-not-found.error.js";
+import { InsufficientStockError } from "../../errors/insufficient-stock.error.js";
 
 export class OrderPostgresRepository implements OrderInterface {
   async countAll(client: PoolClient): Promise<number> {
@@ -65,10 +65,7 @@ export class OrderPostgresRepository implements OrderInterface {
     return Array.from(orders.values());
   }
 
-  async findUserById(
-    client: PoolClient,
-    userId: number,
-  ): Promise<boolean> {
+  async findUserById(client: PoolClient, userId: number): Promise<boolean> {
     const result = await client.query(
       `
         SELECT id
@@ -82,10 +79,7 @@ export class OrderPostgresRepository implements OrderInterface {
     return result.rows.length > 0;
   }
 
-  async create(
-    client: PoolClient,
-    data: CreateOrderData,
-  ): Promise<Order> {
+  async create(client: PoolClient, data: CreateOrderData): Promise<Order> {
     const result = await client.query(
       `
         INSERT INTO orders (user_id, status)
@@ -169,12 +163,7 @@ export class OrderPostgresRepository implements OrderInterface {
                                    price)
           VALUES ($1, $2, $3, $4)
         `,
-        [
-          orderId,
-          item.productVariantId,
-          item.quantity,
-          price,
-        ],
+        [orderId, item.productVariantId, item.quantity, price],
       );
     }
   }
@@ -319,19 +308,60 @@ export class OrderPostgresRepository implements OrderInterface {
   async delete(
     client: PoolClient,
     orderId: number,
-    userId: number,
+    userId?: number,
   ): Promise<boolean> {
+    const orderResult = await client.query(
+      `
+        SELECT id, status
+        FROM orders
+        WHERE id = $1
+          AND ($2::BIGINT IS NULL OR user_id = $2)
+          AND is_deleted = FALSE
+          FOR UPDATE
+      `,
+      [orderId, userId ?? null],
+    );
+
+    const order = orderResult.rows[0];
+
+    if (!order) {
+      return false;
+    }
+
+    const shouldRestoreStock =
+      order.status === "pending" || order.status === "paid";
+
+    if (shouldRestoreStock) {
+      await client.query(
+        `
+          UPDATE product_variants pv
+          SET quantity = pv.quantity + stock.quantity
+          FROM (SELECT product_variant_id,
+                       SUM(quantity) AS quantity
+                FROM order_items
+                WHERE order_id = $1
+                GROUP BY product_variant_id) stock
+          WHERE pv.id = stock.product_variant_id
+        `,
+        [orderId],
+      );
+    }
+
     const result = await client.query(
       `
         UPDATE orders
-        SET is_deleted = TRUE,
+        SET status = CASE
+                       WHEN status IN ('pending', 'paid')
+                         THEN 'cancelled'
+                       ELSE status
+                     END,
+            is_deleted = TRUE,
             deleted_at = NOW(),
             updated_at = NOW()
         WHERE id = $1
-          AND user_id = $2
           AND is_deleted = FALSE
       `,
-      [orderId, userId],
+      [orderId],
     );
 
     return result.rowCount === 1;

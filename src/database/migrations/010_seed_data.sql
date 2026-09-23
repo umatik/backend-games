@@ -27,7 +27,7 @@ VALUES ('products:read'),
 -- ============================================================
 
 -- Regular users get basic permissions.
--- orders:read and orders:delete are intentionally excluded.
+-- orders:read is intentionally excluded.
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r
@@ -36,6 +36,7 @@ WHERE r.name = 'user'
   AND p.name IN (
                  'products:read',
                  'orders:create',
+                 'orders:delete',
                  'users:update'
   );
 

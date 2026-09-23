@@ -36,7 +36,18 @@ export const redisClient = createClient({
   url: "redis://localhost:6379",
 });
 
-await redisClient.connect();
+redisClient.on("error", (error) => {
+  console.error("Redis error:", error);
+});
+
+try {
+  await redisClient.connect();
+} catch (error) {
+  console.error(
+    "Redis unavailable. Starting application without Redis cache.",
+    error,
+  );
+}
 
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();

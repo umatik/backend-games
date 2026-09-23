@@ -110,11 +110,29 @@ export class OrderService {
     const client = await this.pool.connect();
 
     try {
-      return await this.orderRepository.delete(
+      await client.query("BEGIN");
+
+      const deleted = await this.orderRepository.delete(
         client,
         orderId,
         isAdmin ? undefined : userId,
       );
+
+      await client.query("COMMIT");
+
+      if (deleted) {
+        await this.productCache.clear();
+      }
+
+      return deleted;
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+
+      throw error;
     } finally {
       client.release();
     }

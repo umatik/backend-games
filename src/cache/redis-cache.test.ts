@@ -12,6 +12,7 @@ describe("RedisCache", () => {
       set: jest.fn(),
       del: jest.fn(),
       scan: jest.fn(),
+      isReady: true,
     } as unknown as jest.Mocked<RedisClientType>;
 
     cache = new RedisCache(redisClient);

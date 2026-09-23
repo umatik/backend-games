@@ -336,6 +336,105 @@ describe("GET /orders/:id", () => {
   });
 });
 
+describe("DELETE /orders/:id", () => {
+  it("should cancel pending order and restore stock", async () => {
+    const beforeResponse = await request(app).get(`/products/${productId}`);
+
+    expect(beforeResponse.status).toBe(200);
+
+    const variantBefore = beforeResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
+    );
+
+    expect(variantBefore).toBeDefined();
+
+    const quantityBeforeOrder = variantBefore.quantity;
+    const quantity = 2;
+
+    const orderResponse = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [
+          {
+            productVariantId: variantId,
+            quantity,
+          },
+        ],
+      });
+
+    expect(orderResponse.status).toBe(201);
+
+    const createdOrderId = orderResponse.body.order.id;
+
+    const afterCreateResponse = await request(app).get(
+      `/products/${productId}`,
+    );
+
+    expect(afterCreateResponse.status).toBe(200);
+
+    const variantAfterCreate = afterCreateResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
+    );
+
+    expect(variantAfterCreate.quantity).toBe(quantityBeforeOrder - quantity);
+
+    const deleteResponse = await request(app)
+      .delete(`/orders/${createdOrderId}`)
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(deleteResponse.status).toBe(204);
+
+    const afterDeleteResponse = await request(app).get(
+      `/products/${productId}`,
+    );
+
+    expect(afterDeleteResponse.status).toBe(200);
+
+    const variantAfterDelete = afterDeleteResponse.body.product.variants.find(
+      (item: { id: number }) => item.id === variantId,
+    );
+
+    expect(variantAfterDelete.quantity).toBe(quantityBeforeOrder);
+
+    const orderAfterDeleteResponse = await request(app)
+      .get(`/orders/${createdOrderId}`)
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(orderAfterDeleteResponse.status).toBe(404);
+  });
+
+  it("should fail without token", async () => {
+    const response = await request(app).delete(`/orders/${orderId}`);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should fail with invalid token", async () => {
+    const response = await request(app)
+      .delete(`/orders/${orderId}`)
+      .set("Authorization", "Bearer wrongtoken");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 404 for non-existing order", async () => {
+    const response = await request(app)
+      .delete("/orders/999999")
+      .set("Authorization", `Bearer ${userToken}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("should not allow deleting another user's order", async () => {
+    const response = await request(app)
+      .delete(`/orders/${orderId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+  });
+});
+
 describe("GET /orders/my", () => {
   it("should return current user's orders", async () => {
     const response = await request(app)
@@ -363,4 +462,5 @@ describe("GET /orders/my", () => {
 
     expect(response.status).toBe(401);
   });
+
 });

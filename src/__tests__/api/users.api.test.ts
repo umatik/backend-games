@@ -1,9 +1,9 @@
 import { afterAll, describe, it, expect, jest } from "@jest/globals";
 import request from "supertest";
-import app from "../../app.js";
-import { redisClient } from "../../dependency-injection.js";
-import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
-import { EmailService } from "../../services/email.service.js";
+import app from "@/app.js";
+import { redisClient } from "@/dependency-injection.js";
+import { loginAsAdmin, loginAsUser } from "@/__test-helpers__/auth.js";
+import { EmailService } from "@/services/email.service.js";
 
 afterAll(async () => {
   await redisClient.close();

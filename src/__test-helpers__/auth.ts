@@ -1,5 +1,5 @@
 import request from "supertest";
-import app from "../app.js";
+import app from "@/app.js";
 
 const login = async (email: string) => {
   const response = await request(app).post("/login").send({

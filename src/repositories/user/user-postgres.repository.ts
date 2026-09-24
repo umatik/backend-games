@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import type { UserInterface } from "./user.interface.js";
+import type { UserInterface } from "@/repositories/user/user.interface.js";
 import type {
   CreatedUser,
   CreateUserData,

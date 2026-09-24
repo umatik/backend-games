@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 import type {StringValue} from "ms";
-import {JwtSecretNotDefinedError} from "../errors/jwt-secret-not-defined.error.js";
-import {JwtExpiresInInvalidError} from "../errors/jwt-expires-in-invalid.error.js";
-import {JwtAlgorithmInvalidError} from "../errors/jwt-algorithm-invalid.error.js";
-import {JwtIssuerNotDefinedError} from "../errors/jwt-issuer-not-defined.error.js";
-import {JwtAudienceNotDefinedError} from "../errors/jwt-audience-not-defined.error.js";
+import {JwtSecretNotDefinedError} from "@/errors/jwt-secret-not-defined.error.js";
+import {JwtExpiresInInvalidError} from "@/errors/jwt-expires-in-invalid.error.js";
+import {JwtAlgorithmInvalidError} from "@/errors/jwt-algorithm-invalid.error.js";
+import {JwtIssuerNotDefinedError} from "@/errors/jwt-issuer-not-defined.error.js";
+import {JwtAudienceNotDefinedError} from "@/errors/jwt-audience-not-defined.error.js";
 
 const isJwtAlgorithm = (value: string): value is jwt.Algorithm => {
   return [

@@ -1,4 +1,4 @@
-import type {Cache} from "./cache.interface.js";
+import type {Cache} from "@/cache/cache.interface.js";
 
 type CacheEntry<T> = {
   value: T;

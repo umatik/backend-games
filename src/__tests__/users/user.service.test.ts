@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { PoolClient } from "pg";
-import type { UserInterface } from "../../repositories/user/user.interface.js";
-import type { UserContactInterface } from "../../repositories/user/user-contact.interface.js";
-import type { RoleInterface } from "../../repositories/role/role.interface.js";
+import type { UserInterface } from "@/repositories/user/user.interface.js";
+import type { UserContactInterface } from "@/repositories/user/user-contact.interface.js";
+import type { RoleInterface } from "@/repositories/role/role.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -18,7 +18,7 @@ jest.unstable_mockModule("../../database/db.js", () => ({
 }));
 
 const { UserService: MockedUserService } =
-  await import("../../services/user.service.js");
+  await import("@/services/user.service.js");
 
 describe("UserService", () => {
   let userService: InstanceType<typeof MockedUserService>;

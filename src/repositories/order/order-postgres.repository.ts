@@ -1,4 +1,4 @@
-import type { OrderInterface } from "./order.interface.js";
+import type { OrderInterface } from "@/repositories/order/order.interface.js";
 import type { PoolClient } from "pg";
 import type {
   CreateOrderData,
@@ -8,8 +8,8 @@ import type {
   OrderItem,
   OrderRow,
 } from "../../types/order.types.js";
-import { ProductNotFoundError } from "../../errors/product-not-found.error.js";
-import { InsufficientStockError } from "../../errors/insufficient-stock.error.js";
+import { ProductNotFoundError } from "@/errors/product-not-found.error.js";
+import { InsufficientStockError } from "@/errors/insufficient-stock.error.js";
 
 export class OrderPostgresRepository implements OrderInterface {
   async countAll(client: PoolClient): Promise<number> {

@@ -1,5 +1,5 @@
 import type {PoolClient} from "pg";
-import type {UserContactInterface} from "./user-contact.interface.js";
+import type {UserContactInterface} from "@/repositories/user/user-contact.interface.js";
 import type {
   CreateUserContactData,
   UpdateUserContactData,

@@ -1,38 +1,38 @@
 import { createClient } from "redis";
 
-import { pool } from "./database/db.js";
-import type { ProductDetails } from "./types/product.types.js";
+import { pool } from "@/database/db.js";
+import type { ProductDetails } from "@/types/product.types.js";
 
-import { RedisCache } from "./cache/redis-cache.js";
+import { RedisCache } from "@/cache/redis-cache.js";
 
-import { AuthenticationPostgresRepository } from "./repositories/authentication/authentication-postgres.repository.js";
-import { OrderPostgresRepository } from "./repositories/order/order-postgres.repository.js";
-import { PasswordResetTokenPostgresRepository } from "./repositories/password-reset-token/password-reset-token-postgres.repository.js";
-import { PermissionPostgresRepository } from "./repositories/permissions/permission-postgres.repository.js";
-import { PostgresProductRepository } from "./repositories/products/product/product-postgres.repository.js";
-import { PostgresProductVariantRepository } from "./repositories/products/product-variant/product-variant-postgres.repository.js";
-import { RolePostgresRepository } from "./repositories/role/role-postgres.repository.js";
-import { UserContactPostgresRepository } from "./repositories/user/user-contact-postgres.repository.js";
-import { UserPostgresRepository } from "./repositories/user/user-postgres.repository.js";
+import { AuthenticationPostgresRepository } from "@/repositories/authentication/authentication-postgres.repository.js";
+import { OrderPostgresRepository } from "@/repositories/order/order-postgres.repository.js";
+import { PasswordResetTokenPostgresRepository } from "@/repositories/password-reset-token/password-reset-token-postgres.repository.js";
+import { PermissionPostgresRepository } from "@/repositories/permissions/permission-postgres.repository.js";
+import { PostgresProductRepository } from "@/repositories/products/product/product-postgres.repository.js";
+import { PostgresProductVariantRepository } from "@/repositories/products/product-variant/product-variant-postgres.repository.js";
+import { RolePostgresRepository } from "@/repositories/role/role-postgres.repository.js";
+import { UserContactPostgresRepository } from "@/repositories/user/user-contact-postgres.repository.js";
+import { UserPostgresRepository } from "@/repositories/user/user-postgres.repository.js";
 
-import { AuthenticationController } from "./controllers/authentication.controller.js";
-import { OrderController } from "./controllers/order.controller.js";
-import { ProductController } from "./controllers/product.controller.js";
-import { UserController } from "./controllers/user.controller.js";
+import { AuthenticationController } from "@/controllers/authentication.controller.js";
+import { OrderController } from "@/controllers/order.controller.js";
+import { ProductController } from "@/controllers/product.controller.js";
+import { UserController } from "@/controllers/user.controller.js";
 
-import { createAuthRouter } from "./routes/authentication.routes.js";
-import { createOrderRouter } from "./routes/order.routes.js";
-import { createProductRouter } from "./routes/product.routes.js";
-import { createUserRouter } from "./routes/user.routes.js";
+import { createAuthRouter } from "@/routes/authentication.routes.js";
+import { createOrderRouter } from "@/routes/order.routes.js";
+import { createProductRouter } from "@/routes/product.routes.js";
+import { createUserRouter } from "@/routes/user.routes.js";
 
-import { AuthenticationService } from "./services/authentication.service.js";
-import { AuthorizationService } from "./services/authorization.service.js";
-import { EmailService } from "./services/email.service.js";
-import { JwtService } from "./services/jwt.service.js";
-import { OrderService } from "./services/order.service.js";
-import { PasswordResetService } from "./services/password-reset.service.js";
-import { ProductService } from "./services/product.service.js";
-import { UserService } from "./services/user.service.js";
+import { AuthenticationService } from "@/services/authentication.service.js";
+import { AuthorizationService } from "@/services/authorization.service.js";
+import { EmailService } from "@/services/email.service.js";
+import { JwtService } from "@/services/jwt.service.js";
+import { OrderService } from "@/services/order.service.js";
+import { PasswordResetService } from "@/services/password-reset.service.js";
+import { ProductService } from "@/services/product.service.js";
+import { UserService } from "@/services/user.service.js";
 import { ProductVariantMediaPostgresRepository } from "@/repositories/products/product-media/product-variant-media-postgres.repository.js";
 
 // Redis

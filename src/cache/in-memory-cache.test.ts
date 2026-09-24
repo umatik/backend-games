@@ -6,7 +6,7 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import {InMemoryCache} from "./in-memory-cache.js";
+import {InMemoryCache} from "@/cache/in-memory-cache.js";
 
 // Tests for InMemoryCache.
 // Currently unused because dependency injection uses RedisCache.

@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
-import type { UserInterface } from "../repositories/user/user.interface.js";
-import type { UserContactInterface } from "../repositories/user/user-contact.interface.js";
-import type { RoleInterface } from "../repositories/role/role.interface.js";
-import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
+import type { UserInterface } from "@/repositories/user/user.interface.js";
+import type { UserContactInterface } from "@/repositories/user/user-contact.interface.js";
+import type { RoleInterface } from "@/repositories/role/role.interface.js";
+import { EmailAlreadyExistsError } from "@/errors/email-already-exists.error.js";
 import type { PoolClient } from "pg";
 import type {
   CreatedUser,
@@ -14,7 +14,7 @@ import type {
   UpdateUserRequest,
   UserDetails,
 } from "../types/user.types.js";
-import type { Database } from "../database/database.interface.js";
+import type { Database } from "@/database/database.interface.js";
 
 export class UserService {
   constructor(

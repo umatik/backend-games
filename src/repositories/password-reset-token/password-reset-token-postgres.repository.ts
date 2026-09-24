@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import type { PasswordResetTokenInterface } from "./password-reset-token.interface.js";
+import type { PasswordResetTokenInterface } from "@/repositories/password-reset-token/password-reset-token.interface.js";
 
 export class PasswordResetTokenPostgresRepository implements PasswordResetTokenInterface {
 

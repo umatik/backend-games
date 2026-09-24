@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
-import type { Database } from "../database/database.interface.js";
-import type { PasswordResetTokenInterface } from "../repositories/password-reset-token/password-reset-token.interface.js";
-import type { UserInterface } from "../repositories/user/user.interface.js";
+import type { Database } from "@/database/database.interface.js";
+import type { PasswordResetTokenInterface } from "@/repositories/password-reset-token/password-reset-token.interface.js";
+import type { UserInterface } from "@/repositories/user/user.interface.js";
 import bcrypt from "bcrypt";
-import type { EmailService } from "./email.service.js";
+import type { EmailService } from "@/services/email.service.js";
 
 export class PasswordResetService {
   constructor(

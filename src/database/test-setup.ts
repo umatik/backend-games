@@ -1,6 +1,6 @@
 import {afterAll, afterEach, beforeAll} from "@jest/globals";
 import dotenv from "dotenv";
-import {resetTestDatabase, seedTestDatabase} from "./test-database.js";
+import {resetTestDatabase, seedTestDatabase} from "@/database/test-database.js";
 
 process.env.NODE_ENV = "test";
 
@@ -9,7 +9,7 @@ dotenv.config({
   override: true,
 });
 
-const {pool} = await import("./db.js");
+const {pool} = await import("@/database/db.js");
 
 beforeAll(async () => {
   await resetTestDatabase();

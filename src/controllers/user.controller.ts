@@ -1,17 +1,17 @@
 import type { Request, Response } from "express";
-import type { AuthenticatedRequest } from "../middleware/authentication.middleware.js";
-import { UserService } from "../services/user.service.js";
-import { AuthorizationService } from "../services/authorization.service.js";
+import type { AuthenticatedRequest } from "@/middleware/authentication.middleware.js";
+import { UserService } from "@/services/user.service.js";
+import { AuthorizationService } from "@/services/authorization.service.js";
 import {
   isValidForgotPassword,
   isValidRegisterUser,
   isValidUpdateUser,
 } from "../validators/user.validator.js";
-import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
-import { createPagination } from "../utils/pagination.js";
-import { isValidPagination } from "../validators/helpers/pagination.validator.js";
-import type { PasswordResetService } from "../services/password-reset.service.js";
-import { isValidResetPassword } from "../validators/helpers/string.validator.js";
+import { EmailAlreadyExistsError } from "@/errors/email-already-exists.error.js";
+import { createPagination } from "@/utils/pagination.js";
+import { isValidPagination } from "@/validators/helpers/pagination.validator.js";
+import type { PasswordResetService } from "@/services/password-reset.service.js";
+import { isValidResetPassword } from "@/validators/helpers/string.validator.js";
 
 export class UserController {
   constructor(

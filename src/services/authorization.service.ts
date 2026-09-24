@@ -1,5 +1,5 @@
-import type { PermissionInterface } from "../repositories/permissions/permission.interface.js";
-import type { Database } from "../database/database.interface.js";
+import type { PermissionInterface } from "@/repositories/permissions/permission.interface.js";
+import type { Database } from "@/database/database.interface.js";
 
 export class AuthorizationService {
   constructor(

@@ -1,6 +1,6 @@
 import type {Response, NextFunction} from "express";
-import type {AuthenticatedRequest} from "./authentication.middleware.js";
-import type {AuthorizationService} from "../services/authorization.service.js";
+import type {AuthenticatedRequest} from "@/middleware/authentication.middleware.js";
+import type {AuthorizationService} from "@/services/authorization.service.js";
 
 export const requirePermission = (authorizationService: AuthorizationService, permission: string) => {
   return async (

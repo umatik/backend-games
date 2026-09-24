@@ -1,12 +1,12 @@
-import { UserNotFoundError } from "../errors/user-not-found.error.js";
+import { UserNotFoundError } from "@/errors/user-not-found.error.js";
 import type {
   CreateOrderData,
   Order,
   OrderDetails,
 } from "../types/order.types.js";
-import type { OrderInterface } from "../repositories/order/order.interface.js";
-import type { Cache } from "../cache/cache.interface.js";
-import type { Database } from "../database/database.interface.js";
+import type { OrderInterface } from "@/repositories/order/order.interface.js";
+import type { Cache } from "@/cache/cache.interface.js";
+import type { Database } from "@/database/database.interface.js";
 
 export class OrderService {
   constructor(

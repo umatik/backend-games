@@ -1,6 +1,6 @@
 import type {Request, Response} from "express";
-import {AuthenticationService} from "../services/authentication.service.js";
-import {InvalidCredentialsError} from "../errors/invalid-credentials.error.js";
+import {AuthenticationService} from "@/services/authentication.service.js";
+import {InvalidCredentialsError} from "@/errors/invalid-credentials.error.js";
 
 export class AuthenticationController {
   constructor(private authService: AuthenticationService) {

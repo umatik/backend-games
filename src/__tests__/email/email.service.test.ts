@@ -9,7 +9,7 @@ import {
   it,
   expect,
 } from "@jest/globals";
-import { EmailService } from "../../services/email.service.js";
+import { EmailService } from "@/services/email.service.js";
 
 describe("EmailService", () => {
   const sendMail = jest.fn(

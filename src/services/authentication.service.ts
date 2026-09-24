@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
-import type { AuthenticationInterface } from "../repositories/authentication/authentication.interface.js";
-import { JwtService } from "./jwt.service.js";
-import { InvalidCredentialsError } from "../errors/invalid-credentials.error.js";
-import type { Database } from "../database/database.interface.js";
+import type { AuthenticationInterface } from "@/repositories/authentication/authentication.interface.js";
+import { JwtService } from "@/services/jwt.service.js";
+import { InvalidCredentialsError } from "@/errors/invalid-credentials.error.js";
+import type { Database } from "@/database/database.interface.js";
 
 const DUMMY_PASSWORD_HASH =
   "$2b$12$LQv3c1yqBWxq6h7n6n1M5e9w8J7K6L5M4N3P2Q1R0S9T8U7V6W5X4";

@@ -1,5 +1,5 @@
 import type {NextFunction, Request, Response} from "express";
-import {JwtService} from "../services/jwt.service.js";
+import {JwtService} from "@/services/jwt.service.js";
 
 export type AuthenticatedRequest = Request & {
   user?: {

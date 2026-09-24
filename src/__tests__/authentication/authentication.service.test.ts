@@ -1,9 +1,9 @@
 import { beforeEach, describe, jest, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
-import { AuthenticationService } from "../../services/authentication.service.js";
-import type { AuthenticationInterface } from "../../repositories/authentication/authentication.interface.js";
-import type { JwtService } from "../../services/jwt.service.js";
-import type { Database } from "../../database/database.interface.js";
+import { AuthenticationService } from "@/services/authentication.service.js";
+import type { AuthenticationInterface } from "@/repositories/authentication/authentication.interface.js";
+import type { JwtService } from "@/services/jwt.service.js";
+import type { Database } from "@/database/database.interface.js";
 
 const mockClient = {
   query: jest.fn(),

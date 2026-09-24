@@ -1,8 +1,8 @@
 import { Router } from "express";
-import type { OrderController } from "../controllers/order.controller.js";
-import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
-import type { AuthorizationService } from "../services/authorization.service.js";
+import type { OrderController } from "@/controllers/order.controller.js";
+import { authenticationMiddleware } from "@/middleware/authentication.middleware.js";
+import { requirePermission } from "@/middleware/permission.middleware.js";
+import type { AuthorizationService } from "@/services/authorization.service.js";
 
 export const createOrderRouter = (
   orderController: OrderController,

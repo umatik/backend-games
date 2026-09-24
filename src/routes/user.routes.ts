@@ -1,8 +1,8 @@
 import { Router } from "express";
-import type { UserController } from "../controllers/user.controller.js";
-import { authenticationMiddleware } from "../middleware/authentication.middleware.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
-import type { AuthorizationService } from "../services/authorization.service.js";
+import type { UserController } from "@/controllers/user.controller.js";
+import { authenticationMiddleware } from "@/middleware/authentication.middleware.js";
+import { requirePermission } from "@/middleware/permission.middleware.js";
+import type { AuthorizationService } from "@/services/authorization.service.js";
 
 export const createUserRouter = (
   userController: UserController,

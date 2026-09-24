@@ -2,7 +2,7 @@ import helmet from "helmet";
 import "dotenv/config";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
-import openapi from "./docs/openapi.js";
+import openapi from "@/docs/openapi.js";
 import express, {type ErrorRequestHandler} from "express";
 
 import {
@@ -11,7 +11,7 @@ import {
   userRouter,
   authRouter,
 } from "./dependency-injection.js";
-import {AppError} from "./errors/app.error.js";
+import {AppError} from "@/errors/app.error.js";
 
 const app = express();
 

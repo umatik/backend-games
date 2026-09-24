@@ -1,5 +1,5 @@
 import type {PoolClient} from "pg";
-import type {RoleInterface} from "./role.interface.js";
+import type {RoleInterface} from "@/repositories/role/role.interface.js";
 
 export class RolePostgresRepository implements RoleInterface {
   async assignToUser(

@@ -1,5 +1,5 @@
 import type { RedisClientType } from "redis";
-import type { Cache } from "./cache.interface.js";
+import type { Cache } from "@/cache/cache.interface.js";
 
 export class RedisCache<T> implements Cache<T> {
   constructor(private readonly client: RedisClientType) {}

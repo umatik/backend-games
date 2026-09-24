@@ -3,7 +3,7 @@ import type {
   CreateProductData,
   UpdateProductData,
 } from "../types/product.types.js";
-import {ProductService} from "../services/product.service.js";
+import {ProductService} from "@/services/product.service.js";
 import {
   isValidProductName,
   isValidProductOption,
@@ -11,10 +11,10 @@ import {
   isValidProductQuantity,
   isValidProductVariantId,
 } from "../validators/product.validator.js";
-import {ProductVariantNotFoundError} from "../errors/product-variant-not-found.error.js";
-import {parseId} from "../validators/helpers/id.validator.js";
-import {createPagination} from "../utils/pagination.js";
-import {isValidPagination} from "../validators/helpers/pagination.validator.js";
+import {ProductVariantNotFoundError} from "@/errors/product-variant-not-found.error.js";
+import {parseId} from "@/validators/helpers/id.validator.js";
+import {createPagination} from "@/utils/pagination.js";
+import {isValidPagination} from "@/validators/helpers/pagination.validator.js";
 
 export class ProductController {
   private productService: ProductService;

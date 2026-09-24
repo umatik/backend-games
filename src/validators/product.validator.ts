@@ -1,4 +1,4 @@
-import {isValidString} from "./helpers/string.validator.js";
+import {isValidString} from "@/validators/helpers/string.validator.js";
 
 export const isValidProductName = (name: unknown): boolean => {
   return isValidString(name, 255);

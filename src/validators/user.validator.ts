@@ -1,4 +1,4 @@
-import { isValidString } from "./helpers/string.validator.js";
+import { isValidString } from "@/validators/helpers/string.validator.js";
 
 export const isValidRegisterUser = (data: unknown): boolean => {
   if (typeof data !== "object" || data === null) {

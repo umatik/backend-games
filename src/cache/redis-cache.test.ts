@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { RedisClientType } from "redis";
-import { RedisCache } from "./redis-cache.js";
+import { RedisCache } from "@/cache/redis-cache.js";
 
 describe("RedisCache", () => {
   let redisClient: jest.Mocked<RedisClientType>;

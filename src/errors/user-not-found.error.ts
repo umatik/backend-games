@@ -1,4 +1,4 @@
-import {AppError} from "./app.error.js";
+import {AppError} from "@/errors/app.error.js";
 
 export class UserNotFoundError extends AppError {
   constructor(userId: number) {

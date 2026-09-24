@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-import { pool } from "./db.js";
+import { pool } from "@/database/db.js";
 
 const migrationsPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

@@ -1,8 +1,8 @@
 import { afterAll, beforeEach, describe, it, expect } from "@jest/globals";
 import request from "supertest";
-import app from "../../app.js";
-import { redisClient } from "../../dependency-injection.js";
-import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
+import app from "@/app.js";
+import { redisClient } from "@/dependency-injection.js";
+import { loginAsAdmin, loginAsUser } from "@/__test-helpers__/auth.js";
 
 let adminToken: string;
 let userToken: string;

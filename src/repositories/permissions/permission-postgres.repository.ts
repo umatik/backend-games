@@ -1,5 +1,5 @@
 import type {PoolClient} from "pg";
-import type {PermissionInterface} from "./permission.interface.js";
+import type {PermissionInterface} from "@/repositories/permissions/permission.interface.js";
 
 export class PermissionPostgresRepository implements PermissionInterface {
   async findByUserId(client: PoolClient, userId: number): Promise<string[]> {

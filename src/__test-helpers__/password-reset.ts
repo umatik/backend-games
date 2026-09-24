@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { pool } from "../database/db.js";
+import { pool } from "@/database/db.js";
 
 export const createPasswordResetToken = async (
   userId: number,

@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
-import { pool } from "../../database/db.js";
-import { ProductVariantMediaPostgresRepository } from "../../repositories/products/product-media/product-variant-media-postgres.repository.js";
+import { pool } from "@/database/db.js";
+import { ProductVariantMediaPostgresRepository } from "@/repositories/products/product-media/product-variant-media-postgres.repository.js";
 
 describe("ProductVariantMediaPostgresRepository", () => {
   const repository = new ProductVariantMediaPostgresRepository();
@@ -166,8 +166,6 @@ describe("ProductVariantMediaPostgresRepository", () => {
     const updated = await repository.update(
       client,
       created.id,
-      "video",
-      "products/test/video.mp4",
       "Updated video",
       1,
       false,
@@ -176,8 +174,8 @@ describe("ProductVariantMediaPostgresRepository", () => {
     expect(updated).not.toBeNull();
     expect(updated?.id).toBe(created.id);
     expect(updated?.productVariantId).toBe(productVariantId);
-    expect(updated?.type).toBe("video");
-    expect(updated?.url).toBe("products/test/video.mp4");
+    expect(updated?.type).toBe("photo");
+    expect(updated?.url).toBe("products/test/old.webp");
     expect(updated?.alt).toBe("Updated video");
     expect(updated?.sortOrder).toBe(1);
     expect(updated?.isPrimary).toBe(false);
@@ -187,8 +185,6 @@ describe("ProductVariantMediaPostgresRepository", () => {
     const updated = await repository.update(
       client,
       999999,
-      "photo",
-      "products/test/photo.webp",
       "Test photo",
       0,
       false,

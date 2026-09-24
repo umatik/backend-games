@@ -4,7 +4,7 @@ import type {
   ProductDetails,
   ProductRow,
   UpdateProductData,
-} from "../../../types/product.types.js";
+} from "@/types/product.types.js";
 import type { PoolClient } from "pg";
 import type { ProductRepository } from "./product.interface.js";
 
@@ -18,6 +18,14 @@ type ProductDetailsRow = ProductRow & {
   variant_created_at: Date;
   variant_updated_at: Date;
   variant_deleted_at: Date | null;
+  media_id: number | null;
+  media_type: "photo" | "video" | "audio" | "document" | null;
+  media_url: string | null;
+  media_alt: string | null;
+  media_sort_order: number | null;
+  media_is_primary: boolean | null;
+  media_created_at: Date | null;
+  media_updated_at: Date | null;
 };
 
 export class PostgresProductRepository implements ProductRepository {
@@ -67,19 +75,41 @@ export class PostgresProductRepository implements ProductRepository {
       }
 
       if (row.variant_id !== null) {
-        product.variants.push({
-          id: Number(row.variant_id),
-          productId,
-          color: row.color,
-          size: row.size,
-          media: [],
-          price: row.price,
-          quantity: row.quantity,
-          isDeleted: row.variant_is_deleted,
-          createdAt: row.variant_created_at,
-          updatedAt: row.variant_updated_at,
-          deletedAt: row.variant_deleted_at,
-        });
+        let variant = product.variants.find(
+          (item) => item.id === Number(row.variant_id),
+        );
+
+        if (!variant) {
+          variant = {
+            id: Number(row.variant_id),
+            productId,
+            color: row.color,
+            size: row.size,
+            media: [],
+            price: row.price,
+            quantity: row.quantity,
+            isDeleted: row.variant_is_deleted,
+            createdAt: row.variant_created_at,
+            updatedAt: row.variant_updated_at,
+            deletedAt: row.variant_deleted_at,
+          };
+
+          product.variants.push(variant);
+        }
+
+        if (row.media_id !== null) {
+          variant.media.push({
+            id: Number(row.media_id),
+            productVariantId: Number(row.variant_id),
+            type: row.media_type!,
+            url: row.media_url!,
+            alt: row.media_alt,
+            sortOrder: row.media_sort_order!,
+            isPrimary: row.media_is_primary!,
+            createdAt: row.media_created_at!,
+            updatedAt: row.media_updated_at!,
+          });
+        }
       }
     }
 
@@ -161,21 +191,33 @@ export class PostgresProductRepository implements ProductRepository {
                pv.is_deleted AS variant_is_deleted,
                pv.created_at AS variant_created_at,
                pv.updated_at AS variant_updated_at,
-               pv.deleted_at AS variant_deleted_at
-        FROM (SELECT id,
-                     name,
-                     is_deleted,
-                     created_at,
-                     updated_at,
-                     deleted_at
-              FROM products
-              WHERE is_deleted = FALSE
-              ORDER BY id
-              LIMIT $1 OFFSET $2) p
+               pv.deleted_at AS variant_deleted_at,
+               pvm.id         AS media_id,
+               pvm.type       AS media_type,
+               pvm.url        AS media_url,
+               pvm.alt        AS media_alt,
+               pvm.sort_order AS media_sort_order,
+               pvm.is_primary AS media_is_primary,
+               pvm.created_at AS media_created_at,
+               pvm.updated_at AS media_updated_at
+        FROM (
+               SELECT id,
+                      name,
+                      is_deleted,
+                      created_at,
+                      updated_at,
+                      deleted_at
+               FROM products
+               WHERE is_deleted = FALSE
+               ORDER BY id
+               LIMIT $1 OFFSET $2
+             ) p
                LEFT JOIN product_variants pv
                          ON pv.product_id = p.id
                            AND pv.is_deleted = FALSE
-        ORDER BY p.id, pv.id
+               LEFT JOIN product_variant_media pvm
+                         ON pvm.product_variant_id = pv.id
+        ORDER BY p.id, pv.id, pvm.sort_order, pvm.id
       `,
       [limit, offset],
     );

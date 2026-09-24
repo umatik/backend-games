@@ -104,8 +104,6 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
   async update(
     client: PoolClient,
     mediaId: number,
-    type: ProductVariantMediaType,
-    url: string,
     alt: string | null,
     sortOrder: number,
     isPrimary: boolean,
@@ -114,13 +112,11 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
       `
         UPDATE product_variant_media
         SET
-          type = $1,
-          url = $2,
-          alt = $3,
-          sort_order = $4,
-          is_primary = $5,
+          alt = $1,
+          sort_order = $2,
+          is_primary = $3,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $4
         RETURNING
           id,
           product_variant_id AS "productVariantId",
@@ -132,7 +128,7 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
           created_at AS "createdAt",
           updated_at AS "updatedAt"
       `,
-      [type, url, alt, sortOrder, isPrimary, mediaId],
+      [alt, sortOrder, isPrimary, mediaId],
     );
 
     return result.rows[0] ?? null;

@@ -37,8 +37,6 @@ export interface ProductVariantMediaInterface {
   update(
     client: PoolClient,
     mediaId: number,
-    type: ProductVariantMediaType,
-    url: string,
     alt: string | null,
     sortOrder: number,
     isPrimary: boolean,

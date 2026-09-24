@@ -2,6 +2,7 @@ import type { Database } from "@/database/database.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
 import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import { getProductVariantMediaType } from "@/validators/product-variant-media.validator.js";
 
 export class ProductVariantMediaService {
   constructor(
@@ -40,11 +41,16 @@ export class ProductVariantMediaService {
     file: Buffer,
     filename: string,
     contentType: string,
-    type: ProductVariantMedia["type"],
     alt: string | null,
     sortOrder: number,
     isPrimary: boolean,
   ): Promise<ProductVariantMedia> {
+    const type = getProductVariantMediaType(filename, contentType);
+
+    if (!type) {
+      throw new Error("Unsupported media type");
+    }
+
     const url = await this.storage.save(file, filename, contentType);
 
     const client = await this.pool.connect();
@@ -69,8 +75,6 @@ export class ProductVariantMediaService {
 
   async update(
     mediaId: number,
-    type: ProductVariantMedia["type"],
-    url: string,
     alt: string | null,
     sortOrder: number,
     isPrimary: boolean,
@@ -81,8 +85,6 @@ export class ProductVariantMediaService {
       return await this.productVariantMediaRepository.update(
         client,
         mediaId,
-        type,
-        url,
         alt,
         sortOrder,
         isPrimary,

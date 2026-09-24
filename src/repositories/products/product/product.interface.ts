@@ -4,7 +4,7 @@ import type {
   Product,
   ProductDetails,
   UpdateProductData,
-} from "../../../types/product.types.js";
+} from "@/types/product.types.js";
 
 export interface ProductRepository {
   create(client: PoolClient, data: CreateProductRecord): Promise<Product>;

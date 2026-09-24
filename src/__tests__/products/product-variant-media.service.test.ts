@@ -8,11 +8,11 @@ import {
 } from "@jest/globals";
 import type { PoolClient } from "pg";
 
-import type { Database } from "../../database/database.interface.js";
-import type { ProductVariantMediaInterface } from "../../repositories/products/product-media/product-variant-media.interface.js";
-import { ProductVariantMediaService } from "../../services/product-variant-media.service.js";
-import type { Storage } from "../../storage/storage.interface.js";
-import type { ProductVariantMedia } from "../../types/product-variant-media.types.js";
+import type { Database } from "@/database/database.interface.js";
+import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import { ProductVariantMediaService } from "@/services/product-variant-media.service.js";
+import type { Storage } from "@/storage/storage.interface.js";
+import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
 
 describe("ProductVariantMediaService", () => {
   let service: ProductVariantMediaService;
@@ -125,7 +125,6 @@ describe("ProductVariantMediaService", () => {
         file,
         "image.jpg",
         "image/jpeg",
-        "photo",
         "Product image",
         1,
         true,
@@ -165,7 +164,6 @@ describe("ProductVariantMediaService", () => {
           file,
           "image.jpg",
           "image/jpeg",
-          "photo",
           "Product image",
           1,
           true,
@@ -185,26 +183,19 @@ describe("ProductVariantMediaService", () => {
       const updatedMedia = {
         ...media,
         alt: "Updated image",
+        sortOrder: 2,
+        isPrimary: false,
       };
 
       mediaRepository.update.mockResolvedValue(updatedMedia);
 
-      const result = await service.update(
-        1,
-        "photo",
-        "products/variants/99/image.jpg",
-        "Updated image",
-        2,
-        false,
-      );
+      const result = await service.update(1, "Updated image", 2, false);
 
       expect(result).toEqual(updatedMedia);
 
       expect(mediaRepository.update).toHaveBeenCalledWith(
         client,
         1,
-        "photo",
-        "products/variants/99/image.jpg",
         "Updated image",
         2,
         false,

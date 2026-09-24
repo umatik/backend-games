@@ -1,8 +1,8 @@
-import {readFile} from "node:fs/promises";
-import {fileURLToPath} from "node:url";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-import {pool} from "./db.js";
+import { pool } from "./db.js";
 
 const migrationsPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -28,7 +28,7 @@ export async function resetTestDatabase(): Promise<void> {
 }
 
 export async function seedTestDatabase(): Promise<void> {
-  const seedPath = path.join(migrationsPath, "010_seed_data.sql");
+  const seedPath = path.join(migrationsPath, "011_seed_data.sql");
 
   const seedSql = await readFile(seedPath, "utf-8");
 

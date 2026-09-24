@@ -14,6 +14,8 @@ import { UserPostgresRepository } from "./repositories/user/user-postgres.reposi
 import { RolePostgresRepository } from "./repositories/role/role-postgres.repository.js";
 import { UserContactPostgresRepository } from "./repositories/user/user-contact-postgres.repository.js";
 import { UserService } from "./services/user.service.js";
+import { PasswordResetTokenPostgresRepository } from "./repositories/password-reset-token/password-reset-token-postgres.repository.js";
+import { PasswordResetService } from "./services/password-reset.service.js";
 import { UserController } from "./controllers/user.controller.js";
 import { createUserRouter } from "./routes/user.routes.js";
 
@@ -31,6 +33,7 @@ import { AuthorizationService } from "./services/authorization.service.js";
 import { createClient } from "redis";
 import { RedisCache } from "./cache/redis-cache.js";
 import type { ProductDetails } from "./types/product.types.js";
+import { EmailService } from "./services/email.service.js";
 
 export const redisClient = createClient({
   url: "redis://localhost:6379",
@@ -51,11 +54,15 @@ try {
 
 const authRepository = new AuthenticationPostgresRepository();
 const jwtService = new JwtService();
+
 const authService = new AuthenticationService(authRepository, jwtService, pool);
+
 const authController = new AuthenticationController(authService);
+
 export const authRouter = createAuthRouter(authController);
 
 const permissionRepository = new PermissionPostgresRepository();
+
 const authorizationService = new AuthorizationService(
   permissionRepository,
   pool,
@@ -105,7 +112,21 @@ const userService = new UserService(
   pool,
 );
 
-const userController = new UserController(userService, authorizationService);
+const passwordResetTokenRepository = new PasswordResetTokenPostgresRepository();
+const emailService = new EmailService();
+
+const passwordResetService = new PasswordResetService(
+  userRepository,
+  passwordResetTokenRepository,
+  pool,
+  emailService,
+);
+
+const userController = new UserController(
+  userService,
+  authorizationService,
+  passwordResetService,
+);
 
 export const userRouter = createUserRouter(
   userController,

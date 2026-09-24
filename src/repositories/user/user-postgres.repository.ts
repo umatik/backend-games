@@ -1,5 +1,5 @@
-import type {PoolClient} from "pg";
-import type {UserInterface} from "./user.interface.js";
+import type { PoolClient } from "pg";
+import type { UserInterface } from "./user.interface.js";
 import type {
   CreatedUser,
   CreateUserData,
@@ -8,6 +8,25 @@ import type {
 } from "../../types/user.types.js";
 
 export class UserPostgresRepository implements UserInterface {
+  async findByEmail(
+    client: PoolClient,
+    email: string,
+  ): Promise<CreatedUser | null> {
+    const result = await client.query<CreatedUser>(
+      `
+      SELECT id,
+             email,
+             password_hash AS "passwordHash"
+      FROM users
+      WHERE email = $1
+        AND is_deleted = FALSE
+    `,
+      [email],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
   async countAll(client: PoolClient): Promise<number> {
     const result = await client.query(
       `
@@ -143,5 +162,24 @@ export class UserPostgresRepository implements UserInterface {
     }
 
     return this.findById(client, userId);
+  }
+
+  async resetPassword(
+    client: PoolClient,
+    userId: number,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `
+      UPDATE users
+      SET password_hash = $1,
+          updated_at    = CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND is_deleted = FALSE
+      RETURNING id;`,
+      [passwordHash, userId],
+    );
+
+    return result.rowCount === 1;
   }
 }

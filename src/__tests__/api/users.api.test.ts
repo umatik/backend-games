@@ -1,8 +1,9 @@
-import { afterAll, describe, it, expect } from "@jest/globals";
+import { afterAll, describe, it, expect, jest } from "@jest/globals";
 import request from "supertest";
 import app from "../../app.js";
 import { redisClient } from "../../dependency-injection.js";
 import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
+import { EmailService } from "../../services/email.service.js";
 
 afterAll(async () => {
   await redisClient.close();
@@ -393,5 +394,87 @@ describe("Users API", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe("Invalid pagination parameters");
+  });
+
+  it("should accept a password reset request for an existing user", async () => {
+    const response = await request(app).post("/users/forgot-password").send({
+      email: "alice@example.com",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe(
+      "If the account exists, a password reset email has been sent",
+    );
+  });
+
+  it("should return the same response for a non-existing email", async () => {
+    const response = await request(app).post("/users/forgot-password").send({
+      email: "does-not-exist@example.com",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe(
+      "If the account exists, a password reset email has been sent",
+    );
+  });
+
+  it("should return 400 when forgot password email is invalid", async () => {
+    const response = await request(app).post("/users/forgot-password").send({
+      email: "invalid-email",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid email");
+  });
+
+  it("should reset password with a valid token", async () => {
+    const sendPasswordResetEmailSpy = jest
+      .spyOn(EmailService.prototype, "sendPasswordResetEmail")
+      .mockImplementation(async () => {});
+
+    await request(app).post("/users/forgot-password").send({
+      email: "alice@example.com",
+    });
+
+    const token = sendPasswordResetEmailSpy.mock.calls[0]?.[1];
+
+    expect(token).toBeDefined();
+
+    const response = await request(app).post("/users/reset-password").send({
+      token,
+      password: "newpassword",
+    });
+
+    expect(response.status).toBe(200);
+
+    const loginResponse = await request(app).post("/login").send({
+      email: "alice@example.com",
+      password: "newpassword",
+    });
+
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.body.token).toBeDefined();
+
+    sendPasswordResetEmailSpy.mockRestore();
+  });
+
+  it("should return 400 when reset token is invalid", async () => {
+    const response = await request(app).post("/users/reset-password").send({
+      token: "invalid-token",
+      password: "newpassword",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid or expired reset token");
+  });
+
+  it("should return 400 when reset password is invalid", async () => {
+    const response = await request(app).post("/users/reset-password").send({
+      token: "invalid-token",
+      password: "short",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid reset password data");
   });
 });

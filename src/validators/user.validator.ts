@@ -1,4 +1,4 @@
-import {isValidString} from "./helpers/string.validator.js";
+import { isValidString } from "./helpers/string.validator.js";
 
 export const isValidRegisterUser = (data: unknown): boolean => {
   if (typeof data !== "object" || data === null) {
@@ -15,7 +15,8 @@ export const isValidRegisterUser = (data: unknown): boolean => {
     emailRegex.test(email) &&
     email.length <= 255 &&
     isValidString(user.password, 255) &&
-    typeof user.password === "string" && user.password.length >= 8 &&
+    typeof user.password === "string" &&
+    user.password.length >= 8 &&
     isValidString(user.firstName, 100) &&
     isValidString(user.lastName, 100) &&
     isValidString(user.phone, 50) &&
@@ -70,4 +71,20 @@ export const isValidUpdateUser = (data: unknown): boolean => {
 
     return maxLength !== undefined && isValidString(user[field], maxLength);
   });
+};
+
+export const isValidForgotPassword = (
+  data: unknown,
+): data is { email: string } => {
+  if (typeof data !== "object" || data === null) {
+    return false;
+  }
+
+  const { email } = data as { email?: unknown };
+
+  return (
+    typeof email === "string" &&
+    email.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  );
 };

@@ -37,6 +37,8 @@ describe("UserService", () => {
       findAll: jest.fn(),
       update: jest.fn(),
       countAll: jest.fn(),
+      findByEmail: jest.fn(),
+      resetPassword: jest.fn(),
     };
 
     userContactRepository = {

@@ -3,17 +3,21 @@ import type { AuthenticatedRequest } from "../middleware/authentication.middlewa
 import { UserService } from "../services/user.service.js";
 import { AuthorizationService } from "../services/authorization.service.js";
 import {
+  isValidForgotPassword,
   isValidRegisterUser,
   isValidUpdateUser,
 } from "../validators/user.validator.js";
 import { EmailAlreadyExistsError } from "../errors/email-already-exists.error.js";
 import { createPagination } from "../utils/pagination.js";
 import { isValidPagination } from "../validators/helpers/pagination.validator.js";
+import type { PasswordResetService } from "../services/password-reset.service.js";
+import { isValidResetPassword } from "../validators/helpers/string.validator.js";
 
 export class UserController {
   constructor(
     private userService: UserService,
     private authorizationService: AuthorizationService,
+    private passwordResetService: PasswordResetService,
   ) {}
 
   getUsers = async (req: Request, res: Response) => {
@@ -181,6 +185,48 @@ export class UserController {
     res.status(200).json({
       message: "User updated",
       user,
+    });
+  };
+
+  forgotPassword = async (req: Request, res: Response) => {
+    if (!isValidForgotPassword(req.body)) {
+      res.status(400).json({
+        message: "Invalid email",
+      });
+      return;
+    }
+
+    await this.passwordResetService.forgotPassword(
+      req.body.email.trim().toLowerCase(),
+    );
+
+    res.status(200).json({
+      message: "If the account exists, a password reset email has been sent",
+    });
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    if (!isValidResetPassword(req.body)) {
+      res.status(400).json({
+        message: "Invalid reset password data",
+      });
+      return;
+    }
+
+    const reset = await this.passwordResetService.resetPassword(
+      req.body.token,
+      req.body.password,
+    );
+
+    if (!reset) {
+      res.status(400).json({
+        message: "Invalid or expired reset token",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Password reset successfully",
     });
   };
 }

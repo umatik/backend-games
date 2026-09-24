@@ -1,223 +1,218 @@
 -- ============================================================
+-- USERS
+-- ============================================================
+
+INSERT INTO users (id, email, password_hash)
+VALUES (1, 'alice@example.com', '$2b$10$Gu16e9j5R6NCwK8JltQ6POG0fBcoSc6tPydoymO1pFzChW.mVEMqG'),
+       (2, 'bob@example.com', '$2b$10$Gu16e9j5R6NCwK8JltQ6POG0fBcoSc6tPydoymO1pFzChW.mVEMqG'),
+       (3, 'page1@example.com', '$2b$10$Gu16e9j5R6NCwK8JltQ6POG0fBcoSc6tPydoymO1pFzChW.mVEMqG'),
+       (4, 'page2@example.com', '$2b$10$Gu16e9j5R6NCwK8JltQ6POG0fBcoSc6tPydoymO1pFzChW.mVEMqG');
+
+INSERT INTO user_contact_details
+(user_id, first_name, last_name, phone, address, city, postal_code, country)
+VALUES (1, 'Alice', 'Test', '123456789', 'Test Street 1', 'Warsaw', '00-001', 'Poland'),
+       (2, 'Bob', 'Admin', '987654321', 'Admin Street 1', 'Warsaw', '00-002', 'Poland'),
+       (3, 'Page', 'One', '111111111', 'Test Street 3', 'Warsaw', '00-003', 'Poland'),
+       (4, 'Page', 'Two', '222222222', 'Test Street 4', 'Warsaw', '00-004', 'Poland');
+
+-- Reset users sequence after manually assigned IDs.
+SELECT setval(
+           pg_get_serial_sequence('users', 'id'),
+           (SELECT MAX(id) FROM users)
+       );
+
+-- ============================================================
 -- ROLES
 -- ============================================================
 
-INSERT INTO roles (name)
-VALUES ('user'),
-       ('admin');
+INSERT INTO roles (id, name)
+VALUES (1, 'user'),
+       (2, 'admin');
+
+INSERT INTO user_roles (user_id, role_id)
+VALUES (1, 1),
+       (2, 2),
+       (3, 1),
+       (4, 1);
 
 -- ============================================================
 -- PERMISSIONS
 -- ============================================================
 
-INSERT INTO permissions (name)
-VALUES ('products:read'),
-       ('products:create'),
-       ('products:update'),
-       ('products:delete'),
-       ('orders:read'),
-       ('orders:create'),
-       ('orders:update'),
-       ('orders:delete'),
-       ('users:read'),
-       ('users:update');
+INSERT INTO permissions (id, name)
+VALUES (1, 'users:read'),
+       (2, 'users:update'),
+       (3, 'products:create'),
+       (4, 'products:update'),
+       (5, 'products:delete'),
+       (6, 'orders:create'),
+       (7, 'orders:read'),
+       (8, 'orders:delete');
 
--- ============================================================
--- USER ROLE PERMISSIONS
--- ============================================================
-
--- Regular users get basic permissions.
--- orders:read is intentionally excluded.
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-       CROSS JOIN permissions p
-WHERE r.name = 'user'
-  AND p.name IN (
-                 'products:read',
-                 'orders:create',
-                 'orders:delete',
-                 'users:update'
-  );
+VALUES
+  -- regular user
+  (1, 2), -- users:update
+  (1, 6), -- orders:create
+  (1, 8), -- orders:delete
 
--- ============================================================
--- ADMIN ROLE PERMISSIONS
--- ============================================================
-
--- Admin gets every permission.
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-       CROSS JOIN permissions p
-WHERE r.name = 'admin';
-
--- ============================================================
--- USERS
--- ============================================================
-
-INSERT INTO users (email, password_hash)
-VALUES ('alice@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('bob@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('charlie@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('david@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('emma@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('frank@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('grace@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('henry@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('irene@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6'),
-       ('jack@example.com', '$2b$10$qTJekDIdqZWyiBNhVbKWpOOIzB0tiT9SlIDS/GOnooz7IqIHws2j6');
-
--- ============================================================
--- USER ROLES
--- ============================================================
-
--- Users are regular users, except Bob (user_id = 2).
-INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id
-FROM users u
-       CROSS JOIN roles r
-WHERE r.name = 'user'
-  AND u.id <> 2;
-
--- Bob (user_id = 2) is the admin.
-INSERT INTO user_roles (user_id, role_id)
-SELECT 2, r.id
-FROM roles r
-WHERE r.name = 'admin';
-
--- ============================================================
--- USER CONTACT DETAILS
--- ============================================================
-
-INSERT INTO user_contact_details
-(user_id, first_name, last_name, phone, address, city, postal_code, country)
-VALUES (1, 'Alice', 'Smith', '500000001', 'Main Street 1', 'Warsaw', '00-001', 'Poland'),
-       (2, 'Bob', 'Johnson', '500000002', 'Main Street 2', 'Krakow', '30-001', 'Poland'),
-       (3, 'Charlie', 'Brown', '500000003', 'Main Street 3', 'Gdansk', '80-001', 'Poland'),
-       (4, 'David', 'Wilson', '500000004', 'Main Street 4', 'Wroclaw', '50-001', 'Poland'),
-       (5, 'Emma', 'Taylor', '500000005', 'Main Street 5', 'Poznan', '60-001', 'Poland'),
-       (6, 'Frank', 'Davis', '500000006', 'Main Street 6', 'Lodz', '90-001', 'Poland'),
-       (7, 'Grace', 'Miller', '500000007', 'Main Street 7', 'Szczecin', '70-001', 'Poland'),
-       (8, 'Henry', 'Moore', '500000008', 'Main Street 8', 'Lublin', '20-001', 'Poland'),
-       (9, 'Irene', 'Anderson', '500000009', 'Main Street 9', 'Katowice', '40-001', 'Poland'),
-       (10, 'Jack', 'Thomas', '500000010', 'Main Street 10', 'Opole', '45-001', 'Poland');
+  -- admin
+  (2, 1), -- users:read
+  (2, 2), -- users:update
+  (2, 3), -- products:create
+  (2, 4), -- products:update
+  (2, 5), -- products:delete
+  (2, 6), -- orders:create
+  (2, 7), -- orders:read
+  (2, 8);
+-- orders:delete
 
 -- ============================================================
 -- PRODUCTS
+-- 50 products are seeded because API tests use product id 50.
 -- ============================================================
 
-INSERT INTO products (name)
-SELECT 'Product ' || gs
-FROM generate_series(1, 100) AS gs;
+INSERT INTO products (id, name)
+SELECT id,
+       'Seed Product ' || id
+FROM generate_series(1, 50) AS id;
+
+-- Reset products sequence after manually assigned IDs.
+SELECT setval(
+           pg_get_serial_sequence('products', 'id'),
+           (SELECT MAX(id) FROM products)
+       );
 
 -- ============================================================
 -- PRODUCT VARIANTS
--- Deterministic stock and prices.
--- Each product gets 1–5 variants.
+-- Two variants per product.
+-- Product 50 therefore owns variants 99 and 100.
 -- ============================================================
 
 INSERT INTO product_variants
-  (product_id, color, size, price, quantity)
-SELECT p.id,
-       CASE ((v.variant_number - 1) % 5)
-         WHEN 0 THEN 'Black'
-         WHEN 1 THEN 'White'
-         WHEN 2 THEN 'Red'
-         WHEN 3 THEN 'Blue'
-         WHEN 4 THEN 'Green'
+  (id, product_id, color, size, price, quantity)
+SELECT ((product_id - 1) * 2) + variant_no,
+       product_id,
+       CASE variant_no
+         WHEN 1 THEN 'Black'
+         ELSE 'White'
          END,
-       CASE ((v.variant_number - 1) % 5)
-         WHEN 0 THEN 'S'
+       CASE variant_no
          WHEN 1 THEN 'M'
-         WHEN 2 THEN 'L'
-         WHEN 3 THEN 'XL'
-         WHEN 4 THEN 'XXL'
+         ELSE 'L'
          END,
-       (50 + (p.id * 10) + v.variant_number)::numeric(10, 2),
-       100
-FROM products p
-       CROSS JOIN LATERAL generate_series(
-    1,
-    1 + ((p.id - 1) % 5)
-                          ) AS v(variant_number);
+       (49.99 + product_id + (variant_no * 10))::numeric(10, 2),
+       20 + product_id
+FROM generate_series(1, 50) AS product_id
+       CROSS JOIN generate_series(1, 2) AS variant_no;
+
+-- Reset product variants sequence after manually assigned IDs.
+SELECT setval(
+           pg_get_serial_sequence('product_variants', 'id'),
+           (SELECT MAX(id) FROM product_variants)
+       );
 
 -- ============================================================
 -- PRODUCT VARIANT MEDIA
--- Each variant gets one primary photo and one additional media item.
+-- Each variant gets 4–8 media items.
+-- Mostly photos, plus mp3, mov, mp4, zip and pdf.
 -- ============================================================
 
 INSERT INTO product_variant_media
   (product_variant_id, type, url, alt, sort_order, is_primary)
 SELECT pv.id,
-       'photo',
-       'https://example.com/products/variant-' || pv.id || '-primary.jpg',
-       'Product variant ' || pv.id || ' primary image',
-       1,
-       TRUE
-FROM product_variants pv;
+       media.type,
+       media.url,
+       media.alt,
+       media.sort_order,
+       media.is_primary
+FROM product_variants pv
+       CROSS JOIN LATERAL (
+  SELECT 'photo'::text                                                 AS type,
+         'https://example.com/products/variant-' || pv.id || '-01.jpg' AS url,
+         'Product variant ' || pv.id || ' photo 1'                     AS alt,
+         1                                                             AS sort_order,
+         TRUE                                                          AS is_primary
 
-INSERT INTO product_variant_media
-  (product_variant_id, type, url, alt, sort_order, is_primary)
-SELECT pv.id,
-       CASE WHEN pv.id % 3 = 0 THEN 'video'
-            WHEN pv.id % 3 = 1 THEN 'audio'
-            ELSE 'document'
-       END,
-       CASE WHEN pv.id % 3 = 0
-              THEN 'https://example.com/products/variant-' || pv.id || '.mp4'
-            WHEN pv.id % 3 = 1
-              THEN 'https://example.com/products/variant-' || pv.id || '.mp3'
-            ELSE 'https://example.com/products/variant-' || pv.id || '.pdf'
-       END,
-       'Product variant ' || pv.id || ' additional media',
-       2,
-       FALSE
-FROM product_variants pv;
+  UNION ALL
 
--- ============================================================
--- ORDERS
--- Users 1–7 get one order each.
--- Users 8–10 have no orders.
--- ============================================================
+  SELECT 'photo',
+         'https://example.com/products/variant-' || pv.id || '-02.jpg',
+         'Product variant ' || pv.id || ' photo 2',
+         2,
+         FALSE
 
-DO
-$$
-  DECLARE
-    current_user_id  BIGINT;
-    current_order_id BIGINT;
-    item_count       INTEGER;
-    variant_id       BIGINT;
-    item_quantity    INTEGER;
-  BEGIN
-    FOR current_user_id IN 1..7
-      LOOP
-        item_count := 1 + ((current_user_id - 1) % 5);
+  UNION ALL
 
-        INSERT INTO orders (user_id, status)
-        VALUES (current_user_id, 'pending')
-        RETURNING id INTO current_order_id;
+  SELECT 'photo',
+         'https://example.com/products/variant-' || pv.id || '-03.jpg',
+         'Product variant ' || pv.id || ' photo 3',
+         3,
+         FALSE
 
-        FOR i IN 1..item_count
-          LOOP
-            SELECT pv.id
-            INTO variant_id
-            FROM product_variants pv
-            WHERE pv.id = ((current_user_id - 1) * 7 + i)
-            LIMIT 1;
+  UNION ALL
 
-            item_quantity := 1 + ((i - 1) % 3);
+  SELECT 'photo',
+         'https://example.com/products/variant-' || pv.id || '-04.jpg',
+         'Product variant ' || pv.id || ' photo 4',
+         4,
+         FALSE
 
-            INSERT INTO order_items
-              (order_id, product_variant_id, quantity, price)
-            SELECT current_order_id, pv.id, item_quantity, pv.price
-            FROM product_variants pv
-            WHERE pv.id = variant_id;
+  UNION ALL
 
-            UPDATE product_variants
-            SET quantity = quantity - item_quantity
-            WHERE id = variant_id
-              AND quantity >= item_quantity;
-          END LOOP;
-      END LOOP;
-  END
-$$;
+  SELECT CASE pv.id % 5
+           WHEN 0 THEN 'audio'
+           WHEN 1 THEN 'video'
+           WHEN 2 THEN 'video'
+           WHEN 3 THEN 'document'
+           ELSE 'document'
+           END,
+         CASE pv.id % 5
+           WHEN 0 THEN
+             'https://example.com/products/variant-' || pv.id || '.mp3'
+           WHEN 1 THEN
+             'https://example.com/products/variant-' || pv.id || '.mov'
+           WHEN 2 THEN
+             'https://example.com/products/variant-' || pv.id || '.mp4'
+           WHEN 3 THEN
+             'https://example.com/products/variant-' || pv.id || '.zip'
+           ELSE
+             'https://example.com/products/variant-' || pv.id || '.pdf'
+           END,
+         'Product variant ' || pv.id || ' additional file',
+         5,
+         FALSE
+
+  UNION ALL
+
+  SELECT 'photo',
+         'https://example.com/products/variant-' || pv.id || '-05.jpg',
+         'Product variant ' || pv.id || ' photo 5',
+         6,
+         FALSE
+
+  UNION ALL
+
+  SELECT CASE
+           WHEN pv.id % 2 = 0 THEN 'photo'
+           ELSE 'document'
+           END,
+         CASE
+           WHEN pv.id % 2 = 0 THEN
+             'https://example.com/products/variant-' || pv.id || '-06.jpg'
+           ELSE
+             'https://example.com/products/variant-' || pv.id || '-manual.pdf'
+           END,
+         'Product variant ' || pv.id || ' additional file 2',
+         7,
+         FALSE
+
+  UNION ALL
+
+  SELECT 'photo',
+         'https://example.com/products/variant-' || pv.id || '-07.jpg',
+         'Product variant ' || pv.id || ' photo 7',
+         8,
+         FALSE
+  ) AS media
+WHERE media.sort_order <= 4 + (pv.id % 5);

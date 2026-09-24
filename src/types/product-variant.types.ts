@@ -1,8 +1,11 @@
+import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
+
 export type ProductVariant = {
   id: number;
   productId: number;
   color: string | null;
   size: string | null;
+  media: ProductVariantMedia[];
   price: number;
   quantity: number;
   isDeleted: boolean;

@@ -604,4 +604,50 @@ describe("Products API", () => {
     expect(response.status).toBe(400);
     expect(response.body.message).toBe("Invalid pagination parameters");
   });
+
+  it("should return variants with media", async () => {
+    const response = await request(app).get("/products/50");
+
+    expect(response.status).toBe(200);
+
+    const variants = response.body.product.variants;
+
+    expect(Array.isArray(variants)).toBe(true);
+    expect(variants.length).toBeGreaterThan(0);
+
+    for (const variant of variants) {
+      expect(Array.isArray(variant.media)).toBe(true);
+      expect(variant.media.length).toBeGreaterThanOrEqual(4);
+
+      for (const media of variant.media) {
+        expect(media).toEqual(
+          expect.objectContaining({
+            id: expect.any(Number),
+            productVariantId: expect.any(Number),
+            type: expect.any(String),
+            url: expect.any(String),
+            sortOrder: expect.any(Number),
+            isPrimary: expect.any(Boolean),
+          }),
+        );
+      }
+    }
+  });
+
+  it("should return all media for a variant", async () => {
+    const response = await request(app).get("/products/50");
+
+    expect(response.status).toBe(200);
+
+    const variant = response.body.product.variants[0];
+
+    expect(variant.media.length).toBeGreaterThan(1);
+
+    const sortOrders = variant.media.map(
+      (media: { sortOrder: number }) => media.sortOrder,
+    );
+
+    expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
+    expect(new Set(sortOrders).size).toBe(sortOrders.length);
+  });
 });

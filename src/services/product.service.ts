@@ -10,6 +10,7 @@ import type { Cache } from "../cache/cache.interface.js";
 import type { Database } from "../database/database.interface.js";
 import type { ProductRepository } from "../repositories/products/product/product.interface.js";
 import type { ProductVariantRepository } from "../repositories/products/product-variant/product-variant.interface.js";
+import type { ProductVariantMediaInterface } from "@/repositories/products/product_media/product-variant-media.interface.js";
 
 export class ProductService {
   constructor(
@@ -20,6 +21,7 @@ export class ProductService {
       products: ProductDetails[];
       total: number;
     }>,
+    private productVariantMediaRepository: ProductVariantMediaInterface,
   ) {}
 
   async createProduct(data: CreateProductData): Promise<Product> {

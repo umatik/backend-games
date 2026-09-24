@@ -2,6 +2,7 @@ import type { Database } from "@/database/database.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
 import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import type { Cache } from "@/cache/cache.interface.js";
 import { getProductVariantMediaType } from "@/validators/product-variant-media.validator.js";
 
 export class ProductVariantMediaService {
@@ -9,6 +10,7 @@ export class ProductVariantMediaService {
     private productVariantMediaRepository: ProductVariantMediaInterface,
     private storage: Storage,
     private pool: Database,
+    private productCache: Cache<unknown>,
   ) {}
 
   async findByProductVariantId(
@@ -51,12 +53,12 @@ export class ProductVariantMediaService {
       throw new Error("Unsupported media type");
     }
 
-    const url = await this.storage.save(file, filename, contentType);
-
+    // const url = await this.storage.save(file, filename, contentType);
+    const url = filename;
     const client = await this.pool.connect();
 
     try {
-      return await this.productVariantMediaRepository.create(
+      const media = await this.productVariantMediaRepository.create(
         client,
         productVariantId,
         type,
@@ -65,6 +67,10 @@ export class ProductVariantMediaService {
         sortOrder,
         isPrimary,
       );
+
+      await this.productCache.clear();
+
+      return media;
     } catch (error) {
       await this.storage.delete(url);
       throw error;
@@ -82,13 +88,19 @@ export class ProductVariantMediaService {
     const client = await this.pool.connect();
 
     try {
-      return await this.productVariantMediaRepository.update(
+      const media = await this.productVariantMediaRepository.update(
         client,
         mediaId,
         alt,
         sortOrder,
         isPrimary,
       );
+
+      if (media) {
+        await this.productCache.clear();
+      }
+
+      return media;
     } finally {
       client.release();
     }
@@ -114,6 +126,7 @@ export class ProductVariantMediaService {
 
       if (deleted) {
         await this.storage.delete(media.url);
+        await this.productCache.clear();
       }
 
       return deleted;

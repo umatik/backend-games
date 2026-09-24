@@ -650,4 +650,36 @@ describe("Products API", () => {
     expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
     expect(new Set(sortOrders).size).toBe(sortOrders.length);
   });
+
+  it("should return product variants with all media", async () => {
+    const response = await request(app).get("/products/50");
+
+    expect(response.status).toBe(200);
+
+    const product = response.body.product;
+
+    expect(product.id).toBe(50);
+    expect(Array.isArray(product.variants)).toBe(true);
+    expect(product.variants.length).toBeGreaterThan(0);
+
+    for (const variant of product.variants) {
+      expect(Array.isArray(variant.media)).toBe(true);
+
+      for (const media of variant.media) {
+        expect(media).toEqual(
+          expect.objectContaining({
+            id: expect.any(Number),
+            productVariantId: variant.id,
+            type: expect.stringMatching(/^(photo|video|audio|document)$/),
+            url: expect.any(String),
+            alt: expect.anything(),
+            sortOrder: expect.any(Number),
+            isPrimary: expect.any(Boolean),
+            createdAt: expect.any(String),
+            updatedAt: expect.any(String),
+          }),
+        );
+      }
+    }
+  });
 });

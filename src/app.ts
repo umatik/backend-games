@@ -3,27 +3,29 @@ import "dotenv/config";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import openapi from "@/docs/openapi.js";
-import express, {type ErrorRequestHandler} from "express";
+import express, { type ErrorRequestHandler } from "express";
 
 import {
   productRouter,
+  productVariantMediaRouter,
   orderRouter,
   userRouter,
   authRouter,
 } from "./dependency-injection.js";
-import {AppError} from "@/errors/app.error.js";
+import { AppError } from "@/errors/app.error.js";
 
 const app = express();
 
 // Adds security-related HTTP headers to protect the API from common web attacks.
 app.use(helmet());
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
   }),
 );
 
-app.use(express.json({limit: "1mb"}));
+app.use(express.json({ limit: "1mb" }));
 
 // Middleware, Request logging
 app.use((req, res, next) => {
@@ -47,6 +49,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/products", productRouter);
+app.use("/products", productVariantMediaRouter);
 app.use("/orders", orderRouter);
 app.use("/users", userRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapi));

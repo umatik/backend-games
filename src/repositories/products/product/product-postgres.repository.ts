@@ -29,18 +29,6 @@ type ProductDetailsRow = ProductRow & {
 };
 
 export class PostgresProductRepository implements ProductRepository {
-  async countAll(client: PoolClient): Promise<number> {
-    const result = await client.query(
-      `
-        SELECT COUNT(*) AS total
-        FROM products
-        WHERE is_deleted = FALSE
-      `,
-    );
-
-    return Number(result.rows[0].total);
-  }
-
   private mapProductRow = (row: ProductRow): Product => ({
     id: Number(row.id),
     name: row.name,
@@ -264,5 +252,17 @@ export class PostgresProductRepository implements ProductRepository {
     );
 
     return result.rows.length > 0;
+  }
+
+  async countAll(client: PoolClient): Promise<number> {
+    const result = await client.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM products
+        WHERE is_deleted = FALSE
+      `,
+    );
+
+    return Number(result.rows[0].total);
   }
 }

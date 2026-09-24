@@ -36,18 +36,18 @@ export class ProductVariantMediaController {
 
   async create(req: Request, res: Response): Promise<void> {
     const productVariantId = Number(req.params.productVariantId);
-
     const { alt, sortOrder, isPrimary } = req.body;
-
     const file = req.file?.buffer;
     const filename = req.file?.originalname;
     const contentType = req.file?.mimetype;
 
-    if (!file || !filename || !contentType) {
-      res.status(400).json({
-        message: "File is required",
-      });
+    console.log({
+      filename,
+      contentType,
+    });
 
+    if (!file || !filename || !contentType) {
+      res.status(400).json({ message: "File is required" });
       return;
     }
 

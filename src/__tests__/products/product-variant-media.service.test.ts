@@ -8,6 +8,7 @@ import {
 } from "@jest/globals";
 import type { PoolClient } from "pg";
 
+import type { Cache } from "@/cache/cache.interface.js";
 import type { Database } from "@/database/database.interface.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
 import { ProductVariantMediaService } from "@/services/product-variant-media.service.js";
@@ -20,6 +21,7 @@ describe("ProductVariantMediaService", () => {
   let mediaRepository: jest.Mocked<ProductVariantMediaInterface>;
   let storage: jest.Mocked<Storage>;
   let database: jest.Mocked<Database>;
+  let productCache: jest.Mocked<Cache<unknown>>;
 
   const client = {
     release: jest.fn(),
@@ -58,10 +60,18 @@ describe("ProductVariantMediaService", () => {
 
     database.connect.mockResolvedValue(client);
 
+    productCache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      delete: jest.fn(),
+      clear: jest.fn(),
+    } as jest.Mocked<Cache<unknown>>;
+
     service = new ProductVariantMediaService(
       mediaRepository,
       storage,
       database,
+      productCache,
     );
   });
 
@@ -149,6 +159,7 @@ describe("ProductVariantMediaService", () => {
       );
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).toHaveBeenCalled();
     });
 
     it("should delete the file when creating the database record fails", async () => {
@@ -175,6 +186,7 @@ describe("ProductVariantMediaService", () => {
       );
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).not.toHaveBeenCalled();
     });
   });
 
@@ -202,6 +214,7 @@ describe("ProductVariantMediaService", () => {
       );
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).toHaveBeenCalled();
     });
   });
 
@@ -221,6 +234,7 @@ describe("ProductVariantMediaService", () => {
       expect(storage.delete).toHaveBeenCalledWith(media.url);
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).toHaveBeenCalled();
     });
 
     it("should return false when media does not exist", async () => {
@@ -234,6 +248,7 @@ describe("ProductVariantMediaService", () => {
       expect(storage.delete).not.toHaveBeenCalled();
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).not.toHaveBeenCalled();
     });
 
     it("should not delete the file when database deletion fails", async () => {
@@ -247,6 +262,7 @@ describe("ProductVariantMediaService", () => {
       expect(storage.delete).not.toHaveBeenCalled();
 
       expect(client.release).toHaveBeenCalled();
+      expect(productCache.clear).not.toHaveBeenCalled();
     });
   });
 });

@@ -7,6 +7,15 @@ import type {
 } from "@/repositories/products/product-media/product-variant-media.interface.js";
 
 export class ProductVariantMediaPostgresRepository implements ProductVariantMediaInterface {
+  private mapMedia(row: ProductVariantMedia): ProductVariantMedia {
+    return {
+      ...row,
+      id: Number(row.id),
+      productVariantId: Number(row.productVariantId),
+      sortOrder: Number(row.sortOrder),
+    };
+  }
+
   async findByProductVariantId(
     client: PoolClient,
     productVariantId: number,
@@ -30,7 +39,7 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
       [productVariantId],
     );
 
-    return result.rows;
+    return result.rows.map((row) => this.mapMedia(row));
   }
 
   async findById(
@@ -55,7 +64,7 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
       [mediaId],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] ? this.mapMedia(result.rows[0]) : null;
   }
 
   async create(
@@ -98,7 +107,7 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
       throw new Error("Failed to create product variant media");
     }
 
-    return media;
+    return this.mapMedia(media);
   }
 
   async update(

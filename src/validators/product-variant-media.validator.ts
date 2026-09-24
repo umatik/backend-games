@@ -18,7 +18,7 @@ const MEDIA_TYPES: Record<
   },
 
   audio: {
-    mimeTypes: ["audio/mpeg", "audio/wav", "audio/x-wav"],
+    mimeTypes: ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/wave"],
     extensions: [".mp3", ".wav"],
   },
 

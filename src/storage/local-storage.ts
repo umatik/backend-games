@@ -4,7 +4,9 @@ import path from "node:path";
 import type { Storage } from "@/storage/storage.interface.js";
 
 export class LocalStorage implements Storage {
-  constructor(private readonly basePath: string) {}
+  constructor(
+    private readonly basePath = process.env.STORAGE_PATH ?? "./uploads",
+  ) {}
 
   async save(
     file: Buffer,

@@ -4,12 +4,12 @@ import type {
   ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
-import type { ProductVariantRepository } from "../repositories/product-variant/product-variant.interface.js";
-import type { ProductRepository } from "../repositories/product/product.interface.js";
 import type { UpdateProductVariantData } from "../types/product-variant.types.js";
 import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
 import type { Cache } from "../cache/cache.interface.js";
 import type { Database } from "../database/database.interface.js";
+import type { ProductRepository } from "../repositories/products/product/product.interface.js";
+import type { ProductVariantRepository } from "../repositories/products/product-variant/product-variant.interface.js";
 
 export class ProductService {
   constructor(

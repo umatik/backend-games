@@ -1,9 +1,10 @@
-import type {PoolClient} from "pg";
+import type { PoolClient } from "pg";
 import type {
   CreateProductRecord,
-  Product, ProductDetails,
+  Product,
+  ProductDetails,
   UpdateProductData,
-} from "../../types/product.types.js";
+} from "../../../types/product.types.js";
 
 export interface ProductRepository {
   create(client: PoolClient, data: CreateProductRecord): Promise<Product>;
@@ -12,7 +13,11 @@ export interface ProductRepository {
 
   findAll(client: PoolClient, page: number, limit: number): Promise<Product[]>;
 
-  findAllWithVariants(client: PoolClient, page: number, limit: number): Promise<ProductDetails[]>;
+  findAllWithVariants(
+    client: PoolClient,
+    page: number,
+    limit: number,
+  ): Promise<ProductDetails[]>;
 
   update(
     client: PoolClient,

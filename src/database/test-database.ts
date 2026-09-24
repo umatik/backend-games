@@ -28,7 +28,7 @@ export async function resetTestDatabase(): Promise<void> {
 }
 
 export async function seedTestDatabase(): Promise<void> {
-  const seedPath = path.join(migrationsPath, "011_seed_data.sql");
+  const seedPath = path.join(migrationsPath, "seed_data.sql");
 
   const seedSql = await readFile(seedPath, "utf-8");
 

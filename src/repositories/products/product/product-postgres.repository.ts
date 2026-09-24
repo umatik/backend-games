@@ -4,9 +4,9 @@ import type {
   ProductDetails,
   ProductRow,
   UpdateProductData,
-} from "../../types/product.types.js";
-import type {PoolClient} from "pg";
-import type {ProductRepository} from "./product.interface.js";
+} from "../../../types/product.types.js";
+import type { PoolClient } from "pg";
+import type { ProductRepository } from "./product.interface.js";
 
 type ProductDetailsRow = ProductRow & {
   variant_id: number | null;

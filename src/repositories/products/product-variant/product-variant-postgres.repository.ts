@@ -1,10 +1,10 @@
-import type {PoolClient} from "pg";
-import type {ProductVariantRepository} from "./product-variant.interface.js";
+import type { PoolClient } from "pg";
+import type { ProductVariantRepository } from "./product-variant.interface.js";
 import type {
   CreateProductVariantData,
   ProductVariant,
   UpdateProductVariantData,
-} from "../../types/product-variant.types.js";
+} from "../../../types/product-variant.types.js";
 
 export class PostgresProductVariantRepository implements ProductVariantRepository {
   private mapProductVariantRow(row: ProductVariant): ProductVariant {

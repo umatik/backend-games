@@ -142,6 +142,39 @@ FROM products p
                           ) AS v(variant_number);
 
 -- ============================================================
+-- PRODUCT VARIANT MEDIA
+-- Each variant gets one primary photo and one additional media item.
+-- ============================================================
+
+INSERT INTO product_variant_media
+  (product_variant_id, type, url, alt, sort_order, is_primary)
+SELECT pv.id,
+       'photo',
+       'https://example.com/products/variant-' || pv.id || '-primary.jpg',
+       'Product variant ' || pv.id || ' primary image',
+       1,
+       TRUE
+FROM product_variants pv;
+
+INSERT INTO product_variant_media
+  (product_variant_id, type, url, alt, sort_order, is_primary)
+SELECT pv.id,
+       CASE WHEN pv.id % 3 = 0 THEN 'video'
+            WHEN pv.id % 3 = 1 THEN 'audio'
+            ELSE 'document'
+       END,
+       CASE WHEN pv.id % 3 = 0
+              THEN 'https://example.com/products/variant-' || pv.id || '.mp4'
+            WHEN pv.id % 3 = 1
+              THEN 'https://example.com/products/variant-' || pv.id || '.mp3'
+            ELSE 'https://example.com/products/variant-' || pv.id || '.pdf'
+       END,
+       'Product variant ' || pv.id || ' additional media',
+       2,
+       FALSE
+FROM product_variants pv;
+
+-- ============================================================
 -- ORDERS
 -- Users 1–7 get one order each.
 -- Users 8–10 have no orders.

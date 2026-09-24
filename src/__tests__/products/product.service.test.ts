@@ -1,11 +1,11 @@
 import { beforeEach, describe, jest, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
 import { ProductService } from "../../services/product.service.js";
-import type { ProductRepository } from "../../repositories/product/product.interface.js";
-import type { ProductVariantRepository } from "../../repositories/product-variant/product-variant.interface.js";
 import type { Cache } from "../../cache/cache.interface.js";
 import type { ProductDetails } from "../../types/product.types.js";
 import type { Database } from "../../database/database.interface.js";
+import type { ProductRepository } from "../../repositories/products/product/product.interface.js";
+import type { ProductVariantRepository } from "../../repositories/products/product-variant/product-variant.interface.js";
 
 const mockClient = {
   query: jest.fn(),

@@ -6,6 +6,7 @@ import type { ProductDetails } from "../../types/product.types.js";
 import type { Database } from "../../database/database.interface.js";
 import type { ProductRepository } from "../../repositories/products/product/product.interface.js";
 import type { ProductVariantRepository } from "../../repositories/products/product-variant/product-variant.interface.js";
+import type { ProductVariantMediaInterface } from "../../repositories/products/product-media/product-variant-media.interface.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -16,6 +17,7 @@ describe("ProductService", () => {
   let productService: ProductService;
   let productRepository: jest.Mocked<ProductRepository>;
   let productVariantRepository: jest.Mocked<ProductVariantRepository>;
+  let productVariantMediaRepository: jest.Mocked<ProductVariantMediaInterface>;
   let mockPool: Database;
 
   let cache: jest.Mocked<
@@ -46,6 +48,14 @@ describe("ProductService", () => {
       delete: jest.fn(),
     };
 
+    productVariantMediaRepository = {
+      findByProductVariantId: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
     mockPool = {
       connect: jest
         .fn<() => Promise<PoolClient>>()
@@ -64,6 +74,7 @@ describe("ProductService", () => {
       productVariantRepository,
       mockPool,
       cache,
+      productVariantMediaRepository,
     );
   });
 
@@ -268,6 +279,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -281,6 +293,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Red",
       size: "L",
+      media: [],
       price: 150,
       quantity: 20,
       isDeleted: false,
@@ -295,6 +308,7 @@ describe("ProductService", () => {
         productId: 1,
         color: "Red",
         size: "L",
+        media: [],
         price: 150,
         quantity: 20,
         isDeleted: false,
@@ -344,6 +358,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Blue",
       size: "XL",
+      media: [],
       price: 200,
       quantity: 30,
       isDeleted: false,
@@ -358,6 +373,7 @@ describe("ProductService", () => {
         productId: 1,
         color: "Blue",
         size: "XL",
+        media: [],
         price: 200,
         quantity: 30,
         isDeleted: false,
@@ -443,6 +459,7 @@ describe("ProductService", () => {
       productId: 2,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -485,6 +502,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -498,6 +516,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -512,6 +531,7 @@ describe("ProductService", () => {
         productId: 1,
         color: "Black",
         size: "M",
+        media: [],
         price: 100,
         quantity: 10,
         isDeleted: false,
@@ -546,6 +566,7 @@ describe("ProductService", () => {
         productId: 1,
         color: "Black",
         size: "M",
+        media: [],
         price: 100,
         quantity: 10,
         isDeleted: false,
@@ -570,6 +591,7 @@ describe("ProductService", () => {
           productId: 1,
           color: "Black",
           size: "M",
+          media: [],
           price: 100,
           quantity: 10,
           isDeleted: false,
@@ -711,6 +733,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -760,6 +783,7 @@ describe("ProductService", () => {
       productId: 2,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -785,6 +809,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,
@@ -810,6 +835,7 @@ describe("ProductService", () => {
       productId: 1,
       color: "Black",
       size: "M",
+      media: [],
       price: 100,
       quantity: 10,
       isDeleted: false,

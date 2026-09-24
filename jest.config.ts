@@ -1,20 +1,16 @@
-import type {Config} from "jest";
+import type { Config } from "jest";
 
 const config: Config = {
   testEnvironment: "node",
-
   extensionsToTreatAsEsm: [".ts"],
-
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", {useESM: true}],
+    "^.+\\.tsx?$": ["ts-jest", { useESM: true }],
   },
-
   moduleNameMapper: {
+    "^@/(.*)\\.js$": "<rootDir>/src/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
-
   maxWorkers: 1,
-
   setupFilesAfterEnv: ["<rootDir>/src/database/test-setup.ts"],
 };
 

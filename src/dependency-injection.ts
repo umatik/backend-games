@@ -33,6 +33,7 @@ import { OrderService } from "./services/order.service.js";
 import { PasswordResetService } from "./services/password-reset.service.js";
 import { ProductService } from "./services/product.service.js";
 import { UserService } from "./services/user.service.js";
+import { ProductVariantMediaPostgresRepository } from "@/repositories/products/product-media/product-variant-media-postgres.repository.js";
 
 // Redis
 export const redisClient = createClient({
@@ -70,6 +71,8 @@ const authorizationService = new AuthorizationService(
 // Product
 const productRepository = new PostgresProductRepository();
 const productVariantRepository = new PostgresProductVariantRepository();
+const productVariantMediaRepository =
+  new ProductVariantMediaPostgresRepository();
 const productCache = new RedisCache<{
   products: ProductDetails[];
   total: number;
@@ -79,6 +82,7 @@ const productService = new ProductService(
   productVariantRepository,
   pool,
   productCache,
+  productVariantMediaRepository,
 );
 const productController = new ProductController(productService);
 

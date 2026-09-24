@@ -4,7 +4,7 @@ import type { ProductVariantMediaType } from "@/types/product-variant-media.type
 import type {
   ProductVariantMedia,
   ProductVariantMediaInterface,
-} from "@/repositories/products/product_media/product-variant-media.interface.js";
+} from "@/repositories/products/product-media/product-variant-media.interface.js";
 
 export class ProductVariantMediaPostgresRepository implements ProductVariantMediaInterface {
   async findByProductVariantId(

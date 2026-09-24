@@ -1,15 +1,7 @@
-import {
-  beforeEach,
-  afterEach,
-  afterAll,
-  describe,
-  it,
-  expect,
-} from "@jest/globals";
+import { beforeEach, afterEach, describe, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
-
 import { pool } from "../../database/db.js";
-import { ProductVariantMediaPostgresRepository } from "../../repositories/products/product_media/product-variant-media-postgres.repository.js";
+import { ProductVariantMediaPostgresRepository } from "../../repositories/products/product-media/product-variant-media-postgres.repository.js";
 
 describe("ProductVariantMediaPostgresRepository", () => {
   const repository = new ProductVariantMediaPostgresRepository();

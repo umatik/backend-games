@@ -72,6 +72,7 @@ export class PostgresProductRepository implements ProductRepository {
           productId,
           color: row.color,
           size: row.size,
+          media: [],
           price: row.price,
           quantity: row.quantity,
           isDeleted: row.variant_is_deleted,

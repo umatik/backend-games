@@ -5,6 +5,9 @@ import type { UserInterface } from "@/repositories/user/user.interface.js";
 import bcrypt from "bcrypt";
 import type { EmailService } from "@/services/email.service.js";
 
+const DUMMY_PASSWORD_HASH =
+  "$2b$12$LQv3c1yqBWxq6h7n6n1M5e9w8J7K6L5M4N3P2Q1R0S9T8U7V6W5X4";
+
 export class PasswordResetService {
   constructor(
     private userRepository: UserInterface,
@@ -22,7 +25,9 @@ export class PasswordResetService {
       const user = await this.userRepository.findByEmail(client, email);
 
       if (!user) {
+        await bcrypt.compare("dummy-password", DUMMY_PASSWORD_HASH);
         await client.query("COMMIT");
+
         return;
       }
 

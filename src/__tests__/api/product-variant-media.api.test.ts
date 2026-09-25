@@ -91,6 +91,6 @@ describe("Product Variant Media API", () => {
       .field("sortOrder", "1")
       .field("isPrimary", "false");
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(415);
   });
 });

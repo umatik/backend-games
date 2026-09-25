@@ -1,4 +1,5 @@
 import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
+import { isValidString } from "@/validators/helpers/string.validator.js";
 
 const MEDIA_TYPES: Record<
   ProductVariantMedia["type"],
@@ -45,3 +46,25 @@ export function getProductVariantMediaType(
 
   return null;
 }
+
+export const isValidProductVariantMediaAlt = (
+  alt: unknown,
+): alt is string | null | undefined => {
+  return alt == null || isValidString(alt, 255);
+};
+
+export const isValidProductVariantMediaSortOrder = (
+  sortOrder: unknown,
+): boolean => {
+  return (
+    typeof sortOrder === "number" &&
+    Number.isInteger(sortOrder) &&
+    sortOrder >= 0
+  );
+};
+
+export const isValidProductVariantMediaIsPrimary = (
+  isPrimary: unknown,
+): boolean => {
+  return typeof isPrimary === "boolean";
+};

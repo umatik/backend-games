@@ -7,6 +7,8 @@ import {
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
 import type { Cache } from "@/cache/cache.interface.js";
 import { getProductVariantMediaType } from "@/validators/product-variant-media.validator.js";
+import { UnsupportedMediaTypeError } from "@/errors/unsupported-media-type.js";
+import { FileExtensionIsRequiredError } from "@/errors/file-extension-is-required.js";
 
 const MEDIA_FOLDER_BY_TYPE: Record<ProductVariantMediaType, string> = {
   [ProductVariantMediaType.PHOTO]: "photo",
@@ -60,13 +62,13 @@ export class ProductVariantMediaService {
     const type = getProductVariantMediaType(filename, contentType);
 
     if (!type) {
-      throw new Error("Unsupported media type");
+      throw new UnsupportedMediaTypeError();
     }
 
     const extension = filename.split(".").pop()?.toLowerCase();
 
     if (!extension) {
-      throw new Error("File extension is required");
+      throw new FileExtensionIsRequiredError();
     }
 
     const folder = MEDIA_FOLDER_BY_TYPE[type];

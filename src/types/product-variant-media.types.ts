@@ -1,4 +1,9 @@
-export type ProductVariantMediaType = "photo" | "video" | "audio" | "document";
+export enum ProductVariantMediaType {
+  PHOTO = "photo",
+  VIDEO = "video",
+  AUDIO = "audio",
+  DOCUMENT = "document",
+}
 
 export interface ProductVariantMedia {
   id: number;

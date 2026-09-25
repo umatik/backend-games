@@ -7,6 +7,7 @@ import type {
 } from "@/types/product.types.js";
 import type { PoolClient } from "pg";
 import type { ProductRepository } from "./product.interface.js";
+import { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
 
 type ProductDetailsRow = ProductRow & {
   variant_id: number | null;
@@ -19,7 +20,7 @@ type ProductDetailsRow = ProductRow & {
   variant_updated_at: Date;
   variant_deleted_at: Date | null;
   media_id: number | null;
-  media_type: "photo" | "video" | "audio" | "document" | null;
+  media_type: ProductVariantMediaType | null;
   media_url: string | null;
   media_alt: string | null;
   media_sort_order: number | null;

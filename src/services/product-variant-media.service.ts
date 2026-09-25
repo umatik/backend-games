@@ -1,9 +1,19 @@
 import type { Database } from "@/database/database.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
-import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
+import {
+  type ProductVariantMedia,
+  ProductVariantMediaType,
+} from "@/types/product-variant-media.types.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
 import type { Cache } from "@/cache/cache.interface.js";
 import { getProductVariantMediaType } from "@/validators/product-variant-media.validator.js";
+
+const MEDIA_FOLDER_BY_TYPE: Record<ProductVariantMediaType, string> = {
+  [ProductVariantMediaType.PHOTO]: "photo",
+  [ProductVariantMediaType.VIDEO]: "video",
+  [ProductVariantMediaType.AUDIO]: "audio",
+  [ProductVariantMediaType.DOCUMENT]: "doc",
+};
 
 export class ProductVariantMediaService {
   constructor(
@@ -53,8 +63,15 @@ export class ProductVariantMediaService {
       throw new Error("Unsupported media type");
     }
 
-    // const url = await this.storage.save(file, filename, contentType);
-    const url = filename;
+    const extension = filename.split(".").pop()?.toLowerCase();
+
+    if (!extension) {
+      throw new Error("File extension is required");
+    }
+
+    const folder = MEDIA_FOLDER_BY_TYPE[type];
+    const storageFilename = `products/${folder}/variant-${productVariantId}-${Date.now()}.${extension}`;
+    const url = await this.storage.save(file, storageFilename, contentType);
     const client = await this.pool.connect();
 
     try {

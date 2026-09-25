@@ -140,7 +140,7 @@ export class ProductVariantMediaPostgresRepository implements ProductVariantMedi
       [alt, sortOrder, isPrimary, mediaId],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] ? this.mapMedia(result.rows[0]) : null;
   }
 
   async delete(client: PoolClient, mediaId: number): Promise<boolean> {

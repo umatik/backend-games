@@ -1,21 +1,21 @@
-import fs from "node:fs";
 import path from "node:path";
 
 import request from "supertest";
-import { expect, describe, it } from "@jest/globals";
+import { afterAll, expect, describe, it } from "@jest/globals";
 
 import app from "@/app.js";
+import { redisClient } from "@/dependency-injection.js";
+import { loginAsAdmin } from "@/__test-helpers__/auth.js";
+
+afterAll(async () => {
+  await redisClient.close();
+});
 
 const uploadDir = path.resolve("src/__tests__/fixtures/uploads");
 
-console.log(
-  fs.readdirSync(uploadDir).map((filename) => ({
-    filename,
-    size: fs.statSync(path.join(uploadDir, filename)).size,
-  })),
-);
-
 describe("Product Variant Media API", () => {
+  const getAdminToken = async () => loginAsAdmin();
+
   it.each([
     ["test-photo.jpg", "photo"],
     ["test-photo.jpeg", "photo"],
@@ -26,8 +26,11 @@ describe("Product Variant Media API", () => {
     ["test-audio.wav", "audio"],
     ["test-document.pdf", "document"],
   ])("should upload %s as %s", async (filename, expectedType) => {
+    const token = await getAdminToken();
+
     const response = await request(app)
       .post("/products/variants/1/media")
+      .set("Authorization", `Bearer ${token}`)
       .attach("file", path.join(uploadDir, filename))
       .field("alt", `Test ${expectedType}`)
       .field("sortOrder", "1")
@@ -48,9 +51,24 @@ describe("Product Variant Media API", () => {
     );
   });
 
-  it("should reject upload without a file", async () => {
+  it("should return 401 when uploading media without authentication", async () => {
     const response = await request(app)
       .post("/products/variants/1/media")
+      .attach("file", path.join(uploadDir, "test-photo.jpg"))
+      .field("alt", "Unauthorized")
+      .field("sortOrder", "1")
+      .field("isPrimary", "false");
+
+    expect(response.status).toBe(401);
+    expect(response.body.message).toBe("Authorization header is required");
+  });
+
+  it("should reject upload without a file", async () => {
+    const token = await getAdminToken();
+
+    const response = await request(app)
+      .post("/products/variants/1/media")
+      .set("Authorization", `Bearer ${token}`)
       .field("alt", "Test image")
       .field("sortOrder", "1")
       .field("isPrimary", "false");
@@ -63,8 +81,11 @@ describe("Product Variant Media API", () => {
   });
 
   it("should reject unsupported media type", async () => {
+    const token = await getAdminToken();
+
     const response = await request(app)
       .post("/products/variants/1/media")
+      .set("Authorization", `Bearer ${token}`)
       .attach("file", Buffer.from("unsupported file"), "test-file.exe")
       .field("alt", "Unsupported")
       .field("sortOrder", "1")

@@ -3,6 +3,7 @@ import type { UserController } from "@/controllers/user.controller.js";
 import { authenticationMiddleware } from "@/middleware/authentication.middleware.js";
 import { requirePermission } from "@/middleware/permission.middleware.js";
 import type { AuthorizationService } from "@/services/authorization.service.js";
+import { passwordResetLimiter } from "@/middleware/password-rate-limit.middleware.js";
 
 export const createUserRouter = (
   userController: UserController,
@@ -135,7 +136,11 @@ export const createUserRouter = (
    *       400:
    *         description: Invalid request
    */
-  router.post("/forgot-password", userController.forgotPassword);
+  router.post(
+    "/forgot-password",
+    passwordResetLimiter,
+    userController.forgotPassword,
+  );
 
   /**
    * @openapi

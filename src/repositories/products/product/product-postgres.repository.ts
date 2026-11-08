@@ -1,42 +1,59 @@
 import type {
-  CreateProductData,
+  CreateProductRecord,
   Product,
   ProductDetails,
-  ProductRow,
-  UpdateProductData,
+  UpdateProductRecord,
 } from "@/types/product.types.js";
 import type { PoolClient } from "pg";
 import type { ProductRepository } from "./product.interface.js";
-import { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
+import type { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
 
-type ProductDetailsRow = ProductRow & {
-  variant_id: number | null;
-  color: string | null;
-  size: string | null;
-  price: number;
-  quantity: number;
-  variant_is_deleted: boolean;
-  variant_created_at: Date;
-  variant_updated_at: Date;
-  variant_deleted_at: Date | null;
-  media_id: number | null;
-  media_type: ProductVariantMediaType | null;
-  media_url: string | null;
-  media_alt: string | null;
-  media_sort_order: number | null;
-  media_is_primary: boolean | null;
-  media_created_at: Date | null;
-  media_updated_at: Date | null;
+const PRODUCT_COLUMNS = `
+  id,
+  type,
+  title,
+  slug,
+  description,
+  is_published AS "isPublished",
+  attributes,
+  is_deleted   AS "isDeleted",
+  created_at   AS "createdAt",
+  updated_at   AS "updatedAt",
+  deleted_at   AS "deletedAt"
+`;
+
+type ProductDetailsRow = Product & {
+  variantId: number | null;
+  variantPriceEur: number | null;
+  variantQuantity: number | null;
+  variantAttributes: Record<string, unknown> | null;
+  variantIsDeleted: boolean | null;
+  variantCreatedAt: Date | null;
+  variantUpdatedAt: Date | null;
+  variantDeletedAt: Date | null;
+  mediaId: number | null;
+  mediaType: ProductVariantMediaType | null;
+  mediaUrl: string | null;
+  mediaAlt: string | null;
+  mediaSortOrder: number | null;
+  mediaIsPrimary: boolean | null;
+  mediaCreatedAt: Date | null;
+  mediaUpdatedAt: Date | null;
 };
 
 export class PostgresProductRepository implements ProductRepository {
-  private mapProductRow = (row: ProductRow): Product => ({
+  private mapProductRow = (row: Product): Product => ({
     id: Number(row.id),
-    name: row.name,
-    is_deleted: row.is_deleted,
-    updated_at: row.updated_at,
-    created_at: row.created_at,
-    deleted_at: row.deleted_at,
+    type: row.type,
+    title: row.title,
+    slug: row.slug,
+    description: row.description,
+    isPublished: row.isPublished,
+    attributes: row.attributes,
+    isDeleted: row.isDeleted,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    deletedAt: row.deletedAt,
   });
 
   private mapProductDetailsRows = (
@@ -50,78 +67,80 @@ export class PostgresProductRepository implements ProductRepository {
       let product = products.get(productId);
 
       if (!product) {
-        product = {
-          id: productId,
-          name: row.name,
-          is_deleted: row.is_deleted,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-          deleted_at: row.deleted_at,
-          variants: [],
-        };
-
+        product = { ...this.mapProductRow(row), variants: [] };
         products.set(productId, product);
       }
 
-      if (row.variant_id !== null) {
-        let variant = product.variants.find(
-          (item) => item.id === Number(row.variant_id),
-        );
+      if (row.variantId === null) {
+        continue;
+      }
 
-        if (!variant) {
-          variant = {
-            id: Number(row.variant_id),
-            productId,
-            color: row.color,
-            size: row.size,
-            media: [],
-            price: row.price,
-            quantity: row.quantity,
-            isDeleted: row.variant_is_deleted,
-            createdAt: row.variant_created_at,
-            updatedAt: row.variant_updated_at,
-            deletedAt: row.variant_deleted_at,
-          };
+      const variantId = Number(row.variantId);
+      let variant = product.variants.find((item) => item.id === variantId);
 
-          product.variants.push(variant);
-        }
+      if (!variant) {
+        variant = {
+          id: variantId,
+          productId,
+          priceEur: Number(row.variantPriceEur),
+          quantity: Number(row.variantQuantity),
+          attributes: row.variantAttributes ?? {},
+          media: [],
+          isDeleted: row.variantIsDeleted!,
+          createdAt: row.variantCreatedAt!,
+          updatedAt: row.variantUpdatedAt!,
+          deletedAt: row.variantDeletedAt,
+        };
 
-        if (row.media_id !== null) {
-          variant.media.push({
-            id: Number(row.media_id),
-            productVariantId: Number(row.variant_id),
-            type: row.media_type!,
-            url: row.media_url!,
-            alt: row.media_alt,
-            sortOrder: row.media_sort_order!,
-            isPrimary: row.media_is_primary!,
-            createdAt: row.media_created_at!,
-            updatedAt: row.media_updated_at!,
-          });
-        }
+        product.variants.push(variant);
+      }
+
+      if (row.mediaId !== null) {
+        variant.media.push({
+          id: Number(row.mediaId),
+          productVariantId: variantId,
+          type: row.mediaType!,
+          url: row.mediaUrl!,
+          alt: row.mediaAlt,
+          sortOrder: row.mediaSortOrder!,
+          isPrimary: row.mediaIsPrimary!,
+          createdAt: row.mediaCreatedAt!,
+          updatedAt: row.mediaUpdatedAt!,
+        });
       }
     }
 
     return Array.from(products.values());
   };
 
-  async create(client: PoolClient, data: CreateProductData): Promise<Product> {
-    const result = await client.query(
+  async create(
+    client: PoolClient,
+    data: CreateProductRecord,
+  ): Promise<Product> {
+    // Id pobieramy z sekwencji w tym samym zapytaniu, żeby dokleić je do sluga (gwarancja unikalności).
+    const result = await client.query<Product>(
       `
-        INSERT INTO products (name)
-        VALUES ($1)
-        RETURNING id, name, is_deleted, created_at, deleted_at, updated_at
+        INSERT INTO products (id, type, title, slug, description, attributes)
+        SELECT next.id, $1::varchar, $2::varchar, $3::text || '-' || next.id, $4::text, $5::jsonb
+        FROM (SELECT nextval(pg_get_serial_sequence('products', 'id')) AS id) next
+        RETURNING ${PRODUCT_COLUMNS}
       `,
-      [data.name],
+      [data.type, data.title, data.slugBase, data.description, data.attributes],
     );
 
-    return this.mapProductRow(result.rows[0]);
+    const row = result.rows[0];
+
+    if (!row) {
+      throw new Error("Product was not created");
+    }
+
+    return this.mapProductRow(row);
   }
 
   async findById(id: number, client: PoolClient): Promise<Product | null> {
-    const result = await client.query(
+    const result = await client.query<Product>(
       `
-        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
+        SELECT ${PRODUCT_COLUMNS}
         FROM products
         WHERE id = $1
           AND is_deleted = FALSE
@@ -129,32 +148,9 @@ export class PostgresProductRepository implements ProductRepository {
       [id],
     );
 
-    if (result.rows.length > 0) {
-      return this.mapProductRow(result.rows[0]);
-    }
+    const row = result.rows[0];
 
-    return null;
-  }
-
-  async findAll(
-    client: PoolClient,
-    page: number,
-    limit: number,
-  ): Promise<Product[]> {
-    const offset = (page - 1) * limit;
-
-    const result = await client.query(
-      `
-        SELECT id, name, is_deleted, created_at, updated_at, deleted_at
-        FROM products
-        WHERE is_deleted = FALSE
-        ORDER BY id
-        LIMIT $1 OFFSET $2
-      `,
-      [limit, offset],
-    );
-
-    return result.rows.map((row) => this.mapProductRow(row));
+    return row ? this.mapProductRow(row) : null;
   }
 
   async findAllWithVariants(
@@ -166,36 +162,25 @@ export class PostgresProductRepository implements ProductRepository {
 
     const result = await client.query<ProductDetailsRow>(
       `
-        SELECT p.id,
-               p.name,
-               p.is_deleted,
-               p.created_at,
-               p.updated_at,
-               p.deleted_at,
-               pv.id         AS variant_id,
-               pv.color,
-               pv.size,
-               pv.price,
-               pv.quantity,
-               pv.is_deleted AS variant_is_deleted,
-               pv.created_at AS variant_created_at,
-               pv.updated_at AS variant_updated_at,
-               pv.deleted_at AS variant_deleted_at,
-               pvm.id         AS media_id,
-               pvm.type       AS media_type,
-               pvm.url        AS media_url,
-               pvm.alt        AS media_alt,
-               pvm.sort_order AS media_sort_order,
-               pvm.is_primary AS media_is_primary,
-               pvm.created_at AS media_created_at,
-               pvm.updated_at AS media_updated_at
+        SELECT p.*,
+               pv.id          AS "variantId",
+               pv.price_eur   AS "variantPriceEur",
+               pv.quantity    AS "variantQuantity",
+               pv.attributes  AS "variantAttributes",
+               pv.is_deleted  AS "variantIsDeleted",
+               pv.created_at  AS "variantCreatedAt",
+               pv.updated_at  AS "variantUpdatedAt",
+               pv.deleted_at  AS "variantDeletedAt",
+               pvm.id         AS "mediaId",
+               pvm.type       AS "mediaType",
+               pvm.url        AS "mediaUrl",
+               pvm.alt        AS "mediaAlt",
+               pvm.sort_order AS "mediaSortOrder",
+               pvm.is_primary AS "mediaIsPrimary",
+               pvm.created_at AS "mediaCreatedAt",
+               pvm.updated_at AS "mediaUpdatedAt"
         FROM (
-               SELECT id,
-                      name,
-                      is_deleted,
-                      created_at,
-                      updated_at,
-                      deleted_at
+               SELECT ${PRODUCT_COLUMNS}
                FROM products
                WHERE is_deleted = FALSE
                ORDER BY id
@@ -217,25 +202,47 @@ export class PostgresProductRepository implements ProductRepository {
   async update(
     client: PoolClient,
     id: number,
-    data: UpdateProductData,
+    data: UpdateProductRecord,
   ): Promise<Product | null> {
-    const result = await client.query(
-      `
-        UPDATE products
-        SET name       = COALESCE($1, name),
-            updated_at = NOW()
-        WHERE id = $2
-          AND is_deleted = FALSE
-        RETURNING id, name, is_deleted, created_at, updated_at, deleted_at
-      `,
-      [data.name, id],
-    );
+    const fields: string[] = [];
+    const values: unknown[] = [];
 
-    if (result.rows.length > 0) {
-      return this.mapProductRow(result.rows[0]);
+    if (data.title !== undefined) {
+      values.push(data.title);
+      fields.push(`title = $${values.length}`);
     }
 
-    return null;
+    if (data.description !== undefined) {
+      values.push(data.description);
+      fields.push(`description = $${values.length}`);
+    }
+
+    if (data.attributes !== undefined) {
+      values.push(data.attributes);
+      fields.push(`attributes = $${values.length}`);
+    }
+
+    if (fields.length === 0) {
+      return this.findById(id, client);
+    }
+
+    fields.push("updated_at = NOW()");
+    values.push(id);
+
+    const result = await client.query<Product>(
+      `
+        UPDATE products
+        SET ${fields.join(", ")}
+        WHERE id = $${values.length}
+          AND is_deleted = FALSE
+        RETURNING ${PRODUCT_COLUMNS}
+      `,
+      values,
+    );
+
+    const row = result.rows[0];
+
+    return row ? this.mapProductRow(row) : null;
   }
 
   async delete(client: PoolClient, id: number): Promise<boolean> {

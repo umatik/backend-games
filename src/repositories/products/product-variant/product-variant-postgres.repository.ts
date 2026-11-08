@@ -23,11 +23,10 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
     return {
       id: Number(row.id),
       productId: Number(row.productId),
-      color: row.color,
-      size: row.size,
-      media: [],
-      price: Number(row.price),
+      priceEur: Number(row.priceEur),
       quantity: Number(row.quantity),
+      attributes: row.attributes,
+      media: [],
       isDeleted: row.isDeleted,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -63,25 +62,23 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
       `
         INSERT INTO product_variants (
           product_id,
-          color,
-          size,
-          price,
-          quantity
+          price_eur,
+          quantity,
+          attributes
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4)
         RETURNING
           id,
           product_id AS "productId",
-          color,
-          size,
-          price,
+          price_eur AS "priceEur",
           quantity,
+          attributes,
           is_deleted AS "isDeleted",
           created_at AS "createdAt",
           updated_at AS "updatedAt",
           deleted_at AS "deletedAt"
       `,
-      [data.productId, data.color, data.size, data.price, data.quantity],
+      [data.productId, data.priceEur, data.quantity, data.attributes],
     );
 
     const variant = result.rows[0];
@@ -102,10 +99,9 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         SELECT
           pv.id,
           pv.product_id AS "productId",
-          pv.color,
-          pv.size,
-          pv.price,
+          pv.price_eur AS "priceEur",
           pv.quantity,
+          pv.attributes,
           pv.is_deleted AS "isDeleted",
           pv.created_at AS "createdAt",
           pv.updated_at AS "updatedAt",
@@ -162,10 +158,9 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         SELECT
           pv.id,
           pv.product_id AS "productId",
-          pv.color,
-          pv.size,
-          pv.price,
+          pv.price_eur AS "priceEur",
           pv.quantity,
+          pv.attributes,
           pv.is_deleted AS "isDeleted",
           pv.created_at AS "createdAt",
           pv.updated_at AS "updatedAt",
@@ -226,19 +221,14 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
     const fields: string[] = [];
     const values: unknown[] = [];
 
-    if (data.color !== undefined) {
-      fields.push(`color = $${values.length + 1}`);
-      values.push(data.color);
+    if (data.priceEur !== undefined) {
+      fields.push(`price_eur = $${values.length + 1}`);
+      values.push(data.priceEur);
     }
 
-    if (data.size !== undefined) {
-      fields.push(`size = $${values.length + 1}`);
-      values.push(data.size);
-    }
-
-    if (data.price !== undefined) {
-      fields.push(`price = $${values.length + 1}`);
-      values.push(data.price);
+    if (data.attributes !== undefined) {
+      fields.push(`attributes = $${values.length + 1}`);
+      values.push(data.attributes);
     }
 
     if (data.quantity !== undefined) {
@@ -263,10 +253,9 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
         RETURNING
           id,
           product_id AS "productId",
-          color,
-          size,
-          price,
+          price_eur AS "priceEur",
           quantity,
+          attributes,
           is_deleted AS "isDeleted",
           created_at AS "createdAt",
           updated_at AS "updatedAt",

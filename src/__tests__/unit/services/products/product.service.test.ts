@@ -1,17 +1,67 @@
 import { beforeEach, describe, jest, it, expect } from "@jest/globals";
 import type { PoolClient } from "pg";
-import { ProductService } from "../../../../services/product.service.js";
-import type { Cache } from "../../../../cache/cache.interface.js";
-import type { ProductDetails } from "../../../../types/product.types.js";
-import type { Database } from "../../../../database/database.interface.js";
-import type { ProductRepository } from "../../../../repositories/products/product/product.interface.js";
-import type { ProductVariantRepository } from "../../../../repositories/products/product-variant/product-variant.interface.js";
-import type { ProductVariantMediaInterface } from "../../../../repositories/products/product-media/product-variant-media.interface.js";
+import { ProductService } from "@/services/product.service.js";
+import type { Cache } from "@/cache/cache.interface.js";
+import type { Product, ProductDetails } from "@/types/product.types.js";
+import type { ProductVariant } from "@/types/product-variant.types.js";
+import type { Database } from "@/database/database.interface.js";
+import type { ProductRepository } from "@/repositories/products/product/product.interface.js";
+import type { ProductVariantRepository } from "@/repositories/products/product-variant/product-variant.interface.js";
+import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import { ProductVariantNotFoundError } from "@/errors/product-variant-not-found.error.js";
+import { ValidationError } from "@/errors/validation.error.js";
 
 const mockClient = {
   query: jest.fn(),
   release: jest.fn(),
 };
+
+const client = mockClient as unknown as PoolClient;
+
+const now = new Date("2026-01-01T00:00:00.000Z");
+
+const vinylAttributes = {
+  artists: ["Bunnington Judah", "Zulu Vibes"],
+  tracklist: [],
+  previewLinks: [],
+};
+
+const vinylVariantAttributes = {
+  format: '7"',
+  mediaCondition: "NM",
+  sleeveCondition: "generic",
+};
+
+const makeProduct = (overrides: Partial<Product> = {}): Product => ({
+  id: 1,
+  type: "vinyl",
+  title: "Jah Prophecy",
+  slug: "bunnington-judah-zulu-vibes-jah-prophecy-1",
+  description: null,
+  isPublished: false,
+  attributes: vinylAttributes,
+  isDeleted: false,
+  createdAt: now,
+  updatedAt: now,
+  deletedAt: null,
+  ...overrides,
+});
+
+const makeVariant = (overrides: Partial<ProductVariant> = {}): ProductVariant => ({
+  id: 1,
+  productId: 1,
+  priceEur: 1500,
+  quantity: 1,
+  attributes: vinylVariantAttributes,
+  media: [],
+  isDeleted: false,
+  createdAt: now,
+  updatedAt: now,
+  deletedAt: null,
+  ...overrides,
+});
+
+const queries = () => mockClient.query.mock.calls.map((call) => call[0]);
 
 describe("ProductService", () => {
   let productService: ProductService;
@@ -33,7 +83,6 @@ describe("ProductService", () => {
     productRepository = {
       create: jest.fn(),
       findById: jest.fn(),
-      findAll: jest.fn(),
       findAllWithVariants: jest.fn(),
       countAll: jest.fn(),
       update: jest.fn(),
@@ -78,814 +127,353 @@ describe("ProductService", () => {
     );
   });
 
-  it("should create a product", async () => {
-    const data = {
-      name: "Test Product",
-      variants: [
-        {
-          color: "Black",
-          size: "M",
-          price: 100,
-          quantity: 10,
-        },
-      ],
-    };
+  describe("createProduct", () => {
+    it("should create a vinyl with validated attributes, slug base and variants", async () => {
+      productRepository.create.mockResolvedValue(makeProduct());
+      productVariantRepository.create.mockResolvedValue(makeVariant());
 
-    productRepository.create.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
+      const result = await productService.createProduct({
+        type: "vinyl",
+        title: "Jah Prophecy",
+        attributes: { artists: ["Bunnington Judah", "Zulu Vibes"] },
+        variants: [
+          { priceEur: 1500, quantity: 1, attributes: vinylVariantAttributes },
+        ],
+      });
 
-    const result = await productService.createProduct(data);
-
-    expect(result).toEqual({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-      deleted_at: null,
-    });
-
-    expect(productRepository.create).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      {
-        name: "Test Product",
-      },
-    );
-
-    expect(productVariantRepository.create).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      {
+      expect(productRepository.create).toHaveBeenCalledWith(client, {
+        type: "vinyl",
+        title: "Jah Prophecy",
+        description: null,
+        attributes: vinylAttributes,
+        slugBase: "bunnington-judah-zulu-vibes-jah-prophecy",
+      });
+      expect(productVariantRepository.create).toHaveBeenCalledWith(client, {
         productId: 1,
-        color: "Black",
-        size: "M",
-        price: 100,
-        quantity: 10,
-      },
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-  });
-
-  it("should commit transaction after creating product", async () => {
-    const data = {
-      name: "Test Product",
-      variants: [],
-    };
-
-    productRepository.create.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
+        priceEur: 1500,
+        quantity: 1,
+        attributes: vinylVariantAttributes,
+      });
+      expect(result.variants).toHaveLength(1);
+      expect(queries()).toEqual(["BEGIN", "COMMIT"]);
+      expect(cache.clear).toHaveBeenCalled();
+      expect(mockClient.release).toHaveBeenCalled();
     });
 
-    await productService.createProduct(data);
+    it("should build the slug from the title only for types without slug parts", async () => {
+      productRepository.create.mockResolvedValue(
+        makeProduct({ type: "other", attributes: {} }),
+      );
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback transaction when product creation fails", async () => {
-    const data = {
-      name: "Test Product",
-      variants: [],
-    };
-
-    productRepository.create.mockRejectedValue(new Error("DB error"));
-
-    await expect(productService.createProduct(data)).rejects.toThrow(
-      "DB error",
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback transaction when variant creation fails", async () => {
-    const data = {
-      name: "Test Product",
-      variants: [
-        {
-          color: "Black",
-          size: "M",
-          price: 100,
-          quantity: 10,
-        },
-      ],
-    };
-
-    productRepository.create.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.create.mockRejectedValue(
-      new Error("Variant DB error"),
-    );
-
-    await expect(productService.createProduct(data)).rejects.toThrow(
-      "Variant DB error",
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should update a product", async () => {
-    const data = {
-      name: "Updated Product",
-    };
-
-    productRepository.update.mockResolvedValue({
-      id: 1,
-      name: "Updated Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    const result = await productService.updateProduct(1, data);
-
-    expect(result).toEqual({
-      id: 1,
-      name: "Updated Product",
-      is_deleted: false,
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-      deleted_at: null,
-    });
-
-    expect(productRepository.update).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      data,
-    );
-  });
-
-  it("should return null when product does not exist", async () => {
-    productRepository.update.mockResolvedValue(null);
-
-    const result = await productService.updateProduct(999, {
-      name: "Updated Product",
-    });
-
-    expect(result).toBeNull();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should update a product variant", async () => {
-    const data = {
-      variants: [
-        {
-          id: 1,
-          color: "Red",
-          size: "L",
-          price: 150,
-          quantity: 20,
-        },
-      ],
-    };
-
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    productVariantRepository.update.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Red",
-      size: "L",
-      media: [],
-      price: 150,
-      quantity: 20,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    productVariantRepository.findByProductId.mockResolvedValue([
-      {
-        id: 1,
-        productId: 1,
-        color: "Red",
-        size: "L",
-        media: [],
-        price: 150,
-        quantity: 20,
-        isDeleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
-    ]);
-
-    await productService.updateProduct(1, data);
-
-    expect(productVariantRepository.update).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      {
-        color: "Red",
-        size: "L",
-        price: 150,
-        quantity: 20,
-      },
-    );
-  });
-
-  it("should create a new product variant during product update", async () => {
-    const data = {
-      variants: [
-        {
-          color: "Blue",
-          size: "XL",
-          price: 200,
-          quantity: 30,
-        },
-      ],
-    };
-
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.create.mockResolvedValue({
-      id: 2,
-      productId: 1,
-      color: "Blue",
-      size: "XL",
-      media: [],
-      price: 200,
-      quantity: 30,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    productVariantRepository.findByProductId.mockResolvedValue([
-      {
-        id: 2,
-        productId: 1,
-        color: "Blue",
-        size: "XL",
-        media: [],
-        price: 200,
-        quantity: 30,
-        isDeleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
-    ]);
-
-    await productService.updateProduct(1, data);
-
-    expect(productVariantRepository.create).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      {
-        productId: 1,
-        color: "Blue",
-        size: "XL",
-        price: 200,
-        quantity: 30,
-      },
-    );
-  });
-
-  it("should rollback when product variant does not exist", async () => {
-    const data = {
-      variants: [
-        {
-          id: 999,
-          color: "Red",
-          size: "L",
-          price: 150,
-          quantity: 20,
-        },
-      ],
-    };
-
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.findById.mockResolvedValue(null);
-
-    await expect(productService.updateProduct(1, data)).rejects.toThrow(
-      "Product variant 999 not found",
-    );
-
-    expect(productVariantRepository.update).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback when product variant belongs to another product", async () => {
-    const data = {
-      variants: [
-        {
-          id: 1,
-          color: "Red",
-          size: "L",
-          price: 150,
-          quantity: 20,
-        },
-      ],
-    };
-
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 2,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    await expect(productService.updateProduct(1, data)).rejects.toThrow(
-      "Product variant 1 not found",
-    );
-
-    expect(productVariantRepository.update).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should update a product variant with empty update data", async () => {
-    const data = {
-      variants: [
-        {
-          id: 1,
-        },
-      ],
-    };
-
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    productVariantRepository.update.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    productVariantRepository.findByProductId.mockResolvedValue([
-      {
-        id: 1,
-        productId: 1,
-        color: "Black",
-        size: "M",
-        media: [],
-        price: 100,
-        quantity: 10,
-        isDeleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
-    ]);
-
-    await productService.updateProduct(1, data);
-
-    expect(productVariantRepository.update).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      {},
-    );
-  });
-
-  it("should get a product with variants", async () => {
-    productRepository.findById.mockResolvedValue({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      deleted_at: null,
-    });
-
-    productVariantRepository.findByProductId.mockResolvedValue([
-      {
-        id: 1,
-        productId: 1,
-        color: "Black",
-        size: "M",
-        media: [],
-        price: 100,
-        quantity: 10,
-        isDeleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null,
-      },
-    ]);
-
-    const result = await productService.getProduct(1);
-
-    expect(result).toEqual({
-      id: 1,
-      name: "Test Product",
-      is_deleted: false,
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-      deleted_at: null,
-      variants: [
-        {
-          id: 1,
-          productId: 1,
-          color: "Black",
-          size: "M",
-          media: [],
-          price: 100,
-          quantity: 10,
-          isDeleted: false,
-          createdAt: expect.any(Date),
-          updatedAt: expect.any(Date),
-          deletedAt: null,
-        },
-      ],
-    });
-
-    expect(productRepository.findById).toHaveBeenCalledWith(
-      1,
-      mockClient as unknown as PoolClient,
-    );
-
-    expect(productVariantRepository.findByProductId).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-    );
-
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should return null when getting a product that does not exist", async () => {
-    productRepository.findById.mockResolvedValue(null);
-
-    const result = await productService.getProduct(999);
-
-    expect(result).toBeNull();
-
-    expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
-    expect(mockPool.connect).toHaveBeenCalledTimes(1);
-  });
-
-  it("should load products from database on cache miss", async () => {
-    const products: ProductDetails[] = [
-      {
-        id: 1,
-        name: "Product 1",
-        is_deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
+      await productService.createProduct({
+        type: "other",
+        title: "Krzyż etiopski – mosiądz",
+        attributes: {},
         variants: [],
-      },
-    ];
+      });
 
-    cache.get.mockResolvedValue(null);
-    productRepository.findAllWithVariants.mockResolvedValue(products);
-    productRepository.countAll.mockResolvedValue(87);
-
-    const result = await productService.getAllProducts(2, 10);
-
-    expect(result).toEqual({
-      products,
-      total: 87,
+      expect(productRepository.create).toHaveBeenCalledWith(
+        client,
+        expect.objectContaining({ slugBase: "krzyz-etiopski-mosiadz" }),
+      );
     });
 
-    expect(cache.get).toHaveBeenCalledWith("products:page=2:limit=10");
-
-    expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      2,
-      10,
-    );
-
-    expect(productRepository.countAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-    );
-
-    expect(cache.set).toHaveBeenCalledWith(
-      "products:page=2:limit=10",
-      {
-        products,
-        total: 87,
-      },
-      60,
-    );
-  });
-
-  it("should return products from cache on cache hit", async () => {
-    const cachedResult = {
-      products: [
-        {
-          id: 1,
-          name: "Cached Product",
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          deleted_at: null,
+    it("should reject invalid product attributes before opening a connection", async () => {
+      await expect(
+        productService.createProduct({
+          type: "vinyl",
+          title: "No Artists",
+          attributes: {},
           variants: [],
-        },
-      ],
-      total: 87,
-    };
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
 
-    cache.get.mockResolvedValue(cachedResult);
-
-    const result = await productService.getAllProducts(2, 10);
-
-    expect(result).toBe(cachedResult);
-
-    expect(cache.get).toHaveBeenCalledWith("products:page=2:limit=10");
-
-    expect(productRepository.findAllWithVariants).not.toHaveBeenCalled();
-    expect(productRepository.countAll).not.toHaveBeenCalled();
-    expect(mockPool.connect).not.toHaveBeenCalled();
-    expect(cache.set).not.toHaveBeenCalled();
-  });
-
-  it("should return empty products with total", async () => {
-    productRepository.findAllWithVariants.mockResolvedValue([]);
-    productRepository.countAll.mockResolvedValue(0);
-
-    const result = await productService.getAllProducts(1, 20);
-
-    expect(result).toEqual({
-      products: [],
-      total: 0,
+      expect(mockPool.connect).not.toHaveBeenCalled();
     });
 
-    expect(productRepository.findAllWithVariants).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-      20,
-    );
+    it("should report the variant index in validation errors", async () => {
+      const error = await productService
+        .createProduct({
+          type: "tshirt",
+          title: "Lion T-Shirt",
+          attributes: {},
+          variants: [
+            { priceEur: 2500, quantity: 1, attributes: { color: "Black", size: "M" } },
+            { priceEur: 2500, quantity: 1, attributes: { color: "Black" } },
+          ],
+        })
+        .catch((caught: unknown) => caught);
 
-    expect(productRepository.countAll).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-    );
-
-    expect(mockPool.connect).toHaveBeenCalledTimes(1);
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should delete a product variant", async () => {
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).errors).toEqual([
+        expect.objectContaining({ path: "variants.1.attributes.size" }),
+      ]);
     });
 
-    productVariantRepository.delete.mockResolvedValue(true);
-
-    const result = await productService.deleteProductVariant(1, 1);
-
-    expect(result).toBe(true);
-
-    expect(productVariantRepository.findById).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-    );
-
-    expect(productVariantRepository.delete).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-    );
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should return false when product variant does not exist", async () => {
-    productVariantRepository.findById.mockResolvedValue(null);
-
-    const result = await productService.deleteProductVariant(1, 999);
-
-    expect(result).toBe(false);
-
-    expect(productVariantRepository.delete).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should return false when product variant belongs to another product", async () => {
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 2,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
+    it("should reject an unknown product type", async () => {
+      await expect(
+        productService.createProduct({
+          type: "cassette",
+          title: "Tape",
+          attributes: {},
+          variants: [],
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
     });
 
-    const result = await productService.deleteProductVariant(1, 1);
+    it("should rollback when product creation fails", async () => {
+      productRepository.create.mockRejectedValue(new Error("Database error"));
 
-    expect(result).toBe(false);
+      await expect(
+        productService.createProduct({
+          type: "other",
+          title: "Pendant",
+          attributes: {},
+          variants: [],
+        }),
+      ).rejects.toThrow("Database error");
 
-    expect(productVariantRepository.delete).not.toHaveBeenCalled();
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
-  });
-
-  it("should rollback when deleting product variant fails", async () => {
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+      expect(cache.clear).not.toHaveBeenCalled();
+      expect(mockClient.release).toHaveBeenCalled();
     });
 
-    productVariantRepository.delete.mockResolvedValue(false);
+    it("should rollback when variant creation fails", async () => {
+      productRepository.create.mockResolvedValue(
+        makeProduct({ type: "other", attributes: {} }),
+      );
+      productVariantRepository.create.mockRejectedValue(
+        new Error("Variant error"),
+      );
 
-    const result = await productService.deleteProductVariant(1, 1);
+      await expect(
+        productService.createProduct({
+          type: "other",
+          title: "Pendant",
+          attributes: {},
+          variants: [{ priceEur: 1200, quantity: 1, attributes: {} }],
+        }),
+      ).rejects.toThrow("Variant error");
 
-    expect(result).toBe(false);
-
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
   });
 
-  it("should rollback transaction when deleting product variant throws", async () => {
-    productVariantRepository.findById.mockResolvedValue({
-      id: 1,
-      productId: 1,
-      color: "Black",
-      size: "M",
-      media: [],
-      price: 100,
-      quantity: 10,
-      isDeleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
+  describe("updateProduct", () => {
+    it("should update the title and description", async () => {
+      const product = makeProduct({ title: "New Title", description: "Notes" });
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(product);
+      productVariantRepository.findByProductId.mockResolvedValue([]);
+
+      const result = await productService.updateProduct(1, {
+        title: "New Title",
+        description: "Notes",
+      });
+
+      expect(productRepository.update).toHaveBeenCalledWith(client, 1, {
+        title: "New Title",
+        description: "Notes",
+        attributes: undefined,
+      });
+      expect(result).toEqual({ ...product, variants: [] });
+      expect(queries()).toEqual(["BEGIN", "COMMIT"]);
+      expect(cache.clear).toHaveBeenCalled();
     });
 
-    productVariantRepository.delete.mockRejectedValue(new Error("DB error"));
+    it("should validate attributes against the stored product type", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
 
-    await expect(productService.deleteProductVariant(1, 1)).rejects.toThrow(
-      "DB error",
-    );
+      await expect(
+        productService.updateProduct(1, { attributes: { artists: [] } }),
+      ).rejects.toBeInstanceOf(ValidationError);
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+      expect(productRepository.update).not.toHaveBeenCalled();
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should return null when the product does not exist", async () => {
+      productRepository.findById.mockResolvedValue(null);
+
+      const result = await productService.updateProduct(999, { title: "X" });
+
+      expect(result).toBeNull();
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should update an existing variant", async () => {
+      const updatedAttributes = { ...vinylVariantAttributes, mediaCondition: "VG+" };
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(makeProduct());
+      productVariantRepository.findById.mockResolvedValue(makeVariant());
+      productVariantRepository.findByProductId.mockResolvedValue([
+        makeVariant({ priceEur: 1000, attributes: updatedAttributes }),
+      ]);
+
+      await productService.updateProduct(1, {
+        variants: [{ id: 1, priceEur: 1000, attributes: updatedAttributes }],
+      });
+
+      expect(productVariantRepository.update).toHaveBeenCalledWith(client, 1, {
+        priceEur: 1000,
+        quantity: undefined,
+        attributes: updatedAttributes,
+      });
+    });
+
+    it("should create a new variant with default quantity", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(makeProduct());
+      productVariantRepository.findByProductId.mockResolvedValue([]);
+
+      await productService.updateProduct(1, {
+        variants: [{ priceEur: 2000, attributes: vinylVariantAttributes }],
+      });
+
+      expect(productVariantRepository.create).toHaveBeenCalledWith(client, {
+        productId: 1,
+        priceEur: 2000,
+        quantity: 1,
+        attributes: vinylVariantAttributes,
+      });
+    });
+
+    it("should require type-specific fields for a new variant without attributes", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(makeProduct());
+
+      await expect(
+        productService.updateProduct(1, { variants: [{ priceEur: 2000 }] }),
+      ).rejects.toBeInstanceOf(ValidationError);
+
+      expect(productVariantRepository.create).not.toHaveBeenCalled();
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should rollback when the variant does not exist", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(makeProduct());
+      productVariantRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        productService.updateProduct(1, { variants: [{ id: 99, quantity: 2 }] }),
+      ).rejects.toBeInstanceOf(ProductVariantNotFoundError);
+
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should rollback when the variant belongs to another product", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.update.mockResolvedValue(makeProduct());
+      productVariantRepository.findById.mockResolvedValue(
+        makeVariant({ productId: 2 }),
+      );
+
+      await expect(
+        productService.updateProduct(1, { variants: [{ id: 1, quantity: 2 }] }),
+      ).rejects.toBeInstanceOf(ProductVariantNotFoundError);
+
+      expect(productVariantRepository.update).not.toHaveBeenCalled();
+    });
   });
 
-  it("should delete a product", async () => {
-    productRepository.delete.mockResolvedValue(true);
+  describe("getProduct", () => {
+    it("should get a product with variants", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productVariantRepository.findByProductId.mockResolvedValue([makeVariant()]);
 
-    const result = await productService.deleteProduct(1);
+      const result = await productService.getProduct(1);
 
-    expect(result).toBe(true);
+      expect(result).toEqual({ ...makeProduct(), variants: [makeVariant()] });
+      expect(mockClient.release).toHaveBeenCalled();
+    });
 
-    expect(productRepository.delete).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      1,
-    );
+    it("should return null when the product does not exist", async () => {
+      productRepository.findById.mockResolvedValue(null);
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "COMMIT");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+      expect(await productService.getProduct(999)).toBeNull();
+      expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
+    });
   });
 
-  it("should return false when product deletion fails", async () => {
-    productRepository.delete.mockResolvedValue(false);
+  describe("getAllProducts", () => {
+    it("should load products from the database on cache miss", async () => {
+      const products = [{ ...makeProduct(), variants: [] }];
+      cache.get.mockResolvedValue(null);
+      productRepository.findAllWithVariants.mockResolvedValue(products);
+      productRepository.countAll.mockResolvedValue(1);
 
-    const result = await productService.deleteProduct(999);
+      const result = await productService.getAllProducts(1, 20);
 
-    expect(result).toBe(false);
+      expect(result).toEqual({ products, total: 1 });
+      expect(cache.set).toHaveBeenCalledWith(
+        "products:page=1:limit=20",
+        { products, total: 1 },
+        60,
+      );
+    });
 
-    expect(productRepository.delete).toHaveBeenCalledWith(
-      mockClient as unknown as PoolClient,
-      999,
-    );
+    it("should return products from cache on cache hit", async () => {
+      const cached = { products: [{ ...makeProduct(), variants: [] }], total: 1 };
+      cache.get.mockResolvedValue(cached);
 
-    expect(mockClient.query).toHaveBeenNthCalledWith(1, "BEGIN");
-    expect(mockClient.query).toHaveBeenNthCalledWith(2, "ROLLBACK");
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+      const result = await productService.getAllProducts(1, 20);
+
+      expect(result).toBe(cached);
+      expect(mockPool.connect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteProductVariant", () => {
+    it("should delete a product variant", async () => {
+      productVariantRepository.findById.mockResolvedValue(makeVariant());
+      productVariantRepository.delete.mockResolvedValue(true);
+
+      expect(await productService.deleteProductVariant(1, 1)).toBe(true);
+      expect(queries()).toEqual(["BEGIN", "COMMIT"]);
+      expect(cache.clear).toHaveBeenCalled();
+    });
+
+    it("should return false when the variant does not exist", async () => {
+      productVariantRepository.findById.mockResolvedValue(null);
+
+      expect(await productService.deleteProductVariant(1, 99)).toBe(false);
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should return false when the variant belongs to another product", async () => {
+      productVariantRepository.findById.mockResolvedValue(
+        makeVariant({ productId: 2 }),
+      );
+
+      expect(await productService.deleteProductVariant(1, 1)).toBe(false);
+      expect(productVariantRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it("should rollback when deleting throws", async () => {
+      productVariantRepository.findById.mockResolvedValue(makeVariant());
+      productVariantRepository.delete.mockRejectedValue(new Error("Delete error"));
+
+      await expect(productService.deleteProductVariant(1, 1)).rejects.toThrow(
+        "Delete error",
+      );
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+  });
+
+  describe("deleteProduct", () => {
+    it("should delete a product", async () => {
+      productRepository.delete.mockResolvedValue(true);
+
+      expect(await productService.deleteProduct(1)).toBe(true);
+      expect(cache.clear).toHaveBeenCalled();
+    });
+
+    it("should return false when product deletion fails", async () => {
+      productRepository.delete.mockResolvedValue(false);
+
+      expect(await productService.deleteProduct(1)).toBe(false);
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
   });
 });

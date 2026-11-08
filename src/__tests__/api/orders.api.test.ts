@@ -4,6 +4,12 @@ import app from "@/app.js";
 import { redisClient } from "@/dependency-injection.js";
 import { loginAsAdmin, loginAsUser } from "@/__test-helpers__/auth.js";
 
+const vinylVariant = (mediaCondition = "NM") => ({
+  format: "LP",
+  mediaCondition,
+  sleeveCondition: "NM",
+});
+
 let adminToken: string;
 let userToken: string;
 let userId: number;
@@ -27,12 +33,13 @@ beforeEach(async () => {
     .post("/products")
     .set("Authorization", `Bearer ${adminToken}`)
     .send({
-      name: "API Test Order Product",
+      type: "vinyl",
+      attributes: { artists: ["Test Artist"] },
+      title: "API Test Order Product",
       variants: [
         {
-          color: "Black",
-          size: "M",
-          price: 100,
+          priceEur: 10000,
+          attributes: vinylVariant(),
           quantity: 10,
         },
       ],

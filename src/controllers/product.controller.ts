@@ -1,20 +1,14 @@
-import type {Request, Response} from "express";
-import type {
-  CreateProductData,
-  UpdateProductData,
-} from "../types/product.types.js";
-import {ProductService} from "@/services/product.service.js";
+import type { Request, Response } from "express";
+import { ProductService } from "@/services/product.service.js";
 import {
-  isValidProductName,
-  isValidProductOption,
-  isValidProductPrice,
-  isValidProductQuantity,
-  isValidProductVariantId,
-} from "../validators/product.validator.js";
-import {ProductVariantNotFoundError} from "@/errors/product-variant-not-found.error.js";
-import {parseId} from "@/validators/helpers/id.validator.js";
-import {createPagination} from "@/utils/pagination.js";
-import {isValidPagination} from "@/validators/helpers/pagination.validator.js";
+  createProductSchema,
+  updateProductSchema,
+} from "@/validators/product.validator.js";
+import { ProductVariantNotFoundError } from "@/errors/product-variant-not-found.error.js";
+import { parseId } from "@/validators/helpers/id.validator.js";
+import { formatZodIssues } from "@/validators/helpers/zod.js";
+import { createPagination } from "@/utils/pagination.js";
+import { isValidPagination } from "@/validators/helpers/pagination.validator.js";
 
 export class ProductController {
   private productService: ProductService;
@@ -34,18 +28,17 @@ export class ProductController {
       return;
     }
 
-    const {products, total} = await this.productService.getAllProducts(
+    const { products, total } = await this.productService.getAllProducts(
       page,
       limit,
     );
-
 
     res.status(200).json({
       message: "Products found",
       products,
       pagination: createPagination(page, limit, total),
     });
-  }
+  };
 
   getProduct = async (req: Request, res: Response) => {
     const productId = parseId(req.params.id);
@@ -73,64 +66,18 @@ export class ProductController {
   };
 
   createProduct = async (req: Request, res: Response) => {
-    const {name, variants} = req.body;
+    const parsed = createProductSchema.safeParse(req.body);
 
-    if (!isValidProductName(name)) {
+    if (!parsed.success) {
       res.status(400).json({
-        message: "Invalid product name",
+        message: "Invalid product data",
+        errors: formatZodIssues(parsed.error),
       });
 
       return;
     }
 
-    if (!Array.isArray(variants)) {
-      res.status(400).json({
-        message: "Variants must be an array",
-      });
-
-      return;
-    }
-
-    for (const variant of variants) {
-      if (!isValidProductOption(variant.color)) {
-        res.status(400).json({
-          message: "Variant color must be a non-empty string or null",
-        });
-
-        return;
-      }
-
-      if (!isValidProductOption(variant.size)) {
-        res.status(400).json({
-          message: "Variant size must be a non-empty string or null",
-        });
-
-        return;
-      }
-
-      if (!isValidProductPrice(variant.price)) {
-        res.status(400).json({
-          message: "Variant price must be a non-negative number",
-        });
-
-        return;
-      }
-
-      if (!isValidProductQuantity(variant.quantity)) {
-        res.status(400).json({
-          message: "Variant quantity must be a non-negative integer",
-        });
-
-        return;
-      }
-    }
-
-    const productData: CreateProductData = {
-      name,
-      variants,
-    };
-
-    const product = await this.productService.createProduct(productData);
+    const product = await this.productService.createProduct(parsed.data);
 
     res.status(201).json({
       message: "Product created",
@@ -139,7 +86,7 @@ export class ProductController {
   };
 
   updateProduct = async (req: Request, res: Response) => {
-    const id: number | null = parseId(req.params.id);
+    const id = parseId(req.params.id);
 
     if (id === null) {
       res.status(400).json({
@@ -148,114 +95,19 @@ export class ProductController {
       return;
     }
 
-    const {name, variants} = req.body;
+    const parsed = updateProductSchema.safeParse(req.body);
 
-    if (name === undefined && variants === undefined) {
+    if (!parsed.success) {
       res.status(400).json({
-        message: "At least one field is required",
+        message: "Invalid product data",
+        errors: formatZodIssues(parsed.error),
       });
 
       return;
     }
-
-    if (name !== undefined && !isValidProductName(name)) {
-      res.status(400).json({
-        message: "Name must be a non-empty string",
-      });
-
-      return;
-    }
-
-    if (variants !== undefined && !Array.isArray(variants)) {
-      res.status(400).json({
-        message: "Variants must be an array",
-      });
-
-      return;
-    }
-
-    if (variants !== undefined) {
-      for (const variant of variants) {
-        if (variant.id !== undefined && !isValidProductVariantId(variant.id)) {
-          res.status(400).json({
-            message: "Variant id must be a positive integer",
-          });
-
-          return;
-        }
-
-        if (
-          variant.color !== undefined &&
-          !isValidProductOption(variant.color)
-        ) {
-          res.status(400).json({
-            message: "Variant color must be a non-empty string or null",
-          });
-
-          return;
-        }
-
-        if (variant.size !== undefined && !isValidProductOption(variant.size)) {
-          res.status(400).json({
-            message: "Variant size must be a non-empty string or null",
-          });
-
-          return;
-        }
-
-        if (variant.id === undefined) {
-          if (!isValidProductPrice(variant.price)) {
-            res.status(400).json({
-              message:
-                "Variant price is required and must be a non-negative number",
-            });
-
-            return;
-          }
-
-          if (!isValidProductQuantity(variant.quantity)) {
-            res.status(400).json({
-              message:
-                "Variant quantity is required and must be a non-negative integer",
-            });
-
-            return;
-          }
-
-          continue;
-        }
-
-        if (
-          variant.price !== undefined &&
-          !isValidProductPrice(variant.price)
-        ) {
-          res.status(400).json({
-            message: "Variant price must be a non-negative number",
-          });
-
-          return;
-        }
-
-        if (
-          variant.quantity !== undefined &&
-          !isValidProductQuantity(variant.quantity)
-        ) {
-          res.status(400).json({
-            message: "Variant quantity must be a non-negative integer",
-          });
-
-          return;
-        }
-      }
-    }
-
-    const productData: UpdateProductData = {
-      name,
-      variants,
-    };
 
     try {
-      const product = await this.productService.updateProduct(id, productData);
+      const product = await this.productService.updateProduct(id, parsed.data);
 
       if (!product) {
         res.status(404).json({
@@ -283,7 +135,7 @@ export class ProductController {
   };
 
   deleteProduct = async (req: Request, res: Response) => {
-    const id: number | null = parseId(req.params.id);
+    const id = parseId(req.params.id);
 
     if (id === null) {
       res.status(400).json({
@@ -306,13 +158,10 @@ export class ProductController {
   };
 
   deleteProductVariant = async (req: Request, res: Response) => {
-    const productId = Number(req.params.productId);
-    const variantId = Number(req.params.variantId);
+    const productId = parseId(req.params.productId);
+    const variantId = parseId(req.params.variantId);
 
-    if (
-      !isValidProductVariantId(productId) ||
-      !isValidProductVariantId(variantId)
-    ) {
+    if (productId === null || variantId === null) {
       res.status(400).json({
         message: "Product id and variant id must be positive integers",
       });

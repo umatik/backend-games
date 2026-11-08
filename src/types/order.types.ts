@@ -20,11 +20,11 @@ export type OrderItem = {
   id: number;
   productVariantId: number;
   quantity: number;
-  price: number;
+  /** Cena jednostkowa w eurocentach z chwili złożenia zamówienia. */
+  priceEur: number;
   productId: number;
-  productName: string;
-  color: string | null;
-  size: string | null;
+  productTitle: string;
+  variantAttributes: Record<string, unknown>;
 };
 
 export type OrderDetails = Order & {
@@ -40,9 +40,8 @@ export type OrderRow = {
   itemId: number | null;
   productVariantId: number | null;
   quantity: number | null;
-  price: number | null;
+  priceEur: number | null;
   productId: number | null;
-  productName: string;
-  color: string | null;
-  size: string | null;
+  productTitle: string;
+  variantAttributes: Record<string, unknown>;
 };

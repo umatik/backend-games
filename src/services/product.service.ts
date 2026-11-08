@@ -1,6 +1,5 @@
 import type {
   CreateProductData,
-  Product,
   ProductDetails,
   UpdateProductData,
 } from "../types/product.types.js";
@@ -11,6 +10,13 @@ import type { Database } from "../database/database.interface.js";
 import type { ProductRepository } from "../repositories/products/product/product.interface.js";
 import type { ProductVariantRepository } from "../repositories/products/product-variant/product-variant.interface.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import {
+  getProductType,
+  type ProductTypeDefinition,
+} from "@/product-types/index.js";
+import { ValidationError } from "@/errors/validation.error.js";
+import { formatZodIssues } from "@/validators/helpers/zod.js";
+import { slugify } from "@/utils/slugify.js";
 
 export class ProductService {
   constructor(
@@ -24,30 +30,52 @@ export class ProductService {
     private productVariantMediaRepository: ProductVariantMediaInterface,
   ) {}
 
-  async createProduct(data: CreateProductData): Promise<Product> {
+  async createProduct(data: CreateProductData): Promise<ProductDetails> {
+    const type = this.getType(data.type);
+    const attributes = this.parseAttributes(
+      type.productAttributes,
+      data.attributes,
+      "attributes",
+    );
+    const variants = data.variants.map((variant, index) => ({
+      ...variant,
+      attributes: this.parseAttributes(
+        type.variantAttributes,
+        variant.attributes,
+        `variants.${index}.attributes`,
+      ),
+    }));
+
     const client = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
 
       const product = await this.productRepository.create(client, {
-        name: data.name,
+        type: type.key,
+        title: data.title,
+        description: data.description ?? null,
+        attributes,
+        slugBase: this.buildSlugBase(type, data.title, attributes),
       });
 
-      for (const variant of data.variants) {
-        await this.productVariantRepository.create(client, {
-          productId: product.id,
-          color: variant.color,
-          size: variant.size,
-          price: variant.price,
-          quantity: variant.quantity,
-        });
+      const createdVariants = [];
+
+      for (const variant of variants) {
+        createdVariants.push(
+          await this.productVariantRepository.create(client, {
+            productId: product.id,
+            priceEur: variant.priceEur,
+            quantity: variant.quantity,
+            attributes: variant.attributes,
+          }),
+        );
       }
 
       await client.query("COMMIT");
       await this.cache.clear();
 
-      return product;
+      return { ...product, variants: createdVariants };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -65,63 +93,77 @@ export class ProductService {
     try {
       await client.query("BEGIN");
 
-      let product: Product | null;
+      const existingProduct = await this.productRepository.findById(id, client);
 
-      if (data.name !== undefined) {
-        product = await this.productRepository.update(client, id, {
-          name: data.name,
-        });
-      } else {
-        product = await this.productRepository.findById(id, client);
+      if (!existingProduct) {
+        await client.query("ROLLBACK");
+        return null;
       }
+
+      const type = this.getType(existingProduct.type);
+
+      const product = await this.productRepository.update(client, id, {
+        title: data.title,
+        description: data.description,
+        attributes:
+          data.attributes === undefined
+            ? undefined
+            : this.parseAttributes(
+                type.productAttributes,
+                data.attributes,
+                "attributes",
+              ),
+      });
 
       if (!product) {
         await client.query("ROLLBACK");
         return null;
       }
 
-      if (data.variants !== undefined) {
-        for (const variant of data.variants) {
-          if (variant.id !== undefined) {
-            const existingVariant =
-              await this.productVariantRepository.findById(client, variant.id);
+      for (const [index, variant] of (data.variants ?? []).entries()) {
+        const attributes =
+          variant.attributes === undefined
+            ? undefined
+            : this.parseAttributes(
+                type.variantAttributes,
+                variant.attributes,
+                `variants.${index}.attributes`,
+              );
 
-            if (!existingVariant || existingVariant.productId !== product.id) {
-              throw new ProductVariantNotFoundError(variant.id);
-            }
+        if (variant.id !== undefined) {
+          const existingVariant = await this.productVariantRepository.findById(
+            client,
+            variant.id,
+          );
 
-            const variantData: UpdateProductVariantData = {};
-
-            if (variant.color !== undefined) {
-              variantData.color = variant.color;
-            }
-
-            if (variant.size !== undefined) {
-              variantData.size = variant.size;
-            }
-
-            if (variant.price !== undefined) {
-              variantData.price = variant.price;
-            }
-
-            if (variant.quantity !== undefined) {
-              variantData.quantity = variant.quantity;
-            }
-
-            await this.productVariantRepository.update(
-              client,
-              variant.id,
-              variantData,
-            );
-          } else {
-            await this.productVariantRepository.create(client, {
-              productId: product.id,
-              color: variant.color ?? null,
-              size: variant.size ?? null,
-              price: variant.price ?? 0,
-              quantity: variant.quantity ?? 0,
-            });
+          if (!existingVariant || existingVariant.productId !== product.id) {
+            throw new ProductVariantNotFoundError(variant.id);
           }
+
+          const variantData: UpdateProductVariantData = {
+            priceEur: variant.priceEur,
+            quantity: variant.quantity,
+            attributes,
+          };
+
+          await this.productVariantRepository.update(
+            client,
+            variant.id,
+            variantData,
+          );
+        } else {
+          await this.productVariantRepository.create(client, {
+            productId: product.id,
+            priceEur: variant.priceEur ?? 0,
+            quantity: variant.quantity ?? 1,
+            attributes:
+              attributes ??
+              this.parseAttributes(
+                type.variantAttributes,
+                {},
+                `variants.${index}.attributes`,
+              ),
+          });
         }
       }
 
@@ -143,6 +185,48 @@ export class ProductService {
     } finally {
       client.release();
     }
+  }
+
+  private getType(key: string): ProductTypeDefinition {
+    const type = getProductType(key);
+
+    if (!type) {
+      throw new ValidationError("Invalid product data", [
+        { path: "type", message: "Unknown product type" },
+      ]);
+    }
+
+    return type;
+  }
+
+  private parseAttributes(
+    schema: ProductTypeDefinition["productAttributes"],
+    attributes: Record<string, unknown>,
+    path: string,
+  ): Record<string, unknown> {
+    const result = schema.safeParse(attributes);
+
+    if (!result.success) {
+      throw new ValidationError(
+        "Invalid product data",
+        formatZodIssues(result.error).map((issue) => ({
+          ...issue,
+          path: issue.path ? `${path}.${issue.path}` : path,
+        })),
+      );
+    }
+
+    return result.data;
+  }
+
+  private buildSlugBase(
+    type: ProductTypeDefinition,
+    title: string,
+    attributes: Record<string, unknown>,
+  ): string {
+    const parts = [...(type.slugParts?.(attributes) ?? []), title];
+
+    return slugify(parts.join(" ")) || "product";
   }
 
   async getProduct(id: number): Promise<ProductDetails | null> {

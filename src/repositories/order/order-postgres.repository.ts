@@ -51,11 +51,10 @@ export class OrderPostgresRepository implements OrderInterface {
           id: Number(row.itemId),
           productVariantId: Number(row.productVariantId),
           quantity: Number(row.quantity),
-          price: Number(row.price),
+          priceEur: Number(row.priceEur),
           productId: Number(row.productId),
-          productName: row.productName,
-          color: row.color,
-          size: row.size,
+          productTitle: row.productTitle,
+          variantAttributes: row.variantAttributes,
         };
 
         order.items.push(item);
@@ -132,7 +131,7 @@ export class OrderPostgresRepository implements OrderInterface {
           RETURNING
             pv.id,
             pv.product_id,
-            pv.price,
+            pv.price_eur,
             pv.quantity
         `,
         [item.quantity, item.productVariantId],
@@ -158,7 +157,7 @@ export class OrderPostgresRepository implements OrderInterface {
         throw new InsufficientStockError(item.productVariantId);
       }
 
-      const price = Number(stockResult.rows[0].price);
+      const priceEur = Number(stockResult.rows[0].price_eur);
 
       await client.query(
         `
@@ -166,11 +165,11 @@ export class OrderPostgresRepository implements OrderInterface {
             order_id,
             product_variant_id,
             quantity,
-            price
+            price_eur
           )
           VALUES ($1, $2, $3, $4)
         `,
-        [orderId, item.productVariantId, item.quantity, price],
+        [orderId, item.productVariantId, item.quantity, priceEur],
       );
     }
   }
@@ -193,12 +192,11 @@ export class OrderPostgresRepository implements OrderInterface {
                oi.id                 AS "itemId",
                oi.product_variant_id AS "productVariantId",
                oi.quantity,
-               oi.price,
+               oi.price_eur          AS "priceEur",
 
                pv.product_id         AS "productId",
-               p.name                AS "productName",
-               pv.color,
-               pv.size
+               p.title               AS "productTitle",
+               pv.attributes         AS "variantAttributes"
 
         FROM (SELECT id,
                      user_id,
@@ -239,12 +237,11 @@ export class OrderPostgresRepository implements OrderInterface {
                oi.id                 AS "itemId",
                oi.product_variant_id AS "productVariantId",
                oi.quantity,
-               oi.price,
+               oi.price_eur          AS "priceEur",
 
                pv.product_id         AS "productId",
-               p.name                AS "productName",
-               pv.color,
-               pv.size
+               p.title               AS "productTitle",
+               pv.attributes         AS "variantAttributes"
 
         FROM orders o
                JOIN order_items oi
@@ -281,12 +278,11 @@ export class OrderPostgresRepository implements OrderInterface {
                oi.id                 AS "itemId",
                oi.product_variant_id AS "productVariantId",
                oi.quantity,
-               oi.price,
+               oi.price_eur          AS "priceEur",
 
                pv.product_id         AS "productId",
-               p.name                AS "productName",
-               pv.color,
-               pv.size
+               p.title               AS "productTitle",
+               pv.attributes         AS "variantAttributes"
 
         FROM orders o
                JOIN order_items oi

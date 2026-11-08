@@ -4,6 +4,12 @@ import app from "../../app.js";
 import { redisClient } from "../../dependency-injection.js";
 import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
 
+const vinylVariant = (mediaCondition = "NM") => ({
+  format: "LP",
+  mediaCondition,
+  sleeveCondition: "NM",
+});
+
 afterAll(async () => {
   await redisClient.close();
 });
@@ -14,7 +20,7 @@ describe("Products API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.product.id).toBe(50);
-    expect(response.body.product.name).toBeDefined();
+    expect(response.body.product.title).toBeDefined();
     expect(response.body.product.variants).toBeDefined();
   });
 
@@ -101,31 +107,33 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "API Test Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "API Test Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.product.name).toBe("API Test Product");
+    expect(response.body.product.title).toBe("API Test Product");
   });
 
   it("should return 401 when creating a product without authentication", async () => {
     const response = await request(app)
       .post("/products")
       .send({
-        name: "Unauthorized Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Unauthorized Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -140,12 +148,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", "Bearer invalid-token")
       .send({
-        name: "Invalid Token Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Invalid Token Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -162,12 +171,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Forbidden Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Forbidden Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -184,16 +194,16 @@ describe("Products API", () => {
       .patch("/products/50")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Updated Product 50",
+        title: "Updated Product 50",
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.product.name).toBe("Updated Product 50");
+    expect(response.body.product.title).toBe("Updated Product 50");
   });
 
   it("should return 401 when updating a product without authentication", async () => {
     const response = await request(app).patch("/products/50").send({
-      name: "Unauthorized Update",
+      title: "Unauthorized Update",
     });
 
     expect(response.status).toBe(401);
@@ -207,7 +217,7 @@ describe("Products API", () => {
       .patch("/products/50")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Forbidden Update",
+        title: "Forbidden Update",
       });
 
     expect(response.status).toBe(403);
@@ -221,7 +231,7 @@ describe("Products API", () => {
       .patch("/products/999999")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Non Existing Product",
+        title: "Non Existing Product",
       });
 
     expect(response.status).toBe(404);
@@ -311,12 +321,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -332,12 +343,14 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Product Without Variants",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Product Without Variants",
         variants: [],
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.product.name).toBe("Product Without Variants");
+    expect(response.body.product.title).toBe("Product Without Variants");
   });
 
   it("should return 400 when creating a product with invalid price", async () => {
@@ -347,12 +360,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Invalid Price Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Invalid Price Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: -100,
+            priceEur: -10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -368,12 +382,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "Invalid Quantity Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "Invalid Quantity Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: -1,
           },
         ],
@@ -389,12 +404,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "API Variant Update Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "API Variant Update Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -413,18 +429,18 @@ describe("Products API", () => {
         variants: [
           {
             id: variantId,
-            color: "Red",
-            size: "L",
-            price: 150,
+            priceEur: 15000,
+            attributes: vinylVariant("VG+"),
             quantity: 20,
           },
         ],
       });
 
     expect(response.status).toBe(200);
-    expect(response.body.product.variants[0].color).toBe("Red");
-    expect(response.body.product.variants[0].size).toBe("L");
-    expect(response.body.product.variants[0].price).toBe(150);
+    expect(response.body.product.variants[0].attributes.mediaCondition).toBe(
+      "VG+",
+    );
+    expect(response.body.product.variants[0].priceEur).toBe(15000);
     expect(response.body.product.variants[0].quantity).toBe(20);
   });
 
@@ -435,12 +451,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "API Add Variant Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "API Add Variant Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -454,9 +471,8 @@ describe("Products API", () => {
       .send({
         variants: [
           {
-            color: "White",
-            size: "L",
-            price: 200,
+            priceEur: 20000,
+            attributes: vinylVariant(),
             quantity: 15,
           },
         ],
@@ -476,9 +492,8 @@ describe("Products API", () => {
         variants: [
           {
             id: 8,
-            color: "Blue",
-            size: "XL",
-            price: 300,
+            priceEur: 30000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -494,12 +509,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "API Delete Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "API Delete Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
         ],
@@ -526,18 +542,18 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
-        name: "API Delete Variant Product",
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
+        title: "API Delete Variant Product",
         variants: [
           {
-            color: "Black",
-            size: "M",
-            price: 100,
+            priceEur: 10000,
+            attributes: vinylVariant(),
             quantity: 10,
           },
           {
-            color: "White",
-            size: "L",
-            price: 150,
+            priceEur: 15000,
+            attributes: vinylVariant(),
             quantity: 20,
           },
         ],
@@ -591,11 +607,13 @@ describe("Products API", () => {
       .post("/products")
       .set("Authorization", `Bearer ${token}`)
       .send({
+        type: "vinyl",
+        attributes: { artists: ["Test Artist"] },
         variants: [],
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid product name");
+    expect(response.body.message).toBe("Invalid product data");
   });
 
   it("should return 400 when limit exceeds maximum", async () => {
@@ -681,5 +699,233 @@ describe("Products API", () => {
         );
       }
     }
+  });
+});
+
+describe("Products API – product types", () => {
+  it("should return the seeded split 7\" with artists, tracklist and condition note", async () => {
+    const response = await request(app).get("/products/1");
+
+    expect(response.status).toBe(200);
+    expect(response.body.product).toEqual(
+      expect.objectContaining({
+        type: "vinyl",
+        title: "Jah Prophecy",
+        slug: "bunnington-judah-zulu-vibes-jah-prophecy-1",
+        isPublished: true,
+      }),
+    );
+    expect(response.body.product.attributes.artists).toEqual([
+      "Bunnington Judah",
+      "Zulu Vibes",
+    ]);
+
+    const [mint, used] = response.body.product.variants;
+
+    expect(mint.attributes).toEqual(
+      expect.objectContaining({
+        format: '7"',
+        catalogNumber: "ZV-7-006",
+        mediaCondition: "M",
+        sleeveCondition: "generic",
+      }),
+    );
+    expect(used.attributes.conditionNote.pl).toBe("Lekki trzask na stronie B");
+  });
+
+  it("should return the created product with its variants and a generated slug", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "vinyl",
+        title: "Łódź Dub Session",
+        attributes: { artists: ["Zulu Vibes", "Bunnington Judah"] },
+        variants: [
+          {
+            priceEur: 1500,
+            attributes: {
+              format: '7"',
+              speed: 45,
+              catalogNumber: "ZV-7-006",
+              mediaCondition: "NM",
+              sleeveCondition: "generic",
+              conditionNote: { pl: "Bez zarzutu" },
+            },
+          },
+        ],
+      });
+
+    expect(response.status).toBe(201);
+
+    const product = response.body.product;
+
+    expect(product.slug).toBe(
+      `zulu-vibes-bunnington-judah-lodz-dub-session-${product.id}`,
+    );
+    expect(product.isPublished).toBe(false);
+    expect(product.attributes).toEqual({
+      artists: ["Zulu Vibes", "Bunnington Judah"],
+      tracklist: [],
+      previewLinks: [],
+    });
+    expect(product.variants).toHaveLength(1);
+    expect(product.variants[0]).toEqual(
+      expect.objectContaining({
+        priceEur: 1500,
+        quantity: 1,
+        attributes: expect.objectContaining({ catalogNumber: "ZV-7-006" }),
+      }),
+    );
+  });
+
+  it("should create a t-shirt with color and size", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "tshirt",
+        title: "Rasta Lion T-Shirt",
+        variants: [
+          { priceEur: 2500, quantity: 5, attributes: { color: "Black", size: "XL" } },
+        ],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.product.type).toBe("tshirt");
+    expect(response.body.product.variants[0].attributes).toEqual({
+      color: "Black",
+      size: "XL",
+    });
+  });
+
+  it("should return 400 for an unknown product type", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "cassette", title: "Tape" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toEqual([
+      { path: "type", message: "Unknown product type" },
+    ]);
+  });
+
+  it("should return 400 with field paths when vinyl attributes are invalid", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "vinyl",
+        title: "Broken Record",
+        attributes: { artists: [] },
+        variants: [
+          {
+            priceEur: 1000,
+            attributes: { format: "CD", mediaCondition: "Excellent" },
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid product data");
+
+    const paths = response.body.errors.map(
+      (error: { path: string }) => error.path,
+    );
+
+    expect(paths).toContain("attributes.artists");
+  });
+
+  it("should return 400 when variant attributes do not match the product type", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "vinyl",
+        title: "Wrong Variant",
+        attributes: { artists: ["Test Artist"] },
+        variants: [{ priceEur: 1000, attributes: { color: "Black", size: "M" } }],
+      });
+
+    expect(response.status).toBe(400);
+
+    const paths = response.body.errors.map(
+      (error: { path: string }) => error.path,
+    );
+
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "variants.0.attributes.format",
+        "variants.0.attributes.mediaCondition",
+        "variants.0.attributes.sleeveCondition",
+      ]),
+    );
+  });
+
+  it("should return 400 when the request uses the old product fields", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "other", title: "Pendant", name: "Pendant" });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("should return 400 when a price is not given in whole euro cents", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "other", title: "Pendant", variants: [{ priceEur: 12.5 }] });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("should validate attributes against the existing product type on update", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .patch("/products/4")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ variants: [{ id: 7, attributes: { color: "Red" } }] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toEqual([
+      expect.objectContaining({ path: "variants.0.attributes.size" }),
+    ]);
+  });
+
+  it("should update the description and clear it with null", async () => {
+    const token = await loginAsAdmin();
+
+    const updated = await request(app)
+      .patch("/products/5")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ description: "Hand made" });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.product.description).toBe("Hand made");
+
+    const cleared = await request(app)
+      .patch("/products/5")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ description: null });
+
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.product.description).toBeNull();
   });
 });

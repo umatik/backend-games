@@ -1,23 +1,39 @@
 import {afterAll, afterEach, beforeAll} from "@jest/globals";
-import http from "node:http";
 import dotenv from "dotenv";
+import https from "node:https";
+import type { AddressInfo } from "node:net";
+import supertest from "supertest";
 import {resetTestDatabase, seedTestDatabase} from "@/database/test-database.js";
 
 process.env.NODE_ENV = "test";
 
-// Supertest uruchamia serwer przez `listen(0)`, czyli na losowym porcie na wszystkich adresach (`::`), ale łączy się
-// z 127.0.0.1. Jeśli inny program na komputerze słucha akurat na 127.0.0.1 pod tym samym numerem portu,
-// przejmuje połączenie: losowe „socket hang up”, puste 404/503 i 401 w testach. Wiążemy więc serwery testowe
-// bez podanego hosta z 127.0.0.1, gdzie system wybiera port naprawdę wolny.
-const originalListen = http.Server.prototype.listen;
+// Supertest uruchamia serwer przez `listen(0)` (losowy port na `::`, IPv6 + IPv4), ale zawsze łączy się
+// z 127.0.0.1. Jeśli inny program na komputerze słucha na 127.0.0.1 pod tym samym numerem portu (macOS na to
+// pozwala), przejmuje połączenie: losowe „socket hang up”, puste 404/503 i 401 w testach. Gdy serwer słucha na
+// IPv6, łączymy się więc z [::1], gdzie ten port na pewno należy do naszego serwera.
+type ServerLike = {
+  address(): AddressInfo | string | null;
+  listen(port: number): unknown;
+};
 
-http.Server.prototype.listen = function (this: http.Server, ...args: unknown[]) {
-  if (typeof args[0] === "number" && typeof args[1] !== "string") {
-    args.splice(1, 0, "127.0.0.1");
+const SupertestTest = (supertest as unknown as { Test: { prototype: Record<string, unknown> } })
+  .Test;
+
+SupertestTest.prototype.serverAddress = function (
+  this: { _server?: unknown },
+  app: ServerLike,
+  path: string,
+) {
+  if (!app.address()) {
+    this._server = app.listen(0);
   }
 
-  return (originalListen as (...listenArgs: unknown[]) => http.Server).apply(this, args);
-} as typeof http.Server.prototype.listen;
+  const address = app.address() as AddressInfo;
+  const host = address.family === "IPv6" ? "[::1]" : "127.0.0.1";
+  const protocol = app instanceof https.Server ? "https" : "http";
+
+  return `${protocol}://${host}:${address.port}${path}`;
+};
 
 dotenv.config({
   path: ".env.test",

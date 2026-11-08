@@ -130,7 +130,7 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Discogs i Claude zamockowane w testach, bez sieci
 - [ ] Test konwersji audio (`test-audio.wav`)
 - [ ] Nowe tabele w liście TRUNCATE (`test-database.ts`)
-- [ ] **Niestabilny test** w `src/__tests__/api/orders.api.test.ts` (zauważony 2026-11-08): padł 2 razy na 12 pełnych uruchomień `pnpm test`, a przy osobnym uruchomieniu pliku zawsze przechodzi. Nie wiadomo, który test pada ani od kiedy. Podejrzenie: wspólna baza i kolejność testów (`beforeAll` tworzy produkt i zamówienie, `test-setup.ts` czyści bazę po każdym teście). Przy następnym wystąpieniu zapisać nazwę testu i komunikat (uruchomić bez `--silent`).
+- [x] **Niestabilne testy API** (naprawione 2026-11-08): supertest łączył się z 127.0.0.1, a serwer testowy słuchał na `::`, więc inny program na Macu słuchający na 127.0.0.1 pod tym samym portem czasem przejmował połączenie (puste 404/503, „socket hang up”, 401). `test-setup.ts` łączy się teraz przez `[::1]`. Do tego test wgrywania bez logowania czasem kończył się „write EPIPE”, więc wysyła teraz żądanie bez pliku. Wynik: 40 pełnych uruchomień, ostatnie 20 bez porażki.
 
 ## Później (osobne etapy)
 

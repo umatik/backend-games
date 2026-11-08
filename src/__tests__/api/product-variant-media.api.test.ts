@@ -52,12 +52,9 @@ describe("Product Variant Media API", () => {
   });
 
   it("should return 401 when uploading media without authentication", async () => {
-    const response = await request(app)
-      .post("/products/variants/1/media")
-      .attach("file", path.join(uploadDir, "test-photo.jpg"))
-      .field("alt", "Unauthorized")
-      .field("sortOrder", "1")
-      .field("isPrimary", "false");
+    // Bez pliku: serwer odrzuca żądanie już po nagłówkach i zamyka połączenie, więc wysyłany jeszcze formularz
+    // kończył się czasem błędem „write EPIPE” po stronie klienta zamiast odpowiedzią 401.
+    const response = await request(app).post("/products/variants/1/media");
 
     expect(response.status).toBe(401);
     expect(response.body.message).toBe("Authorization header is required");

@@ -1,4 +1,4 @@
-# Ras Bass: API sklepu z płytami
+# API sklepu z płytami
 
 Backend sklepu internetowego z płytami winylowymi (reggae, nowe i używane), z koszulkami i gadżetami.
 Node.js + TypeScript, Express 5, PostgreSQL, Redis.
@@ -36,8 +36,8 @@ pnpm install
 docker compose up -d
 ```
 
-`docker compose` uruchamia PostgreSQL (`:5432`), Redis (`:6379`) i Mailpit, czyli lokalną skrzynkę na maile
-(SMTP `:1025`, podgląd `http://localhost:8025`).
+`docker compose` uruchamia PostgreSQL (`:5432`), Redis (`:6379`) i Mailpit, czyli lokalną skrzynkę na maile (SMTP
+`:1025`, podgląd `http://localhost:8025`).
 
 ```bash
 pnpm migrate
@@ -56,18 +56,18 @@ API działa na `http://localhost:3000`. Konta z danych startowych (hasło `alama
 
 Plik `.env` (nie trafia do repozytorium). Najważniejsze zmienne:
 
-| Zmienna | Do czego |
-|---|---|
-| `DB_*` | Połączenie z PostgreSQL |
-| `JWT_*` | Tokeny logowania |
-| `SMTP_*` | Wysyłka maili (lokalnie Mailpit) |
-| `STORAGE_PATH` | Folder na wgrywane pliki, domyślnie `./uploads` |
-| `SETTINGS_ENCRYPTION_KEY` | Klucz szyfrujący sekrety zapisywane w panelu; `openssl rand -base64 32`. **Nie zmieniaj go później.** |
-| `ANTHROPIC_API_KEY` | Klucz Claude (opcjonalnie, można wpisać w panelu) |
-| `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT` | Dostęp do Discogs (opcjonalnie, można wpisać w panelu) |
-| `EUR_PLN_FALLBACK_RATE` | Kurs zapasowy, gdy NBP nie odpowiada |
-| `EUR_PLN_RATE` | Stały kurs zamiast NBP (np. przy pracy offline) |
-| `INTEGRATIONS_ENABLED=false` | Wyłącza Claude i Discogs |
+| Zmienna                               | Do czego                                                                                              |
+|---------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `DB_*`                                | Połączenie z PostgreSQL                                                                               |
+| `JWT_*`                               | Tokeny logowania                                                                                      |
+| `SMTP_*`                              | Wysyłka maili (lokalnie Mailpit)                                                                      |
+| `STORAGE_PATH`                        | Folder na wgrywane pliki, domyślnie `./uploads`                                                       |
+| `SETTINGS_ENCRYPTION_KEY`             | Klucz szyfrujący sekrety zapisywane w panelu; `openssl rand -base64 32`. **Nie zmieniaj go później.** |
+| `ANTHROPIC_API_KEY`                   | Klucz Claude (opcjonalnie, można wpisać w panelu)                                                     |
+| `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT` | Dostęp do Discogs (opcjonalnie, można wpisać w panelu)                                                |
+| `EUR_PLN_FALLBACK_RATE`               | Kurs zapasowy, gdy NBP nie odpowiada                                                                  |
+| `EUR_PLN_RATE`                        | Stały kurs zamiast NBP (np. przy pracy offline)                                                       |
+| `INTEGRATIONS_ENABLED=false`          | Wyłącza Claude i Discogs                                                                              |
 
 Ustawienia z panelu (`/settings`) mają pierwszeństwo przed `.env`. Kolejność: panel → `.env` → wartość domyślna.
 
@@ -98,14 +98,14 @@ zależne od typu. Dla płyty: lista artystów, lista utworów, linki do odsłuch
 **Wariant (tłoczenie i stan):** `priceEur` (eurocenty), `quantity` (domyślnie 1, przy 0 „wyprzedane”) oraz
 `attributes`. Dla płyty:
 
-| Pole | |
-|---|---|
-| `format` | `LP`, `12"`, `10"`, `7"` (wymagane) |
-| `mediaCondition` | M, NM, VG+, VG, G+, G, F, P (wymagane) |
-| `sleeveCondition` | jak wyżej oraz `generic`, `no_cover` (wymagane) |
-| `speed`, `year`, `label`, `catalogNumber`, `country`, `pressing` | opcjonalne |
-| `conditionNote` | notatka o stanie `{ en, es, pl }` |
-| `discogsReleaseId` | wydanie w Discogs |
+| Pole                                                             |                                                 |
+|------------------------------------------------------------------|-------------------------------------------------|
+| `format`                                                         | `LP`, `12"`, `10"`, `7"` (wymagane)             |
+| `mediaCondition`                                                 | M, NM, VG+, VG, G+, G, F, P (wymagane)          |
+| `sleeveCondition`                                                | jak wyżej oraz `generic`, `no_cover` (wymagane) |
+| `speed`, `year`, `label`, `catalogNumber`, `country`, `pressing` | opcjonalne                                      |
+| `conditionNote`                                                  | notatka o stanie `{ en, es, pl }`               |
+| `discogsReleaseId`                                               | wydanie w Discogs                               |
 
 Sztuki w tym samym stanie to jeden wariant z większą ilością. Inny stan albo inne tłoczenie to osobny wariant.
 
@@ -121,17 +121,17 @@ zod dla atrybutów produktu i wariantu. Nowy typ to nowy plik i wpis w `index.ts
 zdjęcie labela → wybór wydania z Discogs → produkt → wariant → media → podsumowanie
 ```
 
-| Krok | Endpoint |
-|---|---|
+| Krok                   | Endpoint                                                                            |
+|------------------------|-------------------------------------------------------------------------------------|
 | Rozpoznanie ze zdjęcia | `POST /products/lookup/photo`: odczyt labela, kandydaci z Discogs, `photoUploadIds` |
-| Bez zdjęcia | `GET /products/lookup?catalogNumber=…` |
-| Dane wybranego wydania | `GET /products/lookup/releases/{id}`: propozycja formularza i `existingProducts` |
-| Sprawdzenie duplikatów | `GET /products/lookup/existing?…` |
-| Nowy produkt (szkic) | `POST /products` |
-| Nowy wariant | `POST /products/{id}/variants` z `photoUploadIds`: zdjęcie labela staje się głównym |
-| Media | `POST /products/variants/{id}/media` |
-| Tłumaczenie notatki | `POST /products/lookup/condition-note` |
-| Publikacja | `POST /products/{id}/publish`: zwraca ostrzeżenia, np. `missing_preview` |
+| Bez zdjęcia            | `GET /products/lookup?catalogNumber=…`                                              |
+| Dane wybranego wydania | `GET /products/lookup/releases/{id}`: propozycja formularza i `existingProducts`    |
+| Sprawdzenie duplikatów | `GET /products/lookup/existing?…`                                                   |
+| Nowy produkt (szkic)   | `POST /products`                                                                    |
+| Nowy wariant           | `POST /products/{id}/variants` z `photoUploadIds`: zdjęcie labela staje się głównym |
+| Media                  | `POST /products/variants/{id}/media`                                                |
+| Tłumaczenie notatki    | `POST /products/lookup/condition-note`                                              |
+| Publikacja             | `POST /products/{id}/publish`: zwraca ostrzeżenia, np. `missing_preview`            |
 
 Endpointy pomocnicze kreatora niczego nie zapisują poza zdjęciem labela. Zdjęcie jest zachowywane także wtedy, gdy
 Claude lub Discogs zawiodą, a nieużyte znika po 24 godzinach.
@@ -157,12 +157,12 @@ zamaskowane. Zmiana działa od razu, bez restartu serwera.
 
 ## Uprawnienia
 
-| Uprawnienie | |
-|---|---|
-| `products:create`, `products:update`, `products:delete` | katalog i kreator |
-| `products:publish` | publikacja i wycofanie produktu |
-| `settings:manage` | ustawienia sklepu |
-| `users:*`, `orders:*` | konta i zamówienia |
+| Uprawnienie                                             |                                 |
+|---------------------------------------------------------|---------------------------------|
+| `products:create`, `products:update`, `products:delete` | katalog i kreator               |
+| `products:publish`                                      | publikacja i wycofanie produktu |
+| `settings:manage`                                       | ustawienia sklepu               |
+| `users:*`, `orders:*`                                   | konta i zamówienia              |
 
 Wszystkie ma rola `admin`. Uprawnienia są w `seed_data.sql`.
 

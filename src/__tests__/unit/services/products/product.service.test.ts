@@ -111,6 +111,7 @@ describe("ProductService", () => {
       setPublished: jest.fn(),
       hasOrders: jest.fn(),
       findMediaUrls: jest.fn(),
+      findMatching: jest.fn(),
       delete: jest.fn(),
       hardDelete: jest.fn(),
     };
@@ -361,6 +362,39 @@ describe("ProductService", () => {
         .catch((caught: unknown) => caught);
 
       expect((error as ValidationError).errors[0]?.path).toBe("variants.0.photoUploadIds");
+    });
+  });
+
+  describe("findMatchingProducts", () => {
+    it("should normalize the criteria before searching", async () => {
+      productRepository.findMatching.mockResolvedValue([]);
+
+      await productService.findMatchingProducts({
+        discogsReleaseId: 34434571,
+        catalogNumber: " ZV 7-006 ",
+        label: " Zulu Vibes ",
+        title: " Jah Prophecy ",
+        artists: ["Bunnington Judah", "Zulu Vibes"],
+      });
+
+      expect(productRepository.findMatching).toHaveBeenCalledWith(
+        client,
+        {
+          discogsReleaseId: "34434571",
+          catalogNumber: "zv7006",
+          label: "zulu vibes",
+          title: "jah prophecy",
+          artists: ["bunnington judah", "zulu vibes"],
+        },
+        10,
+      );
+    });
+
+    it("should not search without a release id, catalog number or title", async () => {
+      expect(
+        await productService.findMatchingProducts({ label: "Zulu Vibes", artists: ["X"] }),
+      ).toEqual([]);
+      expect(mockPool.connect).not.toHaveBeenCalled();
     });
   });
 

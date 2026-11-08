@@ -5,6 +5,7 @@ import type { LabelImage } from "@/integrations/claude/label-reader.js";
 import type { AuthenticatedRequest } from "@/middleware/authentication.middleware.js";
 import { parseId } from "@/validators/helpers/id.validator.js";
 import { PhotoLookupError } from "@/errors/external-service.error.js";
+import type { ProductService } from "@/services/product.service.js";
 import { formatZodIssues } from "@/validators/helpers/zod.js";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -18,12 +19,31 @@ const catalogNumberQuerySchema = z.object({
   label: z.string().trim().min(1).max(255).optional(),
 });
 
+const existingProductsQuerySchema = z
+  .object({
+    discogsReleaseId: z.coerce.number().int().positive().optional(),
+    catalogNumber: z.string().trim().min(1).max(100).optional(),
+    label: z.string().trim().min(1).max(255).optional(),
+    title: z.string().trim().min(1).max(255).optional(),
+    artist: z.string().trim().min(1).max(255).optional(),
+  })
+  .refine(
+    (query) =>
+      query.discogsReleaseId !== undefined ||
+      query.catalogNumber !== undefined ||
+      query.title !== undefined,
+    { message: "Provide discogsReleaseId, catalogNumber or title" },
+  );
+
 const conditionNoteSchema = z.strictObject({
   text: z.string().trim().min(1).max(1000),
 });
 
 export class RecordLookupController {
-  constructor(private readonly recordLookupService: RecordLookupService) {}
+  constructor(
+    private readonly recordLookupService: RecordLookupService,
+    private readonly productService: ProductService,
+  ) {}
 
   lookupByPhoto = async (req: Request, res: Response) => {
     const files = Array.isArray(req.files) ? req.files : [];
@@ -110,7 +130,37 @@ export class RecordLookupController {
       return;
     }
 
-    res.status(200).json({ message: "Release found", draft });
+    // Produkt to album: ten sam album w innym tłoczeniu też powinien trafić jako wariant do istniejącego produktu.
+    const existingProducts = await this.productService.findMatchingProducts({
+      discogsReleaseId: draft.variant.attributes.discogsReleaseId,
+      catalogNumber: draft.variant.attributes.catalogNumber,
+      label: draft.variant.attributes.label,
+      title: draft.product.title,
+      artists: draft.product.attributes.artists,
+    });
+
+    res.status(200).json({ message: "Release found", draft, existingProducts });
+  };
+
+  findExistingProducts = async (req: Request, res: Response) => {
+    const parsed = existingProductsQuerySchema.safeParse(req.query);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        message: "Invalid query parameters",
+        errors: formatZodIssues(parsed.error),
+      });
+      return;
+    }
+
+    const { artist, ...criteria } = parsed.data;
+
+    const existingProducts = await this.productService.findMatchingProducts({
+      ...criteria,
+      artists: artist ? [artist] : undefined,
+    });
+
+    res.status(200).json({ message: "Existing products found", existingProducts });
   };
 
   translateConditionNote = async (req: Request, res: Response) => {

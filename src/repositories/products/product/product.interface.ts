@@ -4,6 +4,7 @@ import type {
   Product,
   ProductDetails,
   ProductListQuery,
+  ProductMatch,
   ProductStatus,
   UpdateProductRecord,
 } from "@/types/product.types.js";
@@ -48,6 +49,23 @@ export interface ProductRepository {
 
   /** Miękkie usunięcie (`is_deleted`). */
   delete(client: PoolClient, id: number): Promise<boolean>;
+
+  /**
+   * Produkty pasujące do dodawanej płyty: po ID wydania z Discogs, po numerze katalogowym (opcjonalnie
+   * z wytwórnią) albo po tytule i artyście. Parametry muszą być już znormalizowane (małe litery; numer
+   * katalogowy tylko litery i cyfry).
+   */
+  findMatching(
+    client: PoolClient,
+    criteria: {
+      discogsReleaseId: string | null;
+      catalogNumber: string | null;
+      label: string | null;
+      title: string | null;
+      artists: string[] | null;
+    },
+    limit: number,
+  ): Promise<ProductMatch[]>;
 
   /** Trwałe usunięcie razem z wariantami i mediami. */
   hardDelete(client: PoolClient, id: number): Promise<boolean>;

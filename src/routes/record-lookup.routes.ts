@@ -110,13 +110,41 @@ export const createRecordLookupRouter = (
    *         schema: { type: integer }
    *     responses:
    *       200:
-   *         description: Form draft
+   *         description: Form draft (`draft`) and products it may belong to (`existingProducts`)
    *       404:
    *         description: Release not found on Discogs
    *       503:
    *         description: Discogs is not configured
    */
   router.get("/lookup/releases/:releaseId", ...canCreate, controller.getReleaseDraft);
+
+  /**
+   * @openapi
+   * /products/lookup/existing:
+   *   get:
+   *     tags: [Products – wizard]
+   *     summary: Find products the record being added already belongs to
+   *     description: >-
+   *       A product is an album, so a new copy or pressing should usually become a variant of an existing
+   *       product. Matches (strongest first): same Discogs release (`discogs_release`), same catalog number,
+   *       optionally with the label (`catalog_number`, ignores case, spaces and dashes), same title with one of
+   *       the artists (`title_artist`). `matchingVariantIds` are variants of the same pressing, e.g. to raise
+   *       the quantity instead of adding a variant. Also returned by GET /products/lookup/releases/{releaseId}.
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - { in: query, name: discogsReleaseId, schema: { type: integer } }
+   *       - { in: query, name: catalogNumber, schema: { type: string } }
+   *       - { in: query, name: label, schema: { type: string } }
+   *       - { in: query, name: title, schema: { type: string } }
+   *       - { in: query, name: artist, schema: { type: string } }
+   *     responses:
+   *       200:
+   *         description: "`existingProducts` (up to 10, may be empty)"
+   *       400:
+   *         description: None of discogsReleaseId, catalogNumber or title given
+   */
+  router.get("/lookup/existing", ...canCreate, controller.findExistingProducts);
 
   /**
    * @openapi

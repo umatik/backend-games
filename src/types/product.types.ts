@@ -85,3 +85,29 @@ export type ProductListQuery = ProductListFilters & {
   status: ProductStatus;
   sort: ProductSort;
 };
+
+/** Kryteria szukania produktu, do którego pasuje dodawana płyta (wykrywanie duplikatów w kreatorze). */
+export type ProductMatchCriteria = {
+  discogsReleaseId?: number | undefined;
+  catalogNumber?: string | undefined;
+  label?: string | undefined;
+  title?: string | undefined;
+  artists?: string[] | undefined;
+};
+
+export type ProductMatchReason = "discogs_release" | "catalog_number" | "title_artist";
+
+/**
+ * Istniejący produkt, do którego można dodać nowy wariant zamiast tworzyć kolejny produkt.
+ * `matchingVariantIds`: warianty tego samego tłoczenia (ID z Discogs albo numer katalogowy), np. żeby
+ * zwiększyć ilość, gdy stan jest taki sam.
+ */
+export type ProductMatch = {
+  productId: number;
+  type: string;
+  title: string;
+  artists: string[];
+  isPublished: boolean;
+  matchedBy: ProductMatchReason[];
+  matchingVariantIds: number[];
+};

@@ -141,7 +141,7 @@ SELECT setval(
 INSERT INTO product_variants (id, product_id, price_eur, quantity, attributes)
 VALUES (1, 1, 1500, 3,
         '{"format": "7\"", "speed": 45, "year": 2025, "label": "Zulu Vibes", "catalogNumber": "ZV-7-006",
-          "pressing": "original", "mediaCondition": "M", "sleeveCondition": "generic"}'),
+          "pressing": "original", "mediaCondition": "M", "sleeveCondition": "generic", "discogsReleaseId": 34434571}'),
        (2, 1, 1000, 1,
         '{"format": "7\"", "speed": 45, "year": 2025, "label": "Zulu Vibes", "catalogNumber": "ZV-7-006",
           "pressing": "original", "mediaCondition": "VG+", "sleeveCondition": "generic",

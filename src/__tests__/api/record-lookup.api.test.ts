@@ -173,4 +173,79 @@ describe("Record lookup API", () => {
       expect.objectContaining({ path: "photoUploadIds" }),
     ]);
   });
+
+  describe("existing products (duplicates)", () => {
+    const findExisting = async (query: string) =>
+      request(app)
+        .get(`/products/lookup/existing?${query}`)
+        .set("Authorization", `Bearer ${await loginAsAdmin()}`);
+
+    it("should find the product with the same Discogs release", async () => {
+      const response = await findExisting("discogsReleaseId=34434571");
+
+      expect(response.status).toBe(200);
+      expect(response.body.existingProducts).toEqual([
+        {
+          productId: 1,
+          type: "vinyl",
+          title: "Jah Prophecy",
+          artists: ["Bunnington Judah", "Zulu Vibes"],
+          isPublished: true,
+          matchedBy: ["discogs_release"],
+          matchingVariantIds: [1],
+        },
+      ]);
+    });
+
+    it("should match the catalog number regardless of case, spaces and dashes", async () => {
+      const response = await findExisting("catalogNumber=zv%207%20006&label=zulu%20vibes");
+
+      expect(response.body.existingProducts).toEqual([
+        expect.objectContaining({
+          productId: 1,
+          matchedBy: ["catalog_number"],
+          matchingVariantIds: [1, 2],
+        }),
+      ]);
+    });
+
+    it("should not match the catalog number of another label", async () => {
+      const response = await findExisting("catalogNumber=ZV-7-006&label=Greensleeves");
+
+      expect(response.body.existingProducts).toEqual([]);
+    });
+
+    it("should find the same album in another pressing by title and artist", async () => {
+      const response = await findExisting(
+        "title=dub%20from%20zion&artist=Roots%20Foundation&catalogNumber=VP-999",
+      );
+
+      expect(response.body.existingProducts).toEqual([
+        expect.objectContaining({
+          productId: 2,
+          matchedBy: ["title_artist"],
+          matchingVariantIds: [],
+        }),
+      ]);
+    });
+
+    it("should list the strongest match first and combine reasons", async () => {
+      const response = await findExisting(
+        "discogsReleaseId=34434571&catalogNumber=ZV-7-006&title=Jah%20Prophecy&artist=Zulu%20Vibes",
+      );
+
+      expect(response.body.existingProducts[0]).toEqual(
+        expect.objectContaining({
+          productId: 1,
+          matchedBy: ["discogs_release", "catalog_number", "title_artist"],
+        }),
+      );
+    });
+
+    it("should require a release id, catalog number or title", async () => {
+      const response = await findExisting("label=Zulu%20Vibes");
+
+      expect(response.status).toBe(400);
+    });
+  });
 });

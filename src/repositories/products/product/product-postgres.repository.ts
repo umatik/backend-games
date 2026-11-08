@@ -3,6 +3,7 @@ import type {
   Product,
   ProductDetails,
   ProductListQuery,
+  ProductMatch,
   ProductStatus,
   UpdateProductRecord,
 } from "@/types/product.types.js";
@@ -344,6 +345,107 @@ export class PostgresProductRepository implements ProductRepository {
     );
 
     return result.rows.map((row) => row.url);
+  }
+
+  async findMatching(
+    client: PoolClient,
+    criteria: {
+      discogsReleaseId: string | null;
+      catalogNumber: string | null;
+      label: string | null;
+      title: string | null;
+      artists: string[] | null;
+    },
+    limit: number,
+  ): Promise<ProductMatch[]> {
+    const result = await client.query<{
+      id: string;
+      type: string;
+      title: string;
+      artists: unknown;
+      isPublished: boolean;
+      byRelease: string[];
+      byCatalogNumber: string[];
+      byTitle: boolean;
+    }>(
+      `
+        WITH matches AS (
+          SELECT p.id,
+                 p.type,
+                 p.title,
+                 p.attributes -> 'artists' AS artists,
+                 p.is_published AS "isPublished",
+                 array_remove(array_agg(DISTINCT CASE
+                   WHEN $1::text IS NOT NULL
+                     AND pv.attributes ->> 'discogsReleaseId' = $1::text
+                     THEN pv.id END), NULL) AS "byRelease",
+                 array_remove(array_agg(DISTINCT CASE
+                   WHEN $2::text IS NOT NULL
+                     AND regexp_replace(lower(pv.attributes ->> 'catalogNumber'), '[^a-z0-9]', '', 'g') = $2::text
+                     AND ($3::text IS NULL OR lower(trim(pv.attributes ->> 'label')) = $3::text)
+                     THEN pv.id END), NULL) AS "byCatalogNumber",
+                 (
+                   $4::text IS NOT NULL
+                     AND lower(trim(p.title)) = $4::text
+                     AND (
+                       $5::text[] IS NULL
+                       OR EXISTS (
+                         SELECT 1
+                         FROM jsonb_array_elements_text(
+                                CASE WHEN jsonb_typeof(p.attributes -> 'artists') = 'array'
+                                       THEN p.attributes -> 'artists'
+                                     ELSE '[]'::jsonb END
+                              ) AS artist(name)
+                         WHERE lower(trim(artist.name)) = ANY ($5::text[])
+                       )
+                     )
+                 ) AS "byTitle"
+          FROM products p
+                 LEFT JOIN product_variants pv
+                           ON pv.product_id = p.id
+                             AND pv.is_deleted = FALSE
+          WHERE p.is_deleted = FALSE
+          GROUP BY p.id
+        )
+        SELECT *
+        FROM matches
+        WHERE cardinality("byRelease") > 0
+           OR cardinality("byCatalogNumber") > 0
+           OR "byTitle"
+        ORDER BY cardinality("byRelease") > 0 DESC,
+                 cardinality("byCatalogNumber") > 0 DESC,
+                 id
+        LIMIT $6
+      `,
+      [
+        criteria.discogsReleaseId,
+        criteria.catalogNumber,
+        criteria.label,
+        criteria.title,
+        criteria.artists,
+        limit,
+      ],
+    );
+
+    return result.rows.map((row) => {
+      const matchedBy: ProductMatch["matchedBy"] = [];
+
+      if (row.byRelease.length > 0) matchedBy.push("discogs_release");
+      if (row.byCatalogNumber.length > 0) matchedBy.push("catalog_number");
+      if (row.byTitle) matchedBy.push("title_artist");
+
+      return {
+        productId: Number(row.id),
+        type: row.type,
+        title: row.title,
+        artists: Array.isArray(row.artists) ? row.artists.map(String) : [],
+        isPublished: row.isPublished,
+        matchedBy,
+        matchingVariantIds: [...new Set([...row.byRelease, ...row.byCatalogNumber])]
+          .map(Number)
+          .sort((a, b) => a - b),
+      };
+    });
   }
 
   async hardDelete(client: PoolClient, id: number): Promise<boolean> {

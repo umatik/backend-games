@@ -202,7 +202,7 @@ const recordLookupService = new RecordLookupService(
 );
 
 export const recordLookupRouter = createRecordLookupRouter(
-  new RecordLookupController(recordLookupService),
+  new RecordLookupController(recordLookupService, productService),
   authorizationService,
   upload,
 );

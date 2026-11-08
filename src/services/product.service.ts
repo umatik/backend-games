@@ -4,6 +4,8 @@ import type {
   PricedProductVariant,
   ProductDetails,
   ProductListQuery,
+  ProductMatch,
+  ProductMatchCriteria,
   ProductStatus,
   UpdateProductData,
 } from "@/types/product.types.js";
@@ -38,6 +40,7 @@ export type ProductListCache = Cache<{
 }>;
 
 const LIST_CACHE_TTL_SECONDS = 60;
+const MATCH_LIMIT = 10;
 
 export class ProductService {
   constructor(
@@ -311,6 +314,33 @@ export class ProductService {
     await this.cache.clear();
 
     return true;
+  }
+
+  /**
+   * Szuka istniejących produktów, do których pasuje dodawana płyta, żeby kreator mógł zaproponować dodanie
+   * wariantu zamiast nowego produktu. Normalizuje dane: wielkość liter, a w numerze katalogowym także spacje
+   * i myślniki („ZV-7-006” = „zv 7 006”).
+   */
+  async findMatchingProducts(criteria: ProductMatchCriteria): Promise<ProductMatch[]> {
+    const normalized = {
+      discogsReleaseId:
+        criteria.discogsReleaseId === undefined ? null : String(criteria.discogsReleaseId),
+      catalogNumber:
+        criteria.catalogNumber?.toLowerCase().replace(/[^a-z0-9]/g, "") || null,
+      label: criteria.label?.trim().toLowerCase() || null,
+      title: criteria.title?.trim().toLowerCase() || null,
+      artists: criteria.artists?.length
+        ? criteria.artists.map((artist) => artist.trim().toLowerCase())
+        : null,
+    };
+
+    if (!normalized.discogsReleaseId && !normalized.catalogNumber && !normalized.title) {
+      return [];
+    }
+
+    return this.withClient((client) =>
+      this.productRepository.findMatching(client, normalized, MATCH_LIMIT),
+    );
   }
 
   /** Ostrzeżenia typu produktu (np. `missing_preview`), które nie blokują publikacji. */

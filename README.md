@@ -1,446 +1,213 @@
-# Node.js Backend Course — E-commerce API
+# Ras Bass: API sklepu z płytami
 
-## Uruchomienie projektu
+Backend sklepu internetowego z płytami winylowymi (reggae, nowe i używane), z koszulkami i gadżetami.
+Node.js + TypeScript, Express 5, PostgreSQL, Redis.
 
-### Wymagania
+Panel admina i sklep to osobne aplikacje, które korzystają z tego API. Dokumentacja wszystkich endpointów jest
+w Swaggerze: `http://localhost:3000/api-docs`.
 
-- Node.js
-- pnpm
-- Docker
-- Docker Compose
+## Co potrafi
 
-### Instalacja
+- **Katalog płyt:** produkt to album, a wariant to konkretne tłoczenie w określonym stanie (skala Goldmine, osobno
+  płyta i okładka) z ceną i ilością. Splity, kompilacje i reedycje są obsłużone.
+- **Inne typy produktów:** koszulki (kolor, rozmiar) i gadżety. Nowy typ dodaje się jednym plikiem.
+- **Dodawanie płyty przez zdjęcie labela:** Claude odczytuje label, Discogs podpowiada wydanie, a formularz uzupełnia
+  się sam. Zdjęcie labela zostaje głównym zdjęciem wariantu.
+- **Wykrywanie duplikatów:** gdy płyta (lub inne tłoczenie tego samego albumu) już jest w sklepie, kreator proponuje
+  dodanie wariantu do istniejącego produktu.
+- **Szkice i publikacja:** nowy produkt jest szkicem, sklep pokazuje tylko opublikowane.
+- **Wyszukiwanie i filtry:** artysta, format, stan, wytwórnia, cena, dostępność, tekst; sortowanie po dacie, cenie,
+  artyście.
+- **Ceny w EUR i PLN:** cena w eurocentach, PLN przeliczane średnim kursem NBP i zaokrąglane w górę do pełnych złotych.
+- **Odsłuch:** linki (YouTube, Bandcamp, także z Discogs) i własne nagrania egzemplarza.
+- **Tłumaczenie notatki o stanie** z polskiego na angielski i hiszpański (Claude).
+- **Ustawienia sklepu z panelu:** klucze API (szyfrowane), model Claude, dane sklepu.
+- **Konta, role i uprawnienia (RBAC), zamówienia** ze zdejmowaniem stanów magazynowych.
+
+## Szybki start
+
+Wymagania: Node.js, pnpm, Docker.
 
 ```bash
 pnpm install
 ```
 
-### Uruchomienie infrastruktury
-
-Projekt wymaga PostgreSQL oraz Redis. Uruchom je przez Docker Compose:
-
 ```bash
 docker compose up -d
 ```
 
-Sprawdzenie kontenerów:
-
-```bash
-docker compose ps
-```
-
-### Migracje bazy danych
-
-Baza developerska:
+`docker compose` uruchamia PostgreSQL (`:5432`), Redis (`:6379`) i Mailpit, czyli lokalną skrzynkę na maile
+(SMTP `:1025`, podgląd `http://localhost:8025`).
 
 ```bash
 pnpm migrate
 ```
 
-Baza testowa:
-
-```bash
-pnpm migrate:test
-```
-
-### Uruchomienie API
-
 ```bash
 pnpm dev
 ```
 
-### Testy
+API działa na `http://localhost:3000`. Konta z danych startowych (hasło `alamakota`):
 
-Testy wymagają działającego PostgreSQL oraz Redis.
+- `bob@example.com`: admin
+- `alice@example.com`: zwykły użytkownik
+
+## Konfiguracja
+
+Plik `.env` (nie trafia do repozytorium). Najważniejsze zmienne:
+
+| Zmienna | Do czego |
+|---|---|
+| `DB_*` | Połączenie z PostgreSQL |
+| `JWT_*` | Tokeny logowania |
+| `SMTP_*` | Wysyłka maili (lokalnie Mailpit) |
+| `STORAGE_PATH` | Folder na wgrywane pliki, domyślnie `./uploads` |
+| `SETTINGS_ENCRYPTION_KEY` | Klucz szyfrujący sekrety zapisywane w panelu; `openssl rand -base64 32`. **Nie zmieniaj go później.** |
+| `ANTHROPIC_API_KEY` | Klucz Claude (opcjonalnie, można wpisać w panelu) |
+| `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT` | Dostęp do Discogs (opcjonalnie, można wpisać w panelu) |
+| `EUR_PLN_FALLBACK_RATE` | Kurs zapasowy, gdy NBP nie odpowiada |
+| `EUR_PLN_RATE` | Stały kurs zamiast NBP (np. przy pracy offline) |
+| `INTEGRATIONS_ENABLED=false` | Wyłącza Claude i Discogs |
+
+Ustawienia z panelu (`/settings`) mają pierwszeństwo przed `.env`. Kolejność: panel → `.env` → wartość domyślna.
+
+Testy czytają wyłącznie `.env.test`.
+
+## Komendy
 
 ```bash
-pnpm test
+pnpm dev                 # API na :3000, Swagger na /api-docs
+pnpm migrate             # migracje bazy developerskiej
+pnpm migrate:test        # baza testowa (tworzy ją, jeśli trzeba)
+pnpm test                # wszystkie testy (potrzebują PostgreSQL i Redis)
+npx tsc --noEmit         # sprawdzenie typów
+npx eslint .
 ```
 
-Jeżeli infrastruktura nie jest uruchomiona, testy mogą zakończyć się błędem połączenia z PostgreSQL lub Redis.
+Pojedynczy plik testów:
 
-### Swagger
+```bash
+pnpm test -- src/__tests__/api/products.api.test.ts
+```
 
-Po uruchomieniu API dokumentacja Swagger jest dostępna pod:
+## Model danych
+
+**Produkt (album):** `type`, `title`, `slug` (generowany), `description`, `isPublished` oraz `attributes`, czyli pola
+zależne od typu. Dla płyty: lista artystów, lista utworów, linki do odsłuchu.
+
+**Wariant (tłoczenie i stan):** `priceEur` (eurocenty), `quantity` (domyślnie 1, przy 0 „wyprzedane”) oraz
+`attributes`. Dla płyty:
+
+| Pole | |
+|---|---|
+| `format` | `LP`, `12"`, `10"`, `7"` (wymagane) |
+| `mediaCondition` | M, NM, VG+, VG, G+, G, F, P (wymagane) |
+| `sleeveCondition` | jak wyżej oraz `generic`, `no_cover` (wymagane) |
+| `speed`, `year`, `label`, `catalogNumber`, `country`, `pressing` | opcjonalne |
+| `conditionNote` | notatka o stanie `{ en, es, pl }` |
+| `discogsReleaseId` | wydanie w Discogs |
+
+Sztuki w tym samym stanie to jeden wariant z większą ilością. Inny stan albo inne tłoczenie to osobny wariant.
+
+**Typy produktów** są zdefiniowane w kodzie, w `src/product-types/` (`vinyl`, `tshirt`, `other`). Każdy typ to schemat
+zod dla atrybutów produktu i wariantu. Nowy typ to nowy plik i wpis w `index.ts`, bez migracji bazy.
+`GET /products/types` zwraca schematy jako JSON Schema, z których panel może budować formularze.
+
+**Media** (zdjęcia, wideo, audio, dokumenty) należą do wariantu.
+
+## Dodawanie płyty w kreatorze
 
 ```text
-http://localhost:3000/api-docs
+zdjęcie labela → wybór wydania z Discogs → produkt → wariant → media → podsumowanie
 ```
 
----
+| Krok | Endpoint |
+|---|---|
+| Rozpoznanie ze zdjęcia | `POST /products/lookup/photo`: odczyt labela, kandydaci z Discogs, `photoUploadIds` |
+| Bez zdjęcia | `GET /products/lookup?catalogNumber=…` |
+| Dane wybranego wydania | `GET /products/lookup/releases/{id}`: propozycja formularza i `existingProducts` |
+| Sprawdzenie duplikatów | `GET /products/lookup/existing?…` |
+| Nowy produkt (szkic) | `POST /products` |
+| Nowy wariant | `POST /products/{id}/variants` z `photoUploadIds`: zdjęcie labela staje się głównym |
+| Media | `POST /products/variants/{id}/media` |
+| Tłumaczenie notatki | `POST /products/lookup/condition-note` |
+| Publikacja | `POST /products/{id}/publish`: zwraca ostrzeżenia, np. `missing_preview` |
 
-## Cel kursu
+Endpointy pomocnicze kreatora niczego nie zapisują poza zdjęciem labela. Zdjęcie jest zachowywane także wtedy, gdy
+Claude lub Discogs zawiodą, a nieużyte znika po 24 godzinach.
 
-Celem kursu było zbudowanie realnego backendu e-commerce w Node.js + TypeScript, zamiast nauki zagadnień w oderwaniu od
-praktyki.
+Lista szkiców: `GET /products/manage?status=draft`.
 
-Projekt był rozwijany etapami na bazie jednego rzeczywistego API. Trening był prowadzony interaktywnie przez ChatGPT:
-kolejne zagadnienia były dobierane do aktualnego poziomu projektu, implementowane praktycznie, testowane, a następnie
-wspólnie weryfikowane i refaktoryzowane.
+## Integracje
 
-Nie chodziło o stworzenie sztucznego projektu „pod trening”, lecz o przejście przez rzeczywisty cykl developerski:
-projektowanie → implementacja → testowanie → poprawki → refaktoryzacja → decyzje architektoniczne → code review.
+- **Claude** (Anthropic): odczyt labela i tłumaczenia. Model do wyboru w ustawieniach: Opus 5.5 (dokładniejszy)
+  albo Haiku 5.5 (znacznie tańszy). Odczyt jednego zdjęcia na Opus 5.5 kosztuje około 0,02 USD.
+- **Discogs:** wyszukiwanie wydań i ich szczegóły. Wymaga darmowego tokenu osobistego. Przed startem sklepu sprawdź
+  warunki korzystania z API (podawanie źródła danych).
+- **NBP:** średni kurs EUR/PLN, trzymany w cache przez 6 godzin.
 
-Główny nacisk:
+Bez skonfigurowanych kluczy endpointy kreatora odpowiadają 503. Połączenie można sprawdzić przez
+`POST /settings/test/{anthropic|discogs}`.
 
-- praktyczne rozumienie backendu
-- architektura aplikacji
-- PostgreSQL
-- REST API
-- uwierzytelnianie i autoryzacja
-- transakcje i spójność danych
-- testy
-- bezpieczeństwo
-- dokumentacja API
-- przygotowanie aplikacji do produkcji
-- myślenie o skalowalności bez niepotrzebnego overengineeringu
+## Ustawienia
 
-> **Rola ChatGPT w kursie**
->
-> ChatGPT pełnił w projekcie kilka różnych ról — zależnie od aktualnego etapu pracy. Czasami był inteligentną
-> dokumentacją i źródłem wiedzy technicznej, pomagając wyjaśniać zagadnienia i porządkować informacje. Czasami pełnił rolę
-> doradcy technicznego, pomagając analizować problemy, porównywać rozwiązania i podejmować decyzje architektoniczne. W
-> innych momentach, szczególnie podczas pracy nad testami, pełnił rolę prowadzącego: przygotowywał zadania, prowadził
-> przez kolejne zagadnienia i weryfikował ich praktyczne zastosowanie.
->
-> Kod był rozwijany iteracyjnie, a decyzje techniczne były podejmowane na podstawie rzeczywistych problemów
-> pojawiających się w projekcie. Ostateczny kod projektu jest wynikiem tej wspólnej pracy.
+`GET /settings` i `PATCH /settings`, wymagają uprawnienia `settings:manage`. Lista ustawień jest zdefiniowana
+w `src/settings/definitions.ts`. Sekrety są szyfrowane (AES-256-GCM) i API nigdy nie zwraca ich w całości, tylko
+zamaskowane. Zmiana działa od razu, bez restartu serwera.
 
-## Plan kursu
+## Uprawnienia
 
-Kurs został podzielony na kolejne etapy. Każdy etap był realizowany na tym samym projekcie e-commerce, tak aby nowe
-zagadnienia wynikały z rzeczywistych problemów aplikacji.
+| Uprawnienie | |
+|---|---|
+| `products:create`, `products:update`, `products:delete` | katalog i kreator |
+| `products:publish` | publikacja i wycofanie produktu |
+| `settings:manage` | ustawienia sklepu |
+| `users:*`, `orders:*` | konta i zamówienia |
 
-### Etap 1 — Fundament: Node.js + TypeScript
+Wszystkie ma rola `admin`. Uprawnienia są w `seed_data.sql`.
 
-- Node.js
-- TypeScript
-- ES Modules
-- Express
-- konfiguracja projektu
-- zmienne środowiskowe
-- PostgreSQL w Dockerze
-- połączenie aplikacji z bazą danych
-- podstawowa struktura API
-- users, products, orders
-- database migrations
-
-### Etap 2 — Database
-
-- relacje między tabelami
-- PRIMARY KEY / FOREIGN KEY
-- JOIN
-- indeksy
-- UNIQUE
-- constraints
-- soft delete
-- transakcje
-- COMMIT / ROLLBACK
-- isolation levels
-- race conditions
-- spójność danych
-- optymalizacja zapytań
-
-### Etap 3 — Proper Backend
-
-- controllers
-- services
-- repositories
-- Repository Pattern
-- interfejsy repository
-- Dependency Injection
-- Composition Root
-- validation
-- error handling
-- własne błędy aplikacyjne
-- authentication
-- JWT
-- authorization
-- RBAC
-- permissions
-- security hardening
-- testy jednostkowe i API
-
-### Etap 4 — Performance
-
-- pagination
-- N+1 problem
-- query optimization
-- indeksy
-- analiza zapytań
-- caching
-- Redis
-- ograniczanie niepotrzebnych zapytań do bazy
-
-### Etap 5 — Code Review i refaktoryzacja
-
-- pełny audyt architektury
-- separation of responsibilities
-- analiza Dependency Injection
-- Composition Root
-- kontrola granic warstw
-- analiza technical debt
-- bezpieczeństwo
-- jakość kodu
-- test coverage i jakość testów
-- izolacja testowej bazy danych
-- database indexes
-- request limits
-- API documentation
-- production readiness
-
-Etap audytu został zakończony. W ramach audytu uporządkowano m.in. konfigurację JWT, walidację, normalizację danych
-wejściowych, login logs, indeksy kluczy obcych, migracje oraz drobne elementy projektu.
-
-### Etap 6 — Production Preparation
-
-- production configuration
-- environment variables
-- Docker
-- production build
-- database migrations w środowisku produkcyjnym
-- graceful shutdown
-- PostgreSQL connection handling
-- health checks
-- security configuration
-- logging
-- deployment considerations
-
-### Etap 7 — Cart → Checkout → Payment → Order
-
-Rozszerzenie obecnego API o rzeczywisty przepływ zakupowy:
+## Architektura
 
 ```text
-Cart
- ↓
-Checkout
- ↓
-Payment
- ↓
-Order
- ↓
-Webhook
- ↓
-Order status
+routes → middleware (auth, uprawnienia) → controller (walidacja zod) → service (logika, transakcje) → repository → PostgreSQL
 ```
 
-Zakres:
-
-- cart
-- cart items
-- checkout
-- adres dostawy
-- shipping
-- payment
-- integracja Stripe
-- payment status
-- webhooki Stripe
-- idempotency
-- order creation po poprawnej płatności
-- aktualizacja statusu zamówienia
-- obsługa błędów płatności
-- ochrona przed podwójnym przetworzeniem płatności
-
-### Etap 8 — Dalszy rozwój e-commerce
-
-Kolejne elementy będą dodawane tylko wtedy, gdy wynikną z realnych potrzeb projektu:
-
-- rozszerzenie modelu produktów
-- inventory / stock reservations
-- shipping workflow
-- refund / cancellation
-- order lifecycle
-- dalsza optymalizacja wydajności
-- caching
-- background jobs
-- observability
-- dalsze security hardening
-
-Celem nie jest implementowanie wszystkich możliwych funkcji e-commerce, lecz stopniowe rozwijanie systemu bez
-niepotrzebnego overengineeringu.
-
----
-
-# Final refactor / Code review
-
-Ten etap nie jest kolejną funkcjonalnością API.
-
-Jest to pełny przegląd projektu pod kątem jakości obecnej architektury oraz jej zdolności do dalszej ewolucji.
-
-Główne kryterium:
-
-> Czy jest to dobrze zaprojektowany mały e-commerce, który może rosnąć bez konieczności przepisywania podstaw
-> architektury?
-
-Code review obejmował m.in.:
-
-- Architecture
-- Code quality
-- Separation of responsibilities
-- Dependency Injection
-- Composition Root
-- Controllers
-- Services
-- Repositories
-- Middleware
-- Database
-- Transactions
-- Error handling
-- Tests
-- Security
-- API
-- Performance
-- Scalability
-- Maintainability
-- Production readiness
-
-### Wyniki audytu
-
-Audyt został zakończony.
-
-Poprawiono i zweryfikowano m.in.:
-
-- konfigurację JWT
-- walidację danych
-- normalizację email
-- login logs oraz IP/User-Agent
-- indeksy kluczy obcych
-- migracje
-- request body limits
-- drobne elementy organizacji projektu
-
-Dodatkowo:
+- Wszystkie zależności są tworzone ręcznie w `src/dependency-injection.ts`.
+- Repozytoria są bezstanowe i dostają połączenie od serwisu. Serwisy otwierają transakcje.
+- Cache list produktów jest w Redis. Aplikacja działa także bez Redisa.
+- Integracje są schowane za interfejsami (`Storage`, `IntegrationProvider`, `AudioProcessor`,
+  `ExchangeRateProvider`), więc można je podmienić bez zmian w reszcie kodu.
 
 ```text
-TypeScript: bez błędów
-Test Suites: 8 passed
-Tests: 112 passed
-npm audit: 0 vulnerabilities
+src/
+├── product-types/    typy produktów (vinyl, tshirt, other)
+├── settings/         definicje ustawień, szyfrowanie
+├── integrations/     Claude, Discogs
+├── controllers/  services/  repositories/  routes/  validators/
+├── database/         migracje, seed, konfiguracja testów
+└── __tests__/        testy API i jednostkowe
 ```
 
----
+## Testy
 
-# Production preparation
+Testy API działają na prawdziwej bazie `ecommerce_test`, którą czyszczą i wypełniają danymi startowymi przed każdym
+testem. Uruchamiają się po kolei. Claude, Discogs i NBP są w testach wyłączone albo zastąpione atrapami, więc testy nie
+łączą się z siecią.
 
-Planowane przygotowanie aplikacji do środowiska produkcyjnego:
+## Do zrobienia
 
-- environment variables
-- Docker
-- production build
-- database migrations
-- graceful shutdown
-- PostgreSQL connection handling
-- health check
-- configuration
-- security
-- logging
-- deployment considerations
+Szczegółowa lista jest w [TODO.md](TODO.md). Najważniejsze:
 
----
+- obróbka nagrań audio (ffmpeg) i przechowywanie plików w chmurze (R2/S3) przed startem;
+- przygotowanie do produkcji: build, Docker, health check, logi;
+- koszyk, zamówienia i płatności Stripe, kody rabatowe, wysyłka;
+- VAT przy sprzedaży za granicę (do omówienia z księgowym).
 
-# Docelowa architektura
+## Zasada projektu
 
-```text
-                    ┌──────────────┐
-                    │    Client    │
-                    └──────┬───────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │    Express   │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ Middleware   │
-                    │ Auth         │
-                    │ Permissions  │
-                    │ Validation   │
-                    │ Security     │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ Controller   │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │   Service    │
-                    │ Business     │
-                    │ Logic        │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ Repository   │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │ PostgreSQL   │
-                    └──────────────┘
-```
+Prosty system dla małego sklepu, który nie zamyka drogi do dalszego rozwoju. Bez przedwczesnego overengineeringu.
 
-Architektura celowo pozostaje stosunkowo prosta dla małego e-commerce.
+## Historia
 
-Jednocześnie granice między warstwami mają umożliwiać późniejszą ewolucję systemu bez konieczności natychmiastowego
-przechodzenia na mikroserwisy lub inne rozwiązania infrastrukturalne.
-
----
-
-# Stan projektu
-
-### Zrealizowane
-
-```text
-1.  Node.js + TypeScript
-2.  Express
-3.  PostgreSQL
-4.  Database migrations
-5.  Users
-6.  Authentication
-7.  Authorization
-8.  Products
-9.  Soft delete
-10. Orders
-11. Inventory / Stock
-12. Transactions
-13. Dependency Injection
-14. Unit tests
-15. API tests
-16. Edge cases
-17. Error handling / Error cleanup
-18. API Security
-19. Logging — bonus
-20. API Documentation
-21. Final refactor / Code review
-```
-
-### Następne etapy
-
-```text
-22. Production preparation
-23. Cart → Checkout → Payment → Order
-24. Dalszy rozwój e-commerce
-```
-
----
-
-# Cel architektoniczny projektu
-
-Projekt jest przeznaczony dla **małych, niskokomercyjnych sklepów e-commerce**.
-
-Nie jest celem budowanie systemu o złożoności platform pokroju Amazon.
-
-Celem jest natomiast stworzenie architektury, która:
-
-- jest prosta do utrzymania,
-- ma jasno określone odpowiedzialności,
-- jest testowalna,
-- ogranicza sprzężenie,
-- pozwala rozwijać kolejne moduły,
-- pozwala wymieniać implementacje,
-- może obsłużyć wzrost projektu,
-- nie wymaga przedwczesnego overengineeringu,
-- może ewoluować wraz ze wzrostem biznesu.
-
-Najważniejsza zasada projektu:
-
-> **Budujemy prosty system dla małego e-commerce, ale nie budujemy go w sposób, który zamyka drogę do dalszego
-rozwoju.**
+Projekt powstał jako kurs budowy backendu e-commerce w Node.js + TypeScript i został przebudowany pod sklep z płytami.
+Opis kursu i jego etapów jest w historii repozytorium.

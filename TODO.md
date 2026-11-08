@@ -69,7 +69,7 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 - [x] Endpoint: szczegóły wybranego wydania zmapowane na pola formularza (z linkami `videos` do odsłuchu)
 - [x] Kilka wyników: lista do wyboru (miniatura, artysta – tytuł, wytwórnia, nr kat., rok, kraj, format). Przy jednym wyniku też potwierdzenie.
 - [x] Opcja „żadne z nich, wpisz ręcznie”: formularz uzupełniony tym, co odczytało AI
-- [ ] Wykrywanie duplikatów: to samo ID z Discogs lub numer katalogowy → propozycja dodania wariantu do istniejącego produktu
+- [x] Wykrywanie duplikatów: to samo ID z Discogs, numer katalogowy (z wytwórnią) albo tytuł z artystą (ten sam album w innym tłoczeniu) → `existingProducts` w propozycji z Discogs i `GET /products/lookup/existing`
 - [x] Zdjęcie labela, z którego rozpoznajemy płytę, jest głównym zdjęciem (`isPrimary`) wariantu: rozpoznawanie zapisuje zdjęcia (tabela `pending_uploads`, migracja 016) i zwraca `photoUploadIds`, które podaje się przy tworzeniu wariantu; nieużyte znikają po 24 h. Zdjęcia są zapisywane także wtedy, gdy Claude lub Discogs zawiodą (odpowiedź z błędem zawiera `photoUploadIds`), żeby kreator mógł przejść do formularza ręcznego z tym zdjęciem. Przy dodawaniu ręcznym zdjęcia idą od razu przez endpoint mediów, bez tego mechanizmu. Zdjęć z Discogs na razie nie importujemy (miniatury Discogs tylko na liście kandydatów do wyboru).
 - [x] Token Discogs i klucz Claude ustawione; całość sprawdzona na żywo 2026-11-08 (zdjęcie ZV-7-006 → poprawny odczyt i wydanie z Discogs w ok. 4 s)
 - [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła danych na stronie sklepu)

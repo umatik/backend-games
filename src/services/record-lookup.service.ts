@@ -1,3 +1,4 @@
+import { toLoggableError } from "@/errors/loggable-error.js";
 import type {
   DiscogsClient,
   DiscogsRelease,
@@ -13,7 +14,10 @@ import {
 } from "@/errors/external-service.error.js";
 import type { Database } from "@/database/database.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
-import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
+import {
+  PENDING_UPLOAD_TTL_MS,
+  type PendingUploadRepository,
+} from "@/repositories/pending-upload/pending-upload.interface.js";
 import type { TranslatedText } from "@/product-types/common.js";
 import { VINYL_FORMATS } from "@/product-types/vinyl.js";
 
@@ -59,8 +63,6 @@ export type ReleaseDraft = {
 };
 
 const CANDIDATE_LIMIT = 10;
-/** Po tym czasie nieużyte zdjęcia labela są usuwane. */
-export const PENDING_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
 const EXTENSION_BY_MEDIA_TYPE: Record<LabelImage["mediaType"], string> = {
   "image/jpeg": "jpg",
@@ -121,7 +123,7 @@ export class RecordLookupService {
 
       return { reading, candidates, photoUploadIds };
     } catch (error) {
-      console.error("Label lookup failed, photos kept for manual entry:", error);
+      console.error("Label lookup failed, photos kept for manual entry:", toLoggableError(error));
       throw new PhotoLookupError(error, photoUploadIds);
     }
   }

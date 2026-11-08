@@ -109,6 +109,7 @@ describe("ProductService", () => {
       countAll: jest.fn(),
       update: jest.fn(),
       setPublished: jest.fn(),
+      lockForUpdate: jest.fn<ProductRepository["lockForUpdate"]>().mockResolvedValue(true),
       hasOrders: jest.fn(),
       findMediaUrls: jest.fn(),
       findMatching: jest.fn(),
@@ -148,6 +149,7 @@ describe("ProductService", () => {
       set: jest.fn(),
       delete: jest.fn(),
       clear: jest.fn(),
+      generation: jest.fn<ProductListCache["generation"]>().mockResolvedValue("g1"),
     };
 
     pendingUploads = {
@@ -316,7 +318,7 @@ describe("ProductService", () => {
         photoUploadIds: ["a", "b"],
       });
 
-      expect(pendingUploads.claim).toHaveBeenCalledWith(client, ["a", "b"]);
+      expect(pendingUploads.claim).toHaveBeenCalledWith(client, ["a", "b"], 24 * 60 * 60 * 1000);
       expect(mediaRepository.create.mock.calls.map((call) => call.slice(1))).toEqual([
         [7, ProductVariantMediaType.PHOTO, "products/photo/label-a.jpg", null, 0, true],
         [7, ProductVariantMediaType.PHOTO, "products/photo/label-b.jpg", null, 1, false],
@@ -471,11 +473,59 @@ describe("ProductService", () => {
       );
 
       expect(cache.set).toHaveBeenCalledWith(
-        'products:list:format=7":limit=20:page=1:priceMaxEur=2000:sort=newest:status=published',
+        'products:list:g1:[["format","7\\""],["limit",20],["page",1],["priceMaxEur",2000],["sort","newest"],["status","published"]]',
         { products, total: 1 },
         60,
       );
       expect(result.products[0]?.variants[0]?.pricePln).toBe(6500);
+    });
+
+    it("should not mix up filters whose values contain separators", async () => {
+      cache.get.mockResolvedValue(null);
+      productRepository.findAllWithVariants.mockResolvedValue([]);
+      productRepository.countAll.mockResolvedValue(0);
+
+      await productService.getAllProducts(listQuery({ artist: "Bob:format=LP" }));
+      await productService.getAllProducts(listQuery({ artist: "Bob", format: "LP" }));
+
+      const [first, second] = cache.set.mock.calls.map(([key]) => key);
+      expect(first).not.toBe(second);
+    });
+
+    it("should build the same key for the same filters in any order", async () => {
+      cache.get.mockResolvedValue(null);
+      productRepository.findAllWithVariants.mockResolvedValue([]);
+      productRepository.countAll.mockResolvedValue(0);
+
+      await productService.getAllProducts(listQuery({ artist: "Bob", format: "LP" }));
+      await productService.getAllProducts(listQuery({ format: "LP", artist: "Bob" }));
+
+      const [first, second] = cache.set.mock.calls.map(([key]) => key);
+      expect(first).toBe(second);
+    });
+
+    it("should store a list read before an invalidation under the old generation", async () => {
+      cache.get.mockResolvedValue(null);
+      cache.generation.mockResolvedValueOnce("before").mockResolvedValueOnce("after");
+      productRepository.findAllWithVariants.mockResolvedValue([]);
+      productRepository.countAll.mockResolvedValue(0);
+
+      await productService.getAllProducts(listQuery());
+      await productService.getAllProducts(listQuery());
+
+      const [late, fresh] = cache.set.mock.calls.map(([key]) => key);
+      expect(late).toContain("products:list:before:");
+      expect(fresh).toContain("products:list:after:");
+    });
+
+    it("should read the list and the total from one snapshot", async () => {
+      cache.get.mockResolvedValue(null);
+      productRepository.findAllWithVariants.mockResolvedValue([]);
+      productRepository.countAll.mockResolvedValue(0);
+
+      await productService.getAllProducts(listQuery());
+
+      expect(queries()).toEqual(["BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY", "COMMIT"]);
     });
 
     it("should return cached products without touching the database", async () => {
@@ -555,9 +605,22 @@ describe("ProductService", () => {
     });
 
     it("should return null when the product does not exist", async () => {
-      productRepository.findById.mockResolvedValue(null);
+      productRepository.lockForUpdate.mockResolvedValue(false);
 
       expect(await productService.publishProduct(999)).toBeNull();
+      expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
+    });
+
+    it("should lock the product before checking its variants", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productVariantRepository.findByProductId.mockResolvedValue([]);
+
+      await expect(productService.publishProduct(1)).rejects.toThrow("Product cannot be published");
+
+      expect(productRepository.lockForUpdate).toHaveBeenCalledWith(client, 1);
+      expect(productRepository.lockForUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+        productVariantRepository.findByProductId.mock.invocationCallOrder[0]!,
+      );
     });
   });
 
@@ -584,7 +647,58 @@ describe("ProductService", () => {
       expect(productRepository.delete).not.toHaveBeenCalled();
       expect(storage.delete).toHaveBeenCalledWith("a.jpg");
       expect(storage.delete).toHaveBeenCalledWith("b.mp3");
-      expect(queries()).toEqual(["BEGIN", "COMMIT"]);
+      expect(queries()).toEqual([
+        "BEGIN",
+        "SAVEPOINT hard_delete",
+        "RELEASE SAVEPOINT hard_delete",
+        "COMMIT",
+      ]);
+    });
+
+    it("should lock the product before deciding how to delete it", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.hasOrders.mockResolvedValue(false);
+      productRepository.findMediaUrls.mockResolvedValue([]);
+      productRepository.hardDelete.mockResolvedValue(true);
+
+      await productService.deleteProduct(1);
+
+      expect(productRepository.lockForUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+        productRepository.findById.mock.invocationCallOrder[0]!,
+      );
+      expect(productRepository.lockForUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+        productRepository.hasOrders.mock.invocationCallOrder[0]!,
+      );
+    });
+
+    it("should fall back to a soft delete when the database refuses because of orders", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.hasOrders.mockResolvedValue(false);
+      productRepository.findMediaUrls.mockResolvedValue(["a.jpg"]);
+      productRepository.hardDelete.mockRejectedValue(
+        Object.assign(new Error("violates foreign key constraint"), { code: "23503" }),
+      );
+      productRepository.delete.mockResolvedValue(true);
+
+      expect(await productService.deleteProduct(1)).toBe(true);
+      expect(productRepository.delete).toHaveBeenCalledWith(client, 1);
+      expect(storage.delete).not.toHaveBeenCalled();
+      expect(queries()).toEqual([
+        "BEGIN",
+        "SAVEPOINT hard_delete",
+        "ROLLBACK TO SAVEPOINT hard_delete",
+        "COMMIT",
+      ]);
+    });
+
+    it("should not swallow other database errors", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productRepository.hasOrders.mockResolvedValue(false);
+      productRepository.findMediaUrls.mockResolvedValue([]);
+      productRepository.hardDelete.mockRejectedValue(new Error("connection lost"));
+
+      await expect(productService.deleteProduct(1)).rejects.toThrow("connection lost");
+      expect(queries().at(-1)).toBe("ROLLBACK");
     });
 
     it("should still succeed when a media file cannot be removed", async () => {
@@ -614,7 +728,7 @@ describe("ProductService", () => {
     });
 
     it("should return false when the product does not exist", async () => {
-      productRepository.findById.mockResolvedValue(null);
+      productRepository.lockForUpdate.mockResolvedValue(false);
 
       expect(await productService.deleteProduct(999)).toBe(false);
       expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
@@ -698,10 +812,39 @@ describe("ProductService", () => {
     it("should soft delete a variant of a published product", async () => {
       productVariantRepository.findById.mockResolvedValue(makeVariant());
       productRepository.findById.mockResolvedValue(makeProduct({ isPublished: true }));
+      productVariantRepository.findByProductId.mockResolvedValue([
+        makeVariant(),
+        makeVariant({ id: 2 }),
+      ]);
       productVariantRepository.delete.mockResolvedValue(true);
 
       expect(await productService.deleteProductVariant(1, 1)).toBe(true);
       expect(productVariantRepository.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it("should refuse to delete the last variant of a published product", async () => {
+      productVariantRepository.findById.mockResolvedValue(makeVariant());
+      productRepository.findById.mockResolvedValue(makeProduct({ isPublished: true }));
+      productVariantRepository.findByProductId.mockResolvedValue([makeVariant()]);
+
+      await expect(productService.deleteProductVariant(1, 1)).rejects.toMatchObject({
+        statusCode: 409,
+      });
+      expect(productVariantRepository.delete).not.toHaveBeenCalled();
+      expect(productVariantRepository.hardDelete).not.toHaveBeenCalled();
+      expect(queries().at(-1)).toBe("ROLLBACK");
+      expect(cache.clear).not.toHaveBeenCalled();
+    });
+
+    it("should allow deleting the last variant of a draft", async () => {
+      productVariantRepository.findById.mockResolvedValue(makeVariant());
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productVariantRepository.hasOrders.mockResolvedValue(false);
+      productVariantRepository.findMediaUrls.mockResolvedValue([]);
+      productVariantRepository.hardDelete.mockResolvedValue(true);
+
+      expect(await productService.deleteProductVariant(1, 1)).toBe(true);
+      expect(productVariantRepository.findByProductId).not.toHaveBeenCalled();
     });
 
     it("should return false when the variant belongs to another product", async () => {

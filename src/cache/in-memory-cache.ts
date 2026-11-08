@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {Cache} from "@/cache/cache.interface.js";
 
 type CacheEntry<T> = {
@@ -10,6 +11,7 @@ type CacheEntry<T> = {
 // Kept as a lightweight cache implementation for potential future use.
 export class InMemoryCache<T> implements Cache<T> {
   private readonly store = new Map<string, CacheEntry<T>>();
+  private currentGeneration = randomUUID();
 
   async get(key: string): Promise<T | null> {
     const entry = this.store.get(key);
@@ -42,6 +44,11 @@ export class InMemoryCache<T> implements Cache<T> {
   }
 
   async clear(): Promise<void> {
+    this.currentGeneration = randomUUID();
     this.store.clear();
+  }
+
+  async generation(): Promise<string> {
+    return this.currentGeneration;
   }
 }

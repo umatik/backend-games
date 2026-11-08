@@ -1,3 +1,4 @@
+import { LastPublishedVariantError } from "@/errors/last-published-variant.error.js";
 import type {
   CreateProductData,
   PricedProductDetails,
@@ -19,7 +20,10 @@ import type { Database } from "@/database/database.interface.js";
 import type { ProductRepository } from "@/repositories/products/product/product.interface.js";
 import type { ProductVariantRepository } from "@/repositories/products/product-variant/product-variant.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
-import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
+import {
+  PENDING_UPLOAD_TTL_MS,
+  type PendingUploadRepository,
+} from "@/repositories/pending-upload/pending-upload.interface.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
 import { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
 import {
@@ -41,6 +45,9 @@ export type ProductListCache = Cache<{
 
 const LIST_CACHE_TTL_SECONDS = 60;
 const MATCH_LIMIT = 10;
+
+/** Kod błędu PostgreSQL: naruszenie klucza obcego. */
+const FOREIGN_KEY_VIOLATION = "23503";
 
 export class ProductService {
   constructor(
@@ -179,26 +186,38 @@ export class ProductService {
     total: number;
   }> {
     // Cache tylko dla sklepu i bez wyszukiwania tekstowego (każde zapytanie byłoby inne).
+    // Generację odczytujemy przed pobraniem danych: jeśli w trakcie ktoś zmieni produkty i wyczyści cache,
+    // nasz spóźniony zapis trafi do starej generacji i nie zostanie już odczytany (audyt 2026-11-08, R2).
     const cacheKey =
       query.status === "published" && query.q === undefined
-        ? this.buildListCacheKey(query)
+        ? this.buildListCacheKey(query, await this.cache.generation())
         : null;
 
     const result =
       (cacheKey ? await this.cache.get(cacheKey) : null) ??
       (await this.withClient(async (client) => {
-        const products = await this.productRepository.findAllWithVariants(
-          client,
-          query,
-        );
-        const total = await this.productRepository.countAll(client, query);
-        const loaded = { products, total };
+        // Lista i licznik z jednego obrazu bazy, żeby `total` zgadzał się z `products`.
+        await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
 
-        if (cacheKey) {
-          await this.cache.set(cacheKey, loaded, LIST_CACHE_TTL_SECONDS);
+        try {
+          const products = await this.productRepository.findAllWithVariants(
+            client,
+            query,
+          );
+          const total = await this.productRepository.countAll(client, query);
+          await client.query("COMMIT");
+
+          const loaded = { products, total };
+
+          if (cacheKey) {
+            await this.cache.set(cacheKey, loaded, LIST_CACHE_TTL_SECONDS);
+          }
+
+          return loaded;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
         }
-
-        return loaded;
       }));
 
     const rate = await this.exchangeRates.getEurPlnRate();
@@ -217,9 +236,7 @@ export class ProductService {
     id: number,
   ): Promise<{ product: PricedProductDetails; warnings: string[] } | null> {
     const product = await this.inTransaction(async (client) => {
-      const existing = await this.productRepository.findById(id, client);
-
-      if (!existing) {
+      if (!(await this.productRepository.lockForUpdate(client, id))) {
         return null;
       }
 
@@ -287,23 +304,35 @@ export class ProductService {
    */
   async deleteProduct(id: number): Promise<boolean> {
     const result = await this.inTransaction(async (client) => {
+      // Blokada przed sprawdzeniem statusu i zamówień: do końca transakcji nikt nie opublikuje ani nie kupi
+      // tego produktu, więc decyzja o trwałym usunięciu pozostaje aktualna.
+      if (!(await this.productRepository.lockForUpdate(client, id))) {
+        return null;
+      }
+
       const product = await this.productRepository.findById(id, client);
 
       if (!product) {
         return null;
       }
 
+      const softDelete = async () =>
+        (await this.productRepository.delete(client, id)) ? { mediaUrls: [] as string[] } : null;
+
       if (product.isPublished || (await this.productRepository.hasOrders(client, id))) {
-        return (await this.productRepository.delete(client, id))
-          ? { mediaUrls: [] as string[] }
-          : null;
+        return softDelete();
       }
 
       const mediaUrls = await this.productRepository.findMediaUrls(client, id);
+      const hardDeleted = await this.tryHardDelete(client, () =>
+        this.productRepository.hardDelete(client, id),
+      );
 
-      return (await this.productRepository.hardDelete(client, id))
-        ? { mediaUrls }
-        : null;
+      if (hardDeleted === "referenced") {
+        return softDelete();
+      }
+
+      return hardDeleted ? { mediaUrls } : null;
     });
 
     if (!result) {
@@ -439,6 +468,9 @@ export class ProductService {
     variantId: number,
   ): Promise<boolean> {
     const result = await this.inTransaction(async (client) => {
+      // Ta sama blokada co przy usuwaniu produktu: publikacja i zamówienia czekają do końca transakcji.
+      await this.productRepository.lockForUpdate(client, productId);
+
       const variant = await this.productVariantRepository.findById(
         client,
         variantId,
@@ -450,24 +482,41 @@ export class ProductService {
 
       const product = await this.productRepository.findById(productId, client);
 
+      // Pod blokadą produktu, więc dwa równoległe usunięcia nie zejdą razem do zera wariantów.
+      if (product?.isPublished) {
+        const variants = await this.productVariantRepository.findByProductId(client, productId);
+
+        if (variants.length <= 1) {
+          throw new LastPublishedVariantError();
+        }
+      }
+
+      const softDelete = async () =>
+        (await this.productVariantRepository.delete(client, variantId))
+          ? { mediaUrls: [] as string[] }
+          : null;
+
       if (
         !product ||
         product.isPublished ||
         (await this.productVariantRepository.hasOrders(client, variantId))
       ) {
-        return (await this.productVariantRepository.delete(client, variantId))
-          ? { mediaUrls: [] as string[] }
-          : null;
+        return softDelete();
       }
 
       const mediaUrls = await this.productVariantRepository.findMediaUrls(
         client,
         variantId,
       );
+      const hardDeleted = await this.tryHardDelete(client, () =>
+        this.productVariantRepository.hardDelete(client, variantId),
+      );
 
-      return (await this.productVariantRepository.hardDelete(client, variantId))
-        ? { mediaUrls }
-        : null;
+      if (hardDeleted === "referenced") {
+        return softDelete();
+      }
+
+      return hardDeleted ? { mediaUrls } : null;
     });
 
     if (!result) {
@@ -497,6 +546,31 @@ export class ProductService {
   }
 
   /** BEGIN/COMMIT wokół `work`; `null` z `work` oznacza „nie znaleziono” i kończy się ROLLBACK. */
+  /**
+   * Trwałe usunięcie w punkcie zapisu: gdy baza odmówi, bo wiersz ma pozycje zamówień (ON DELETE RESTRICT),
+   * transakcja wraca do stanu sprzed usunięcia, a serwis usuwa miękko. Przy blokadach to nie powinno się zdarzyć;
+   * to zabezpieczenie na wypadek nowej ścieżki zamówień, która blokady nie weźmie.
+   */
+  private async tryHardDelete(
+    client: Awaited<ReturnType<Database["connect"]>>,
+    hardDelete: () => Promise<boolean>,
+  ): Promise<boolean | "referenced"> {
+    await client.query("SAVEPOINT hard_delete");
+
+    try {
+      const deleted = await hardDelete();
+      await client.query("RELEASE SAVEPOINT hard_delete");
+      return deleted;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== FOREIGN_KEY_VIOLATION) {
+        throw error;
+      }
+
+      await client.query("ROLLBACK TO SAVEPOINT hard_delete");
+      return "referenced";
+    }
+  }
+
   private async inTransaction<T>(
     work: (client: Awaited<ReturnType<Database["connect"]>>) => Promise<T | null>,
   ): Promise<T | null> {
@@ -539,7 +613,7 @@ export class ProductService {
       return variant;
     }
 
-    const uploads = await this.pendingUploads.claim(client, ids);
+    const uploads = await this.pendingUploads.claim(client, ids, PENDING_UPLOAD_TTL_MS);
 
     if (uploads.length !== new Set(ids).size || uploads.length !== ids.length) {
       throw new ValidationError("Invalid product data", [
@@ -605,13 +679,17 @@ export class ProductService {
     };
   }
 
-  private buildListCacheKey(query: ProductListQuery): string {
+  /**
+   * Klucz cache listy: posortowane pary parametrów zapisane jako JSON. Zwykłe łączenie `klucz=wartość` dwukropkami
+   * było niejednoznaczne, bo wartość filtra może zawierać `:` i `=` (np. artysta `Bob:format=LP` dawał ten sam klucz
+   * co artysta `Bob` z formatem `LP`).
+   */
+  private buildListCacheKey(query: ProductListQuery, generation: string): string {
     const params = Object.entries(query)
       .filter(([, value]) => value !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${String(value)}`);
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
-    return `products:list:${params.join(":")}`;
+    return `products:list:${generation}:${JSON.stringify(params)}`;
   }
 
   private getType(key: string): ProductTypeDefinition {

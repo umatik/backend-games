@@ -20,6 +20,7 @@ describe("NbpExchangeRateProvider", () => {
       delete: async (key) => {
         store.delete(key);
       },
+      generation: async () => "g1",
       clear: async () => store.clear(),
     };
     fetchFn = jest.fn<typeof fetch>();

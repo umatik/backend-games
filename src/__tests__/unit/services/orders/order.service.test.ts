@@ -45,6 +45,7 @@ describe("OrderService", () => {
       set: jest.fn(),
       delete: jest.fn(),
       clear: jest.fn(),
+      generation: jest.fn(),
     };
 
     orderService = new OrderService(orderRepository, mockPool, productCache);

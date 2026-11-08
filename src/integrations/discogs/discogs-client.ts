@@ -124,9 +124,13 @@ export class HttpDiscogsClient implements DiscogsClient {
     }
 
     const body = await this.request(`/database/search?${query.toString()}`);
-    const { results } = searchResponseSchema.parse(body);
+    const parsed = searchResponseSchema.safeParse(body);
 
-    return results.flatMap((item) => {
+    if (!parsed.success) {
+      throw new ExternalServiceError("Discogs returned an unexpected search format");
+    }
+
+    return parsed.data.results.flatMap((item) => {
       const parsed = searchResultSchema.safeParse(item);
       return parsed.success ? [parsed.data] : [];
     });

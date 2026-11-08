@@ -62,11 +62,33 @@ describe("RedisCache", () => {
 
     await cache.clear();
 
+    expect(redisClient.set).toHaveBeenCalledWith("cache-generation:products", expect.any(String));
+    expect(redisClient.set.mock.invocationCallOrder[0]).toBeLessThan(
+      redisClient.scan.mock.invocationCallOrder[0]!,
+    );
     expect(redisClient.scan).toHaveBeenCalledWith("0", {
       MATCH: "products:*",
       COUNT: 100,
     });
 
     expect(redisClient.del).not.toHaveBeenCalled();
+  });
+
+  it("should read the current generation, falling back to the initial one", async () => {
+    redisClient.get.mockResolvedValueOnce("abc").mockResolvedValueOnce(null);
+
+    expect(await cache.generation()).toBe("abc");
+    expect(await cache.generation()).toBe("0");
+    expect(redisClient.get).toHaveBeenCalledWith("cache-generation:products");
+  });
+
+  it("should change the generation on every clear", async () => {
+    redisClient.scan.mockResolvedValue({ cursor: "0", keys: [] });
+
+    await cache.clear();
+    await cache.clear();
+
+    const [first, second] = redisClient.set.mock.calls.map((call) => call[1]);
+    expect(first).not.toBe(second);
   });
 });

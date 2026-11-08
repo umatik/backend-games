@@ -118,6 +118,20 @@ export class OrderPostgresRepository implements OrderInterface {
     );
 
     for (const item of sortedItems) {
+      // Blokada współdzielona na produkcie: zamówienie czeka, aż skończy się publikacja, wycofanie albo
+      // usuwanie tego produktu (te biorą FOR UPDATE), i odwrotnie. Bez niej usuwanie szkicu mogło skasować
+      // pozycje zamówienia złożonego w międzyczasie.
+      await client.query(
+        `
+          SELECT p.id
+          FROM products p
+                 JOIN product_variants pv ON pv.product_id = p.id
+          WHERE pv.id = $1
+          FOR SHARE OF p
+        `,
+        [item.productVariantId],
+      );
+
       const stockResult = await client.query(
         `
           UPDATE product_variants pv

@@ -458,7 +458,8 @@ export const createProductRouter = (
    *     summary: Delete a variant
    *     description: >-
    *       A variant of a draft that was never ordered is deleted permanently together with its media files;
-   *       otherwise it is soft deleted.
+   *       otherwise it is soft deleted. The last variant of a published product cannot be deleted (409):
+   *       unpublish or delete the whole product instead.
    *     security:
    *       - bearerAuth: []
    *     parameters:
@@ -473,6 +474,8 @@ export const createProductRouter = (
    *         description: Variant deleted
    *       404:
    *         description: Variant not found
+   *       409:
+   *         description: The last variant of a published product
    */
   router.delete(
     "/:productId/variants/:variantId",

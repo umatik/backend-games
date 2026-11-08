@@ -41,6 +41,13 @@ export interface ProductRepository {
     isPublished: boolean,
   ): Promise<Product | null>;
 
+  /**
+   * Blokuje wiersz produktu do końca transakcji (`FOR UPDATE`). Każda zmiana, od której zależy, czy produkt
+   * można kupić albo trwale usunąć (publikacja, wycofanie, usunięcie produktu lub wariantu), zaczyna od tej
+   * blokady, a zamówienie bierze na produkcie blokadę współdzieloną. Zwraca `false`, gdy produktu nie ma.
+   */
+  lockForUpdate(client: PoolClient, id: number): Promise<boolean>;
+
   /** Czy któryś wariant produktu trafił kiedykolwiek do zamówienia. */
   hasOrders(client: PoolClient, id: number): Promise<boolean>;
 

@@ -161,6 +161,37 @@ describe("SettingsService", () => {
     expect(rows.size).toBe(0);
   });
 
+  it("should reject keys that cannot be sent in an HTTP header", async () => {
+    const settings = service();
+    const token = "AUDIT_FAKE_TOKEN_123456\n7890";
+
+    const error = await settings
+      .update(
+        {
+          "discogs.token": token,
+          "anthropic.apiKey": "sk-ant-api03 with spaces inside it",
+          "discogs.userAgent": "RasBass\r\nX-Injected: 1",
+        },
+        2,
+      )
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).errors.map((issue) => issue.path)).toEqual([
+      "discogs.token",
+      "anthropic.apiKey",
+      "discogs.userAgent",
+    ]);
+    expect(JSON.stringify((error as ValidationError).errors)).not.toContain("AUDIT_FAKE_TOKEN");
+    expect(rows.size).toBe(0);
+  });
+
+  it("should ignore an environment key that cannot be sent in an HTTP header", async () => {
+    const settings = service({ DISCOGS_TOKEN: "AUDIT_FAKE_TOKEN_123456\n7890" });
+
+    expect(await settings.get("discogsToken")).toBeUndefined();
+  });
+
   it("should refuse to save secrets without an encryption key", async () => {
     const settings = service({}, false);
 

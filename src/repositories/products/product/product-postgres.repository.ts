@@ -317,6 +317,21 @@ export class PostgresProductRepository implements ProductRepository {
     return row ? this.mapProductRow(row) : null;
   }
 
+  async lockForUpdate(client: PoolClient, id: number): Promise<boolean> {
+    const result = await client.query(
+      `
+        SELECT id
+        FROM products
+        WHERE id = $1
+          AND is_deleted = FALSE
+        FOR UPDATE
+      `,
+      [id],
+    );
+
+    return result.rows.length > 0;
+  }
+
   async hasOrders(client: PoolClient, id: number): Promise<boolean> {
     const result = await client.query(
       `

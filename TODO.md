@@ -145,6 +145,23 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [ ] Zostały: `deepmerge` (tylko w jest, brak poprawki), `glob` i `minimatch` w `swagger-jsdoc` (czyta pliki tras przy starcie; poprawka wymaga głównej wersji `glob`, która może zepsuć Swaggera). Sprawdzać przy kolejnych aktualizacjach.
 - [ ] Zmiany głównych wersji odłożone: `dotenv` 18, TypeScript 7 (nowy kompilator). Zrobić osobno, z przeczytaniem listy zmian.
 
+## 9b. Audyt zewnętrzny (2026-11-08)
+
+Raport: `AUDIT_RESULTS.md` (audyt commita `d31022a`). Wszystkie 5 zgłoszeń potwierdzone w kodzie i poprawione, każde z testem regresji.
+
+- [x] **P1 – wyścig usuwania szkicu z publikacją i zakupem kasował pozycje zamówienia.** Zmiany, od których zależy, czy produkt można kupić albo trwale usunąć (publikacja, usunięcie produktu lub wariantu), zaczynają od `lockForUpdate` (`SELECT … FOR UPDATE` na produkcie); zamówienie bierze na produkcie `FOR SHARE`, a wycofanie publikacji blokuje wiersz samym `UPDATE`. Migracja 017: `order_items.product_variant_id` z `ON DELETE RESTRICT` zamiast `CASCADE`; gdyby baza odmówiła trwałego usunięcia, serwis cofa się do punktu zapisu i usuwa miękko. Test: `api/concurrency.api.test.ts` (bariera w połowie usuwania, przed poprawką odtwarzał błąd).
+- [x] **P1 – niepoprawny JSON wysłany do `/settings` zapisywał sekret w logach.** Handler błędów loguje tylko bezpieczny opis (`src/errors/loggable-error.ts`): przy błędach parsera bez body i komunikatu, przy innych nazwa, komunikat, status, stos tylko dla 5xx i skrócone przyczyny. Odpowiedź na niepoprawny JSON to ogólne „Malformed JSON”. To samo w logu nieudanego rozpoznawania płyty.
+- [x] **P2 – kolizje kluczy cache listy** (np. artysta `Bob:format=LP` i artysta `Bob` z formatem `LP`). Klucz to teraz JSON posortowanych par parametrów.
+- [x] **P3 – zdjęcie labela starsze niż 24 h dało się podpiąć.** `claim()` sprawdza wiek w tym samym zapytaniu (zegar bazy); stała `PENDING_UPLOAD_TTL_MS` jest w jednym miejscu (`pending-upload.interface.ts`).
+- [x] **P3 – zły format odpowiedzi wyszukiwania Discogs dawał 500.** `search()` używa `safeParse` i zgłasza `ExternalServiceError` (502).
+
+Ponowny audyt: `AUDIT_RECHECK.md`. Poprzednie poprawki potwierdzone; 3 nowe zgłoszenia, wszystkie poprawione z testami regresji.
+
+- [x] **R1 (P2) – token z błędu `fetch` w logach.** Token ze znakiem nowej linii przechodził walidację, `fetch` odrzucał nagłówek i cytował go w komunikacie, a sanitizer kopiował komunikat i stos przyczyny. Teraz: klucz Claude i token Discogs przyjmują tylko widoczne znaki ASCII bez spacji, User-Agent tylko drukowalne ASCII (dotyczy też wartości z env); z przyczyn błędów (`cause`, `originalError`) logujemy tylko nazwę, kod i status.
+- [x] **R2 (P2) – spóźniony zapis przywracał nieaktualną listę w cache.** Cache ma generacje (`Cache.generation()`, klucz `cache-generation:products` w Redisie, wspólny dla wielu instancji): `clear()` najpierw ustawia nową losową generację, a lista buduje klucz z generacji odczytanej przed pobraniem danych, więc zapis sprzed unieważnienia trafia do generacji, której nikt już nie czyta. Lista i licznik czytane w jednej transakcji `REPEATABLE READ READ ONLY`.
+- [x] **R3 (P2) – usunięcie ostatniego wariantu zostawiało opublikowany produkt bez wariantów.** Reguła: ostatniego wariantu opublikowanego produktu nie da się usunąć (409, `LastPublishedVariantError`); trzeba wycofać publikację albo usunąć cały produkt. Sprawdzane pod blokadą produktu, więc dwa równoległe usunięcia nie zejdą do zera. Panel: przy jednym wariancie przycisk „usuń wariant” zamienia się w „usuń produkt” (zgodnie z planem kreatora).
+- [ ] Inne `console.error` w kodzie (Redis, NBP, ustawienia, migracje) nadal logują cały obiekt błędu. Nie dotyczą danych z żądań, ale przy logach JSON (przygotowanie do produkcji) przejść wszędzie na `toLoggableError`.
+
 ## 10. Dane i testy
 
 - [x] Seed: kilka płyt reggae (split 7", LP w kilku tłoczeniach i stanach, wyprzedany wariant, szkic) oraz po jednym produkcie `tshirt` i `other`

@@ -41,6 +41,7 @@ describe("ProductVariantMediaService", () => {
 
   const productCache = {
     clear: jest.fn(async () => undefined),
+    generation: jest.fn(async () => "g1"),
   } as unknown as jest.Mocked<Cache<unknown>>;
 
   const audioProcessor = {

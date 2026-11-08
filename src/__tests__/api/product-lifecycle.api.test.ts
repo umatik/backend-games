@@ -155,6 +155,42 @@ describe("Product lifecycle API – deleting", () => {
   });
 });
 
+describe("Product lifecycle API – published product keeps a variant", () => {
+  it("should refuse to delete the last variant of a published product", async () => {
+    const { productId, variantId } = await createDraft();
+    await asAdmin(request(app).post(`/products/${productId}/publish`));
+    expect(await shopIds({ artist: "Lifecycle Sound" })).toEqual([productId]);
+
+    const deleted = await asAdmin(
+      request(app).delete(`/products/${productId}/variants/${variantId}`),
+    );
+
+    expect(deleted.status).toBe(409);
+    expect(deleted.body.message).toContain("Unpublish or delete the product");
+
+    const page = await request(app).get(`/products/${productId}`);
+    expect(page.body.product.variants.map((variant: { id: number }) => variant.id)).toEqual([
+      variantId,
+    ]);
+  });
+
+  it("should allow it after unpublishing, and the whole product can still be deleted", async () => {
+    const { productId, variantId } = await createDraft();
+    await asAdmin(request(app).post(`/products/${productId}/publish`));
+    await asAdmin(request(app).post(`/products/${productId}/unpublish`));
+
+    const deleted = await asAdmin(
+      request(app).delete(`/products/${productId}/variants/${variantId}`),
+    );
+    expect(deleted.status).toBe(200);
+
+    const second = await createDraft("Second Lifecycle Dub");
+    await asAdmin(request(app).post(`/products/${second.productId}/publish`));
+    expect((await asAdmin(request(app).delete(`/products/${second.productId}`))).status).toBe(204);
+    expect(await shopIds({ artist: "Lifecycle Sound" })).toEqual([]);
+  });
+});
+
 describe("Product lifecycle API – publishing", () => {
   it("should allow publishing twice", async () => {
     const { productId } = await createDraft();
@@ -230,6 +266,32 @@ describe("Product lifecycle API – wizard", () => {
 
     const pending = await pool.query("SELECT 1 FROM pending_uploads WHERE id = $1", [UPLOAD_ID]);
     expect(pending.rowCount).toBe(0);
+  });
+
+  it("should not accept a label photo older than 24 hours", async () => {
+    await keepLabelPhoto();
+    await pool.query(
+      "UPDATE pending_uploads SET created_at = NOW() - INTERVAL '48 hours' WHERE id = $1",
+      [UPLOAD_ID],
+    );
+    const before = await countProducts();
+
+    const created = await asAdmin(request(app).post("/products")).send({
+      type: "vinyl",
+      title: "Wizard Dub",
+      attributes: { artists: ["Wizard Sound"] },
+      variants: [{ priceEur: 1500, attributes: vinylVariant, photoUploadIds: [UPLOAD_ID] }],
+    });
+
+    expect(created.status).toBe(400);
+    expect(created.body.errors).toEqual([
+      expect.objectContaining({ path: "variants.0.photoUploadIds" }),
+    ]);
+    expect(await countProducts()).toBe(before);
+
+    // Przeterminowane zdjęcie zostaje dla sprzątania, które usunie je razem z plikiem.
+    const pending = await pool.query("SELECT 1 FROM pending_uploads WHERE id = $1", [UPLOAD_ID]);
+    expect(pending.rowCount).toBe(1);
   });
 
   it("should save nothing when a photo is unknown", async () => {

@@ -23,6 +23,28 @@ export type SettingDefinition<T = unknown> = {
 
 const define = <T>(definition: SettingDefinition<T>) => definition;
 
+/**
+ * Klucz lub token wysyłany w nagłówku HTTP: tylko widoczne znaki ASCII, bez spacji i znaków sterujących.
+ * Znak nowej linii w tokenie sprawiał, że `fetch` odrzucał nagłówek z komunikatem zawierającym cały token
+ * (audyt 2026-11-08, R1). Dotyczy też wartości z env, bo te przechodzą przez ten sam schemat.
+ */
+const credential = (minLength: number, maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .min(minLength)
+    .max(maxLength)
+    .regex(/^[\x21-\x7E]+$/, "Must contain only visible ASCII characters, without spaces");
+
+/** Tekst wysyłany w nagłówku HTTP: drukowalne ASCII, spacje dozwolone. */
+const headerText = (minLength: number, maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .min(minLength)
+    .max(maxLength)
+    .regex(/^[\x20-\x7E]+$/, "Must contain only printable ASCII characters");
+
 export const CLAUDE_MODELS = ["claude-haiku-5-5", "claude-opus-5-5"] as const;
 
 export const settingDefinitions = {
@@ -46,7 +68,7 @@ export const settingDefinitions = {
     group: "integrations",
     kind: "secret",
     description: "Claude API key (platform.claude.com), used to read label photos and translate notes",
-    schema: z.string().trim().min(20).max(500),
+    schema: credential(20, 500),
     env: "ANTHROPIC_API_KEY",
   }),
   claudeModel: define({
@@ -63,7 +85,7 @@ export const settingDefinitions = {
     group: "integrations",
     kind: "secret",
     description: "Discogs personal access token (Discogs → Settings → Developers)",
-    schema: z.string().trim().min(10).max(200),
+    schema: credential(10, 200),
     env: "DISCOGS_TOKEN",
   }),
   discogsUserAgent: define({
@@ -71,7 +93,7 @@ export const settingDefinitions = {
     group: "integrations",
     kind: "text",
     description: "User-Agent sent to Discogs, e.g. RasBassShop/1.0 +https://your-shop.example",
-    schema: z.string().trim().min(3).max(200),
+    schema: headerText(3, 200),
     env: "DISCOGS_USER_AGENT",
     defaultValue: "RasBassShop/1.0",
   }),

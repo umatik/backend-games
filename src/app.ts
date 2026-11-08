@@ -18,6 +18,7 @@ import {
 import { AppError } from "@/errors/app.error.js";
 import { parseCorsOrigins, uploadsPath } from "@/config/http.js";
 import { ValidationError } from "@/errors/validation.error.js";
+import { toLoggableError } from "@/errors/loggable-error.js";
 
 const app = express();
 
@@ -97,7 +98,7 @@ app.use((req, res) => {
 const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   console.error(
     `${new Date().toISOString()} ERROR ${req.ip} ${req.method} ${req.originalUrl}`,
-    err,
+    toLoggableError(err),
   );
 
   if (err?.type === "entity.too.large") {
@@ -125,7 +126,16 @@ const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
-  // Błędy klienta z bibliotek Express (np. niepoprawny JSON, ścieżka z „..” w /uploads) mają własny status 4xx.
+  // Komunikat parsera potrafi zacytować fragment body (np. klucz API), więc nie odsyłamy go klientowi.
+  if (err?.type === "entity.parse.failed") {
+    res.status(400).json({
+      message: "Malformed JSON",
+    });
+
+    return;
+  }
+
+  // Błędy klienta z bibliotek Express (np. ścieżka z „..” w /uploads) mają własny status 4xx.
   if (
     typeof err?.status === "number" &&
     err.status >= 400 &&

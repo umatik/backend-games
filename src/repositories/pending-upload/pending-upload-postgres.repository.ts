@@ -31,18 +31,20 @@ export class PendingUploadPostgresRepository implements PendingUploadRepository 
     );
   }
 
-  async claim(client: PoolClient, ids: string[]): Promise<PendingUpload[]> {
+  async claim(client: PoolClient, ids: string[], maxAgeMs: number): Promise<PendingUpload[]> {
     if (ids.length === 0) {
       return [];
     }
 
+    // Wiek liczony zegarem bazy, tym samym, który ustawił created_at.
     const result = await client.query<PendingUpload>(
       `
         DELETE FROM pending_uploads
         WHERE id = ANY ($1::uuid[])
+          AND created_at > NOW() - ($2::bigint * INTERVAL '1 millisecond')
         RETURNING ${COLUMNS}
       `,
-      [ids],
+      [ids, maxAgeMs],
     );
 
     const byId = new Map(result.rows.map((row) => [row.id, mapRow(row)]));

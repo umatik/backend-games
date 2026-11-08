@@ -48,6 +48,15 @@ describe("HttpDiscogsClient", () => {
     ]);
   });
 
+  it("should report a search response with results that are not a list as an external service error", async () => {
+    fetchFn.mockResolvedValue(jsonResponse({ results: null }));
+
+    const search = client.search({ catno: "ZV-7-006" });
+
+    await expect(search).rejects.toBeInstanceOf(ExternalServiceError);
+    await expect(search).rejects.toMatchObject({ statusCode: 502 });
+  });
+
   it("should send artist and title as release_title", async () => {
     fetchFn.mockResolvedValue(jsonResponse({ results: [] }));
 

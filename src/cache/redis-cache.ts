@@ -1,5 +1,10 @@
 import type { RedisClientType } from "redis";
+import { randomUUID } from "node:crypto";
 import type { Cache } from "@/cache/cache.interface.js";
+
+/** Poza wzorcem `products:*`, żeby `clear()` nie usuwało generacji, którą właśnie ustawiło. */
+const GENERATION_KEY = "cache-generation:products";
+const INITIAL_GENERATION = "0";
 
 export class RedisCache<T> implements Cache<T> {
   constructor(private readonly client: RedisClientType) {}
@@ -49,12 +54,29 @@ export class RedisCache<T> implements Cache<T> {
     }
   }
 
+  async generation(): Promise<string> {
+    if (!this.client.isReady) {
+      return INITIAL_GENERATION;
+    }
+
+    try {
+      return (await this.client.get(GENERATION_KEY)) ?? INITIAL_GENERATION;
+    } catch (error) {
+      console.error("Redis GET failed for the cache generation:", error);
+      return INITIAL_GENERATION;
+    }
+  }
+
   async clear(): Promise<void> {
     if (!this.client.isReady) {
       return;
     }
 
     try {
+      // Najpierw nowa generacja: od tej chwili nikt nie czyta starych wpisów, nawet tych zapisanych z opóźnieniem.
+      await this.client.set(GENERATION_KEY, randomUUID());
+
+      // Potem sprzątanie starych wpisów (i tak wygasłyby po swoim TTL).
       let cursor = "0";
 
       do {

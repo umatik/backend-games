@@ -25,4 +25,13 @@ export interface ProductVariantRepository {
   ): Promise<ProductVariant | null>;
 
   delete(client: PoolClient, id: number): Promise<boolean>;
+
+  /** Czy wariant trafił kiedykolwiek do zamówienia. */
+  hasOrders(client: PoolClient, id: number): Promise<boolean>;
+
+  /** Ścieżki plików mediów wariantu (do usunięcia ze storage). */
+  findMediaUrls(client: PoolClient, id: number): Promise<string[]>;
+
+  /** Trwałe usunięcie razem z mediami. */
+  hardDelete(client: PoolClient, id: number): Promise<boolean>;
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getProductType } from "@/product-types/index.js";
+import { PRODUCT_SORTS } from "@/types/product.types.js";
 
 /** Cena w eurocentach (12000 = 120,00 €). */
 const priceEur = z.int().min(0).max(99_999_999);
@@ -14,6 +15,16 @@ export const createProductVariantSchema = z.strictObject({
   attributes: attributes.default({}),
 });
 
+export const updateProductVariantSchema = z
+  .strictObject({
+    priceEur: priceEur.optional(),
+    quantity: quantity.optional(),
+    attributes: attributes.optional(),
+  })
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "At least one field is required",
+  });
+
 export const createProductSchema = z.strictObject({
   type: z.string().refine((key) => getProductType(key) !== undefined, {
     message: "Unknown product type",
@@ -24,28 +35,40 @@ export const createProductSchema = z.strictObject({
   variants: z.array(createProductVariantSchema).max(100).default([]),
 });
 
-export const updateProductVariantSchema = z
-  .strictObject({
-    id: z.int().positive().optional(),
-    priceEur: priceEur.optional(),
-    quantity: quantity.optional(),
-    attributes: attributes.optional(),
-  })
-  .refine((variant) => variant.id !== undefined || variant.priceEur !== undefined, {
-    message: "New variant requires priceEur",
-    path: ["priceEur"],
-  });
-
 export const updateProductSchema = z
   .strictObject({
     title: title.optional(),
     description: description.optional(),
     attributes: attributes.optional(),
-    variants: z.array(updateProductVariantSchema).max(100).optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "At least one field is required",
   });
+
+const queryText = z.string().trim().min(1).max(255).optional();
+const queryPrice = z.coerce.number().int().min(0).max(99_999_999).optional();
+
+/** Filtry listy produktów (query string). Paginację sprawdza osobno `isValidPagination`. */
+export const productListFiltersSchema = z.object({
+  type: queryText,
+  artist: queryText,
+  format: queryText,
+  mediaCondition: queryText,
+  label: queryText,
+  priceMinEur: queryPrice,
+  priceMaxEur: queryPrice,
+  available: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+  q: queryText,
+  sort: z.enum(PRODUCT_SORTS).default("newest"),
+});
+
+/** Dodatkowy filtr listy dla panelu admina. */
+export const productStatusSchema = z
+  .enum(["published", "draft", "all"])
+  .default("all");
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;

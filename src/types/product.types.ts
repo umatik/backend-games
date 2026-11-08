@@ -1,7 +1,6 @@
 import type {
   CreateProductVariantInput,
   ProductVariant,
-  UpdateProductVariantInput,
 } from "./product-variant.types.js";
 
 export type Product = {
@@ -45,7 +44,44 @@ export type UpdateProductData = {
   title?: string | undefined;
   description?: string | null | undefined;
   attributes?: Record<string, unknown> | undefined;
-  variants?: UpdateProductVariantInput[] | undefined;
 };
 
-export type UpdateProductRecord = Omit<UpdateProductData, "variants">;
+export type UpdateProductRecord = UpdateProductData;
+
+/** Wariant w odpowiedzi API: cena w EUR z bazy i przeliczona cena w PLN (grosze; `null`, gdy brak kursu). */
+export type PricedProductVariant = ProductVariant & {
+  pricePln: number | null;
+};
+
+export type PricedProductDetails = Product & {
+  variants: PricedProductVariant[];
+};
+
+/** Który zestaw produktów zwracać: sklep widzi tylko opublikowane, admin także szkice. */
+export type ProductStatus = "published" | "draft" | "all";
+
+export const PRODUCT_SORTS = ["newest", "price_asc", "price_desc", "artist"] as const;
+
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
+
+export type ProductListFilters = {
+  type?: string | undefined;
+  artist?: string | undefined;
+  format?: string | undefined;
+  mediaCondition?: string | undefined;
+  label?: string | undefined;
+  /** Zakres cen w eurocentach; wariant musi się w nim mieścić. */
+  priceMinEur?: number | undefined;
+  priceMaxEur?: number | undefined;
+  /** Tylko produkty, które mają wariant na stanie. */
+  available?: boolean | undefined;
+  /** Wyszukiwanie po tytule, artystach, wytwórni i numerze katalogowym. */
+  q?: string | undefined;
+};
+
+export type ProductListQuery = ProductListFilters & {
+  page: number;
+  limit: number;
+  status: ProductStatus;
+  sort: ProductSort;
+};

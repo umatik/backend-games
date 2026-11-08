@@ -6,6 +6,10 @@ import type { Database } from "@/database/database.interface.js";
 import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
 import { ProductVariantMediaService } from "@/services/product-variant-media.service.js";
 import type { Storage } from "@/storage/storage.interface.js";
+import type {
+  AudioFile,
+  AudioProcessor,
+} from "@/audio/audio-processor.interface.js";
 import {
   ProductVariantMediaType,
   type ProductVariantMedia,
@@ -39,6 +43,10 @@ describe("ProductVariantMediaService", () => {
     clear: jest.fn(async () => undefined),
   } as unknown as jest.Mocked<Cache<unknown>>;
 
+  const audioProcessor = {
+    process: jest.fn(async (file: AudioFile) => file),
+  } as unknown as jest.Mocked<AudioProcessor>;
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -50,6 +58,7 @@ describe("ProductVariantMediaService", () => {
       storage,
       pool,
       productCache,
+      audioProcessor,
     );
   });
 
@@ -119,6 +128,41 @@ describe("ProductVariantMediaService", () => {
         );
       },
     );
+  });
+
+  describe("audio processing", () => {
+    it("should store the processed audio file instead of the upload", async () => {
+      const processed: AudioFile = {
+        buffer: Buffer.from("mp3"),
+        extension: "mp3",
+        contentType: "audio/mpeg",
+      };
+      audioProcessor.process.mockResolvedValueOnce(processed);
+      storage.save.mockResolvedValue("products/audio/variant-1-1.mp3");
+      mediaRepository.create.mockResolvedValue({} as ProductVariantMedia);
+
+      await service.create(1, Buffer.from("wav"), "side-a.wav", "audio/wav", null, 0, false);
+
+      expect(audioProcessor.process).toHaveBeenCalledWith({
+        buffer: Buffer.from("wav"),
+        extension: "wav",
+        contentType: "audio/wav",
+      });
+      expect(storage.save).toHaveBeenCalledWith(
+        Buffer.from("mp3"),
+        expect.stringMatching(/^products\/audio\/variant-1-\d+\.mp3$/),
+        "audio/mpeg",
+      );
+    });
+
+    it("should not process photos", async () => {
+      storage.save.mockResolvedValue("products/photo/variant-1-1.jpg");
+      mediaRepository.create.mockResolvedValue({} as ProductVariantMedia);
+
+      await service.create(1, Buffer.from("jpg"), "label.jpg", "image/jpeg", null, 0, true);
+
+      expect(audioProcessor.process).not.toHaveBeenCalled();
+    });
   });
 
   describe("create", () => {

@@ -3,6 +3,7 @@ import request from "supertest";
 import app from "../../app.js";
 import { redisClient } from "../../dependency-injection.js";
 import { loginAsAdmin, loginAsUser } from "../../__test-helpers__/auth.js";
+import { pool } from "@/database/db.js";
 
 const vinylVariant = (mediaCondition = "NM") => ({
   format: "LP",
@@ -397,7 +398,7 @@ describe("Products API", () => {
     expect(response.status).toBe(400);
   });
 
-  it("should update product variants", async () => {
+  it("should update a variant through the variant endpoint", async () => {
     const token = await loginAsAdmin();
 
     const productResponse = await request(app)
@@ -407,44 +408,30 @@ describe("Products API", () => {
         type: "vinyl",
         attributes: { artists: ["Test Artist"] },
         title: "API Variant Update Product",
-        variants: [
-          {
-            priceEur: 10000,
-            attributes: vinylVariant(),
-            quantity: 10,
-          },
-        ],
+        variants: [{ priceEur: 10000, attributes: vinylVariant(), quantity: 10 }],
       });
 
     const productId = productResponse.body.product.id;
-
-    const product = await request(app).get(`/products/${productId}`);
-
-    const variantId = product.body.product.variants[0].id;
+    const variantId = productResponse.body.product.variants[0].id;
 
     const response = await request(app)
-      .patch(`/products/${productId}`)
+      .patch(`/products/${productId}/variants/${variantId}`)
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        variants: [
-          {
-            id: variantId,
-            priceEur: 15000,
-            attributes: vinylVariant("VG+"),
-            quantity: 20,
-          },
-        ],
-      });
+      .send({ priceEur: 15000, attributes: vinylVariant("VG+"), quantity: 20 });
 
     expect(response.status).toBe(200);
-    expect(response.body.product.variants[0].attributes.mediaCondition).toBe(
-      "VG+",
+    expect(response.body.variant).toEqual(
+      expect.objectContaining({
+        id: variantId,
+        priceEur: 15000,
+        pricePln: 64500,
+        quantity: 20,
+        attributes: vinylVariant("VG+"),
+      }),
     );
-    expect(response.body.product.variants[0].priceEur).toBe(15000);
-    expect(response.body.product.variants[0].quantity).toBe(20);
   });
 
-  it("should add a new variant when updating a product", async () => {
+  it("should add a variant through the variant endpoint", async () => {
     const token = await loginAsAdmin();
 
     const productResponse = await request(app)
@@ -454,132 +441,122 @@ describe("Products API", () => {
         type: "vinyl",
         attributes: { artists: ["Test Artist"] },
         title: "API Add Variant Product",
-        variants: [
-          {
-            priceEur: 10000,
-            attributes: vinylVariant(),
-            quantity: 10,
-          },
-        ],
+        variants: [{ priceEur: 10000, attributes: vinylVariant(), quantity: 10 }],
       });
 
     const productId = productResponse.body.product.id;
 
     const response = await request(app)
-      .patch(`/products/${productId}`)
+      .post(`/products/${productId}/variants`)
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        variants: [
-          {
-            priceEur: 20000,
-            attributes: vinylVariant(),
-            quantity: 15,
-          },
-        ],
-      });
+      .send({ priceEur: 20000, attributes: vinylVariant("VG") });
 
-    expect(response.status).toBe(200);
-    expect(response.body.product.variants.length).toBe(2);
+    expect(response.status).toBe(201);
+    expect(response.body.variant.quantity).toBe(1);
+
+    const product = await request(app)
+      .get(`/products/manage/${productId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(product.body.product.variants).toHaveLength(2);
   });
 
   it("should return 404 when updating a variant that belongs to another product", async () => {
     const token = await loginAsAdmin();
 
     const response = await request(app)
-      .patch("/products/50")
+      .patch("/products/50/variants/8")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        variants: [
-          {
-            id: 8,
-            priceEur: 30000,
-            attributes: vinylVariant(),
-            quantity: 10,
-          },
-        ],
-      });
+      .send({ quantity: 10 });
 
     expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Product variant not found");
   });
 
-  it("should soft delete a product", async () => {
+  it("should reject variants in a product update", async () => {
     const token = await loginAsAdmin();
 
-    const productResponse = await request(app)
-      .post("/products")
+    const response = await request(app)
+      .patch("/products/50")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        type: "vinyl",
-        attributes: { artists: ["Test Artist"] },
-        title: "API Delete Product",
-        variants: [
-          {
-            priceEur: 10000,
-            attributes: vinylVariant(),
-            quantity: 10,
-          },
-        ],
-      });
+      .send({ variants: [{ id: 99, quantity: 1 }] });
 
-    const productId = productResponse.body.product.id;
+    expect(response.status).toBe(400);
+  });
+
+  it("should soft delete a published product", async () => {
+    const token = await loginAsAdmin();
 
     const deleteResponse = await request(app)
-      .delete(`/products/${productId}`)
+      .delete("/products/5")
       .set("Authorization", `Bearer ${token}`);
 
     expect(deleteResponse.status).toBe(204);
 
-    const getResponse = await request(app).get(`/products/${productId}`);
+    const getResponse = await request(app).get("/products/5");
 
     expect(getResponse.status).toBe(404);
     expect(getResponse.body.message).toBe("Product not found");
+
+    const row = await pool.query("SELECT is_deleted FROM products WHERE id = 5");
+
+    expect(row.rows[0].is_deleted).toBe(true);
   });
 
-  it("should soft delete a product variant", async () => {
+  it("should permanently delete a draft that was never ordered", async () => {
     const token = await loginAsAdmin();
 
-    const productResponse = await request(app)
-      .post("/products")
-      .set("Authorization", `Bearer ${token}`)
-      .send({
-        type: "vinyl",
-        attributes: { artists: ["Test Artist"] },
-        title: "API Delete Variant Product",
-        variants: [
-          {
-            priceEur: 10000,
-            attributes: vinylVariant(),
-            quantity: 10,
-          },
-          {
-            priceEur: 15000,
-            attributes: vinylVariant(),
-            quantity: 20,
-          },
-        ],
-      });
+    const deleteResponse = await request(app)
+      .delete("/products/6")
+      .set("Authorization", `Bearer ${token}`);
 
-    const productId = productResponse.body.product.id;
+    expect(deleteResponse.status).toBe(204);
 
-    const product = await request(app).get(`/products/${productId}`);
+    const products = await pool.query("SELECT id FROM products WHERE id = 6");
+    const variants = await pool.query(
+      "SELECT id FROM product_variants WHERE product_id = 6",
+    );
 
-    const variantId = product.body.product.variants[0].id;
+    expect(products.rows).toHaveLength(0);
+    expect(variants.rows).toHaveLength(0);
+  });
+
+  it("should soft delete a variant of a published product", async () => {
+    const token = await loginAsAdmin();
 
     const deleteResponse = await request(app)
-      .delete(`/products/${productId}/variants/${variantId}`)
+      .delete("/products/1/variants/2")
       .set("Authorization", `Bearer ${token}`);
 
     expect(deleteResponse.status).toBe(200);
 
-    const getResponse = await request(app).get(`/products/${productId}`);
-
-    expect(getResponse.status).toBe(200);
-
-    const variants = getResponse.body.product.variants;
+    const getResponse = await request(app).get("/products/1");
 
     expect(
-      variants.some((variant: { id: number }) => variant.id === variantId),
+      getResponse.body.product.variants.some(
+        (variant: { id: number }) => variant.id === 2,
+      ),
     ).toBe(false);
+
+    const row = await pool.query(
+      "SELECT is_deleted FROM product_variants WHERE id = 2",
+    );
+
+    expect(row.rows[0].is_deleted).toBe(true);
+  });
+
+  it("should permanently delete a variant of a draft", async () => {
+    const token = await loginAsAdmin();
+
+    const deleteResponse = await request(app)
+      .delete("/products/6/variants/12")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(deleteResponse.status).toBe(200);
+
+    const row = await pool.query("SELECT id FROM product_variants WHERE id = 12");
+
+    expect(row.rows).toHaveLength(0);
   });
 
   it("should return 403 when a regular user tries to delete a product", async () => {
@@ -895,17 +872,17 @@ describe("Products API – product types", () => {
     expect(response.status).toBe(400);
   });
 
-  it("should validate attributes against the existing product type on update", async () => {
+  it("should validate variant attributes against the existing product type", async () => {
     const token = await loginAsAdmin();
 
     const response = await request(app)
-      .patch("/products/4")
+      .patch("/products/4/variants/7")
       .set("Authorization", `Bearer ${token}`)
-      .send({ variants: [{ id: 7, attributes: { color: "Red" } }] });
+      .send({ attributes: { color: "Red" } });
 
     expect(response.status).toBe(400);
     expect(response.body.errors).toEqual([
-      expect.objectContaining({ path: "variants.0.attributes.size" }),
+      expect.objectContaining({ path: "attributes.size" }),
     ]);
   });
 
@@ -927,5 +904,262 @@ describe("Products API – product types", () => {
 
     expect(cleared.status).toBe(200);
     expect(cleared.body.product.description).toBeNull();
+  });
+});
+
+const ids = (response: { body: { products: { id: number }[] } }) =>
+  response.body.products.map((product) => product.id);
+
+describe("Products API – drafts and publishing", () => {
+  it("should hide drafts from the shop", async () => {
+    const product = await request(app).get("/products/6");
+    const list = await request(app).get("/products?limit=100");
+
+    expect(product.status).toBe(404);
+    expect(ids(list)).not.toContain(6);
+    expect(list.body.pagination.total).toBe(49);
+  });
+
+  it("should show drafts with warnings in the admin view", async () => {
+    const token = await loginAsAdmin();
+
+    const product = await request(app)
+      .get("/products/manage/6")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(product.status).toBe(200);
+    expect(product.body.product.isPublished).toBe(false);
+    expect(product.body.warnings).toEqual(["missing_preview"]);
+
+    const drafts = await request(app)
+      .get("/products/manage?status=draft")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(drafts.status).toBe(200);
+    expect(ids(drafts)).toEqual([6]);
+  });
+
+  it("should not let a regular user see the admin view", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .get("/products/manage")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should create a draft, publish it with warnings and unpublish it", async () => {
+    const token = await loginAsAdmin();
+
+    const created = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        type: "vinyl",
+        title: "Publish Me",
+        attributes: { artists: ["Test Artist"] },
+        variants: [{ priceEur: 1500, attributes: vinylVariant() }],
+      });
+
+    const productId = created.body.product.id;
+
+    expect(created.body.product.isPublished).toBe(false);
+    expect(created.body.warnings).toEqual(["missing_preview"]);
+    expect((await request(app).get(`/products/${productId}`)).status).toBe(404);
+
+    const published = await request(app)
+      .post(`/products/${productId}/publish`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(published.status).toBe(200);
+    expect(published.body.product.isPublished).toBe(true);
+    expect(published.body.warnings).toEqual(["missing_preview"]);
+    expect((await request(app).get(`/products/${productId}`)).status).toBe(200);
+
+    const unpublished = await request(app)
+      .post(`/products/${productId}/unpublish`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(unpublished.status).toBe(200);
+    expect((await request(app).get(`/products/${productId}`)).status).toBe(404);
+  });
+
+  it("should publish without warnings when the vinyl has preview links", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products/2/publish")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.warnings).toEqual([]);
+  });
+
+  it("should not publish a product without variants", async () => {
+    const token = await loginAsAdmin();
+
+    const created = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "other", title: "Empty" });
+
+    const response = await request(app)
+      .post(`/products/${created.body.product.id}/publish`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors).toEqual([
+      { path: "variants", message: "At least one variant is required" },
+    ]);
+  });
+
+  it("should not let a regular user publish", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .post("/products/6/publish")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 404 when publishing a product that does not exist", async () => {
+    const token = await loginAsAdmin();
+
+    const response = await request(app)
+      .post("/products/999999/publish")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("Products API – filters, search and sorting", () => {
+  it("should filter by artist case-insensitively", async () => {
+    const response = await request(app).get("/products?artist=zulu%20vibes");
+
+    expect(response.status).toBe(200);
+    expect(ids(response)).toEqual([1]);
+  });
+
+  it("should filter by product type", async () => {
+    const response = await request(app).get("/products?type=tshirt");
+
+    expect(ids(response)).toEqual([4]);
+  });
+
+  it("should match variant filters on the same variant", async () => {
+    const response = await request(app).get(
+      `/products?format=${encodeURIComponent('7"')}&mediaCondition=M`,
+    );
+
+    expect(ids(response)).toEqual([1]);
+
+    // Produkt 2 ma wariant NM, ale wyprzedany; drugi wariant (VG+) jest na stanie.
+    const available = await request(app).get(
+      "/products?mediaCondition=NM&available=true&limit=100",
+    );
+
+    expect(ids(available)).not.toContain(2);
+
+    const anyStock = await request(app).get("/products?mediaCondition=NM&limit=100");
+
+    expect(ids(anyStock)).toContain(2);
+  });
+
+  it("should filter by price range in euro cents", async () => {
+    const response = await request(app).get("/products?priceMaxEur=1500");
+
+    expect(ids(response).sort((a, b) => a - b)).toEqual([1, 5]);
+  });
+
+  it("should filter by label", async () => {
+    const response = await request(app).get("/products?label=lion%20yard");
+
+    expect(ids(response)).toEqual([2]);
+  });
+
+  it("should search title, artists, label and catalog number", async () => {
+    const byCatalogNumber = await request(app).get("/products?q=zv-7");
+    const byTitle = await request(app).get("/products?q=dub%20from");
+    const byArtist = await request(app).get("/products?q=roots%20found");
+    const wildcard = await request(app).get("/products?q=%25");
+
+    expect(ids(byCatalogNumber)).toEqual([1]);
+    expect(ids(byTitle)).toEqual([2]);
+    expect(ids(byArtist)).toEqual([2]);
+    expect(wildcard.status).toBe(200);
+    expect(ids(wildcard)).toEqual([]);
+  });
+
+  it("should sort by the lowest variant price", async () => {
+    const ascending = await request(app).get("/products?sort=price_asc&limit=3");
+    const descending = await request(app).get("/products?sort=price_desc&limit=1");
+
+    expect(ids(ascending)).toEqual([1, 5, 3]);
+    expect(ids(descending)).toEqual([50]);
+  });
+
+  it("should sort by the first artist", async () => {
+    const response = await request(app).get("/products?sort=artist&type=vinyl&limit=2");
+
+    expect(ids(response)).toEqual([1, 2]);
+  });
+
+  it("should count only filtered products", async () => {
+    const response = await request(app).get("/products?type=vinyl&limit=1");
+
+    expect(response.body.pagination.total).toBe(47);
+  });
+
+  it("should return 400 for invalid filters", async () => {
+    const sort = await request(app).get("/products?sort=random");
+    const price = await request(app).get("/products?priceMaxEur=-1");
+    const available = await request(app).get("/products?available=yes");
+
+    for (const response of [sort, price, available]) {
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("Invalid query parameters");
+    }
+  });
+});
+
+describe("Products API – prices and product types", () => {
+  it("should return prices in EUR and PLN rounded up to full złoty", async () => {
+    const response = await request(app).get("/products/1");
+
+    const prices = response.body.product.variants.map(
+      (variant: { priceEur: number; pricePln: number }) => [
+        variant.priceEur,
+        variant.pricePln,
+      ],
+    );
+
+    // Kurs w testach: 4.3 → 15,00 € = 64,50 zł → 65 zł; 10,00 € = 43,00 zł.
+    expect(prices).toEqual([
+      [1500, 6500],
+      [1000, 4300],
+    ]);
+  });
+
+  it("should describe product types with JSON Schemas", async () => {
+    const response = await request(app).get("/products/types");
+
+    expect(response.status).toBe(200);
+
+    const vinyl = response.body.productTypes.find(
+      (type: { key: string }) => type.key === "vinyl",
+    );
+
+    expect(vinyl.productAttributes.required).toEqual(["artists"]);
+    expect(vinyl.variantAttributes.required).toEqual(
+      expect.arrayContaining(["format", "mediaCondition", "sleeveCondition"]),
+    );
+    expect(response.body.productTypes.map((type: { key: string }) => type.key)).toEqual([
+      "vinyl",
+      "tshirt",
+      "other",
+    ]);
   });
 });

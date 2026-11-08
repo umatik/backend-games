@@ -1,15 +1,22 @@
 import type {
   CreateProductData,
+  PricedProductDetails,
+  PricedProductVariant,
   ProductDetails,
+  ProductListQuery,
+  ProductStatus,
   UpdateProductData,
-} from "../types/product.types.js";
-import type { UpdateProductVariantData } from "../types/product-variant.types.js";
-import { ProductVariantNotFoundError } from "../errors/product-variant-not-found.error.js";
-import type { Cache } from "../cache/cache.interface.js";
-import type { Database } from "../database/database.interface.js";
-import type { ProductRepository } from "../repositories/products/product/product.interface.js";
-import type { ProductVariantRepository } from "../repositories/products/product-variant/product-variant.interface.js";
-import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+} from "@/types/product.types.js";
+import type {
+  CreateProductVariantInput,
+  ProductVariant,
+  UpdateProductVariantData,
+} from "@/types/product-variant.types.js";
+import type { Cache } from "@/cache/cache.interface.js";
+import type { Database } from "@/database/database.interface.js";
+import type { ProductRepository } from "@/repositories/products/product/product.interface.js";
+import type { ProductVariantRepository } from "@/repositories/products/product-variant/product-variant.interface.js";
+import type { Storage } from "@/storage/storage.interface.js";
 import {
   getProductType,
   type ProductTypeDefinition,
@@ -17,20 +24,34 @@ import {
 import { ValidationError } from "@/errors/validation.error.js";
 import { formatZodIssues } from "@/validators/helpers/zod.js";
 import { slugify } from "@/utils/slugify.js";
+import {
+  convertEurToPln,
+  type ExchangeRateProvider,
+} from "@/services/exchange-rate.service.js";
+
+export type ProductListCache = Cache<{
+  products: ProductDetails[];
+  total: number;
+}>;
+
+const LIST_CACHE_TTL_SECONDS = 60;
 
 export class ProductService {
   constructor(
     private productRepository: ProductRepository,
     private productVariantRepository: ProductVariantRepository,
     private pool: Database,
-    private cache: Cache<{
-      products: ProductDetails[];
-      total: number;
-    }>,
-    private productVariantMediaRepository: ProductVariantMediaInterface,
+    private cache: ProductListCache,
+    private storage: Storage,
+    private exchangeRates: ExchangeRateProvider,
   ) {}
 
-  async createProduct(data: CreateProductData): Promise<ProductDetails> {
+  // ------------------------------------------------------------------
+  // Produkty
+  // ------------------------------------------------------------------
+
+  /** Tworzy produkt jako szkic (niewidoczny w sklepie). */
+  async createProduct(data: CreateProductData): Promise<PricedProductDetails> {
     const type = this.getType(data.type);
     const attributes = this.parseAttributes(
       type.productAttributes,
@@ -46,12 +67,8 @@ export class ProductService {
       ),
     }));
 
-    const client = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-
-      const product = await this.productRepository.create(client, {
+    const product = await this.inTransaction(async (client) => {
+      const created = await this.productRepository.create(client, {
         type: type.key,
         title: data.title,
         description: data.description ?? null,
@@ -59,50 +76,43 @@ export class ProductService {
         slugBase: this.buildSlugBase(type, data.title, attributes),
       });
 
-      const createdVariants = [];
+      const createdVariants: ProductVariant[] = [];
 
       for (const variant of variants) {
         createdVariants.push(
           await this.productVariantRepository.create(client, {
-            productId: product.id,
-            priceEur: variant.priceEur,
-            quantity: variant.quantity,
-            attributes: variant.attributes,
+            productId: created.id,
+            ...variant,
           }),
         );
       }
 
-      await client.query("COMMIT");
-      await this.cache.clear();
+      return { ...created, variants: createdVariants };
+    });
 
-      return { ...product, variants: createdVariants };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
+    if (!product) {
+      throw new Error("Product was not created");
     }
+
+    await this.cache.clear();
+
+    return this.withPln(product);
   }
 
   async updateProduct(
     id: number,
     data: UpdateProductData,
-  ): Promise<ProductDetails | null> {
-    const client = await this.pool.connect();
+  ): Promise<PricedProductDetails | null> {
+    const product = await this.inTransaction(async (client) => {
+      const existing = await this.productRepository.findById(id, client);
 
-    try {
-      await client.query("BEGIN");
-
-      const existingProduct = await this.productRepository.findById(id, client);
-
-      if (!existingProduct) {
-        await client.query("ROLLBACK");
+      if (!existing) {
         return null;
       }
 
-      const type = this.getType(existingProduct.type);
+      const type = this.getType(existing.type);
 
-      const product = await this.productRepository.update(client, id, {
+      const updated = await this.productRepository.update(client, id, {
         title: data.title,
         description: data.description,
         attributes:
@@ -115,76 +125,407 @@ export class ProductService {
               ),
       });
 
-      if (!product) {
-        await client.query("ROLLBACK");
+      if (!updated) {
         return null;
-      }
-
-      for (const [index, variant] of (data.variants ?? []).entries()) {
-        const attributes =
-          variant.attributes === undefined
-            ? undefined
-            : this.parseAttributes(
-                type.variantAttributes,
-                variant.attributes,
-                `variants.${index}.attributes`,
-              );
-
-        if (variant.id !== undefined) {
-          const existingVariant = await this.productVariantRepository.findById(
-            client,
-            variant.id,
-          );
-
-          if (!existingVariant || existingVariant.productId !== product.id) {
-            throw new ProductVariantNotFoundError(variant.id);
-          }
-
-          const variantData: UpdateProductVariantData = {
-            priceEur: variant.priceEur,
-            quantity: variant.quantity,
-            attributes,
-          };
-
-          await this.productVariantRepository.update(
-            client,
-            variant.id,
-            variantData,
-          );
-        } else {
-          await this.productVariantRepository.create(client, {
-            productId: product.id,
-            priceEur: variant.priceEur ?? 0,
-            quantity: variant.quantity ?? 1,
-            attributes:
-              attributes ??
-              this.parseAttributes(
-                type.variantAttributes,
-                {},
-                `variants.${index}.attributes`,
-              ),
-          });
-        }
       }
 
       const variants = await this.productVariantRepository.findByProductId(
         client,
-        product.id,
+        id,
       );
 
-      await client.query("COMMIT");
-      await this.cache.clear();
+      return { ...updated, variants };
+    });
 
-      return {
-        ...product,
-        variants,
-      };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
+    if (!product) {
+      return null;
+    }
+
+    await this.cache.clear();
+
+    return this.withPln(product);
+  }
+
+  /** Zwraca produkt z wariantami; `status` pozwala ukryć szkice przed sklepem. */
+  async getProduct(
+    id: number,
+    status: ProductStatus = "published",
+  ): Promise<PricedProductDetails | null> {
+    const product = await this.withClient(async (client) => {
+      const found = await this.productRepository.findById(id, client, status);
+
+      if (!found) {
+        return null;
+      }
+
+      const variants = await this.productVariantRepository.findByProductId(
+        client,
+        id,
+      );
+
+      return { ...found, variants };
+    });
+
+    return product ? this.withPln(product) : null;
+  }
+
+  async getAllProducts(query: ProductListQuery): Promise<{
+    products: PricedProductDetails[];
+    total: number;
+  }> {
+    // Cache tylko dla sklepu i bez wyszukiwania tekstowego (każde zapytanie byłoby inne).
+    const cacheKey =
+      query.status === "published" && query.q === undefined
+        ? this.buildListCacheKey(query)
+        : null;
+
+    const result =
+      (cacheKey ? await this.cache.get(cacheKey) : null) ??
+      (await this.withClient(async (client) => {
+        const products = await this.productRepository.findAllWithVariants(
+          client,
+          query,
+        );
+        const total = await this.productRepository.countAll(client, query);
+        const loaded = { products, total };
+
+        if (cacheKey) {
+          await this.cache.set(cacheKey, loaded, LIST_CACHE_TTL_SECONDS);
+        }
+
+        return loaded;
+      }));
+
+    const rate = await this.exchangeRates.getEurPlnRate();
+
+    return {
+      products: result.products.map((product) => this.withRate(product, rate)),
+      total: result.total,
+    };
+  }
+
+  /**
+   * Publikuje produkt. Wymaga co najmniej jednego wariantu; brak odsłuchu i inne braki
+   * nie blokują publikacji, tylko trafiają do `warnings`.
+   */
+  async publishProduct(
+    id: number,
+  ): Promise<{ product: PricedProductDetails; warnings: string[] } | null> {
+    const product = await this.inTransaction(async (client) => {
+      const existing = await this.productRepository.findById(id, client);
+
+      if (!existing) {
+        return null;
+      }
+
+      const variants = await this.productVariantRepository.findByProductId(
+        client,
+        id,
+      );
+
+      if (variants.length === 0) {
+        throw new ValidationError("Product cannot be published", [
+          { path: "variants", message: "At least one variant is required" },
+        ]);
+      }
+
+      const published = await this.productRepository.setPublished(
+        client,
+        id,
+        true,
+      );
+
+      return published ? { ...published, variants } : null;
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    await this.cache.clear();
+
+    return { product: await this.withPln(product), warnings: this.getWarnings(product) };
+  }
+
+  async unpublishProduct(id: number): Promise<PricedProductDetails | null> {
+    const product = await this.inTransaction(async (client) => {
+      const unpublished = await this.productRepository.setPublished(
+        client,
+        id,
+        false,
+      );
+
+      if (!unpublished) {
+        return null;
+      }
+
+      const variants = await this.productVariantRepository.findByProductId(
+        client,
+        id,
+      );
+
+      return { ...unpublished, variants };
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    await this.cache.clear();
+
+    return this.withPln(product);
+  }
+
+  /**
+   * Szkic, którego nikt nie zamówił, usuwamy trwale razem z plikami.
+   * Produkt opublikowany (albo z zamówieniami) usuwamy miękko, bo mogą się do niego odwoływać zamówienia.
+   */
+  async deleteProduct(id: number): Promise<boolean> {
+    const result = await this.inTransaction(async (client) => {
+      const product = await this.productRepository.findById(id, client);
+
+      if (!product) {
+        return null;
+      }
+
+      if (product.isPublished || (await this.productRepository.hasOrders(client, id))) {
+        return (await this.productRepository.delete(client, id))
+          ? { mediaUrls: [] as string[] }
+          : null;
+      }
+
+      const mediaUrls = await this.productRepository.findMediaUrls(client, id);
+
+      return (await this.productRepository.hardDelete(client, id))
+        ? { mediaUrls }
+        : null;
+    });
+
+    if (!result) {
+      return false;
+    }
+
+    await this.deleteFiles(result.mediaUrls);
+    await this.cache.clear();
+
+    return true;
+  }
+
+  /** Ostrzeżenia typu produktu (np. `missing_preview`), które nie blokują publikacji. */
+  getWarnings(product: ProductDetails): string[] {
+    return getProductType(product.type)?.warnings?.(product) ?? [];
+  }
+
+  // ------------------------------------------------------------------
+  // Warianty
+  // ------------------------------------------------------------------
+
+  async createVariant(
+    productId: number,
+    data: CreateProductVariantInput,
+  ): Promise<PricedProductVariant | null> {
+    const variant = await this.inTransaction(async (client) => {
+      const product = await this.productRepository.findById(productId, client);
+
+      if (!product) {
+        return null;
+      }
+
+      const type = this.getType(product.type);
+
+      return this.productVariantRepository.create(client, {
+        productId,
+        priceEur: data.priceEur,
+        quantity: data.quantity,
+        attributes: this.parseAttributes(
+          type.variantAttributes,
+          data.attributes,
+          "attributes",
+        ),
+      });
+    });
+
+    if (!variant) {
+      return null;
+    }
+
+    await this.cache.clear();
+
+    return this.variantWithPln(variant);
+  }
+
+  async updateVariant(
+    productId: number,
+    variantId: number,
+    data: UpdateProductVariantData,
+  ): Promise<PricedProductVariant | null> {
+    const variant = await this.inTransaction(async (client) => {
+      const product = await this.productRepository.findById(productId, client);
+      const existing = await this.productVariantRepository.findById(
+        client,
+        variantId,
+      );
+
+      if (!product || !existing || existing.productId !== productId) {
+        return null;
+      }
+
+      const type = this.getType(product.type);
+
+      await this.productVariantRepository.update(client, variantId, {
+        priceEur: data.priceEur,
+        quantity: data.quantity,
+        attributes:
+          data.attributes === undefined
+            ? undefined
+            : this.parseAttributes(
+                type.variantAttributes,
+                data.attributes,
+                "attributes",
+              ),
+      });
+
+      // Ponowny odczyt zwraca wariant razem z mediami.
+      return this.productVariantRepository.findById(client, variantId);
+    });
+
+    if (!variant) {
+      return null;
+    }
+
+    await this.cache.clear();
+
+    return this.variantWithPln(variant);
+  }
+
+  /** Wariant szkicu bez zamówień usuwamy trwale razem z plikami, w pozostałych przypadkach miękko. */
+  async deleteProductVariant(
+    productId: number,
+    variantId: number,
+  ): Promise<boolean> {
+    const result = await this.inTransaction(async (client) => {
+      const variant = await this.productVariantRepository.findById(
+        client,
+        variantId,
+      );
+
+      if (!variant || variant.productId !== productId) {
+        return null;
+      }
+
+      const product = await this.productRepository.findById(productId, client);
+
+      if (
+        !product ||
+        product.isPublished ||
+        (await this.productVariantRepository.hasOrders(client, variantId))
+      ) {
+        return (await this.productVariantRepository.delete(client, variantId))
+          ? { mediaUrls: [] as string[] }
+          : null;
+      }
+
+      const mediaUrls = await this.productVariantRepository.findMediaUrls(
+        client,
+        variantId,
+      );
+
+      return (await this.productVariantRepository.hardDelete(client, variantId))
+        ? { mediaUrls }
+        : null;
+    });
+
+    if (!result) {
+      return false;
+    }
+
+    await this.deleteFiles(result.mediaUrls);
+    await this.cache.clear();
+
+    return true;
+  }
+
+  // ------------------------------------------------------------------
+  // Pomocnicze
+  // ------------------------------------------------------------------
+
+  private async withClient<T>(
+    work: (client: Awaited<ReturnType<Database["connect"]>>) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+
+    try {
+      return await work(client);
     } finally {
       client.release();
     }
+  }
+
+  /** BEGIN/COMMIT wokół `work`; `null` z `work` oznacza „nie znaleziono” i kończy się ROLLBACK. */
+  private async inTransaction<T>(
+    work: (client: Awaited<ReturnType<Database["connect"]>>) => Promise<T | null>,
+  ): Promise<T | null> {
+    return this.withClient(async (client) => {
+      await client.query("BEGIN");
+
+      try {
+        const result = await work(client);
+
+        await client.query(result === null ? "ROLLBACK" : "COMMIT");
+
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    });
+  }
+
+  private async deleteFiles(urls: string[]): Promise<void> {
+    for (const url of urls) {
+      try {
+        await this.storage.delete(url);
+      } catch (error) {
+        console.error(`Failed to delete media file "${url}":`, error);
+      }
+    }
+  }
+
+  private async withPln(product: ProductDetails): Promise<PricedProductDetails> {
+    return this.withRate(product, await this.exchangeRates.getEurPlnRate());
+  }
+
+  private async variantWithPln(
+    variant: ProductVariant,
+  ): Promise<PricedProductVariant> {
+    const rate = await this.exchangeRates.getEurPlnRate();
+
+    return {
+      ...variant,
+      pricePln: rate === null ? null : convertEurToPln(variant.priceEur, rate),
+    };
+  }
+
+  private withRate(
+    product: ProductDetails,
+    rate: number | null,
+  ): PricedProductDetails {
+    return {
+      ...product,
+      variants: product.variants.map((variant) => ({
+        ...variant,
+        pricePln: rate === null ? null : convertEurToPln(variant.priceEur, rate),
+      })),
+    };
+  }
+
+  private buildListCacheKey(query: ProductListQuery): string {
+    const params = Object.entries(query)
+      .filter(([, value]) => value !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${String(value)}`);
+
+    return `products:list:${params.join(":")}`;
   }
 
   private getType(key: string): ProductTypeDefinition {
@@ -227,138 +568,5 @@ export class ProductService {
     const parts = [...(type.slugParts?.(attributes) ?? []), title];
 
     return slugify(parts.join(" ")) || "product";
-  }
-
-  async getProduct(id: number): Promise<ProductDetails | null> {
-    const client = await this.pool.connect();
-
-    try {
-      const product = await this.productRepository.findById(id, client);
-
-      if (!product) {
-        return null;
-      }
-
-      const variants = await this.productVariantRepository.findByProductId(
-        client,
-        product.id,
-      );
-
-      return {
-        ...product,
-        variants,
-      };
-    } finally {
-      client.release();
-    }
-  }
-
-  async getAllProducts(
-    page: number,
-    limit: number,
-  ): Promise<{
-    products: ProductDetails[];
-    total: number;
-  }> {
-    const cacheKey = `products:page=${page}:limit=${limit}`;
-    const cached = await this.cache.get(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
-    const client = await this.pool.connect();
-
-    try {
-      const products = await this.productRepository.findAllWithVariants(
-        client,
-        page,
-        limit,
-      );
-
-      const total = await this.productRepository.countAll(client);
-
-      const result = {
-        products,
-        total,
-      };
-
-      await this.cache.set(cacheKey, result, 60);
-
-      return result;
-    } finally {
-      client.release();
-    }
-  }
-
-  async deleteProductVariant(
-    productId: number,
-    variantId: number,
-  ): Promise<boolean> {
-    const client = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-
-      const variant = await this.productVariantRepository.findById(
-        client,
-        variantId,
-      );
-
-      if (!variant || variant.productId !== productId) {
-        await client.query("ROLLBACK");
-        return false;
-      }
-
-      const deleted = await this.productVariantRepository.delete(
-        client,
-        variantId,
-      );
-
-      if (!deleted) {
-        await client.query("ROLLBACK");
-        return false;
-      }
-
-      await client.query("COMMIT");
-      await this.cache.clear();
-
-      return true;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async deleteProduct(id: number): Promise<boolean> {
-    const client = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-
-      const deleted = await this.productRepository.delete(client, id);
-
-      if (!deleted) {
-        await client.query("ROLLBACK");
-        return false;
-      }
-
-      await client.query("COMMIT");
-      await this.cache.clear();
-
-      return true;
-    } catch (error) {
-      try {
-        await client.query("ROLLBACK");
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
-      }
-
-      throw error;
-    } finally {
-      client.release();
-    }
   }
 }

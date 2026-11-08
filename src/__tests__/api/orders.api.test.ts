@@ -49,6 +49,12 @@ beforeEach(async () => {
 
   productId = productResponse.body.product.id;
 
+  const publishResponse = await request(app)
+    .post(`/products/${productId}/publish`)
+    .set("Authorization", `Bearer ${adminToken}`);
+
+  expect(publishResponse.status).toBe(200);
+
   const product = await request(app).get(`/products/${productId}`);
 
   expect(product.status).toBe(200);
@@ -483,5 +489,31 @@ describe("Orders API – validation details", () => {
     expect(response.body.errors).toEqual([
       expect.objectContaining({ path: "items.0.quantity" }),
     ]);
+  });
+});
+
+describe("Orders API – unpublished products", () => {
+  it("should not allow ordering a draft product", async () => {
+    const adminToken = await loginAsAdmin();
+
+    const draft = await request(app)
+      .post("/products")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        type: "other",
+        title: "Draft Pendant",
+        variants: [{ priceEur: 1000, quantity: 5 }],
+      });
+
+    expect(draft.status).toBe(201);
+
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({
+        items: [{ productVariantId: draft.body.product.variants[0].id, quantity: 1 }],
+      });
+
+    expect(response.status).toBe(404);
   });
 });

@@ -283,4 +283,43 @@ export class PostgresProductVariantRepository implements ProductVariantRepositor
 
     return result.rowCount === 1;
   }
+
+  async hasOrders(client: PoolClient, id: number): Promise<boolean> {
+    const result = await client.query(
+      `
+        SELECT EXISTS (
+          SELECT 1 FROM order_items WHERE product_variant_id = $1
+        ) AS "hasOrders"
+      `,
+      [id],
+    );
+
+    return Boolean(result.rows[0].hasOrders);
+  }
+
+  async findMediaUrls(client: PoolClient, id: number): Promise<string[]> {
+    const result = await client.query<{ url: string }>(
+      `
+        SELECT url
+        FROM product_variant_media
+        WHERE product_variant_id = $1
+      `,
+      [id],
+    );
+
+    return result.rows.map((row) => row.url);
+  }
+
+  async hardDelete(client: PoolClient, id: number): Promise<boolean> {
+    // Media usuwa ON DELETE CASCADE.
+    const result = await client.query(
+      `
+        DELETE FROM product_variants
+        WHERE id = $1
+      `,
+      [id],
+    );
+
+    return result.rowCount === 1;
+  }
 }

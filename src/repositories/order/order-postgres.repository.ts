@@ -127,6 +127,7 @@ export class OrderPostgresRepository implements OrderInterface {
             AND pv.product_id = p.id
             AND pv.is_deleted = FALSE
             AND p.is_deleted = FALSE
+            AND p.is_published = TRUE
             AND pv.quantity >= $1
           RETURNING
             pv.id,
@@ -146,6 +147,7 @@ export class OrderPostgresRepository implements OrderInterface {
           WHERE pv.id = $1
             AND pv.is_deleted = FALSE
             AND p.is_deleted = FALSE
+            AND p.is_published = TRUE
         `,
           [item.productVariantId],
         );

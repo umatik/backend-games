@@ -2,8 +2,15 @@ import type {
   CreateProductRecord,
   Product,
   ProductDetails,
+  ProductListQuery,
+  ProductStatus,
   UpdateProductRecord,
 } from "@/types/product.types.js";
+import {
+  buildProductOrderBy,
+  buildProductWhere,
+  SORT_COLUMNS,
+} from "./product-list-query.js";
 import type { PoolClient } from "pg";
 import type { ProductRepository } from "./product.interface.js";
 import type { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
@@ -137,15 +144,21 @@ export class PostgresProductRepository implements ProductRepository {
     return this.mapProductRow(row);
   }
 
-  async findById(id: number, client: PoolClient): Promise<Product | null> {
+  async findById(
+    id: number,
+    client: PoolClient,
+    status: ProductStatus = "all",
+  ): Promise<Product | null> {
+    const where = buildProductWhere({ status }, 2);
+
     const result = await client.query<Product>(
       `
         SELECT ${PRODUCT_COLUMNS}
-        FROM products
-        WHERE id = $1
-          AND is_deleted = FALSE
+        FROM products p
+        WHERE p.id = $1
+          AND ${where.sql}
       `,
-      [id],
+      [id, ...where.values],
     );
 
     const row = result.rows[0];
@@ -155,10 +168,10 @@ export class PostgresProductRepository implements ProductRepository {
 
   async findAllWithVariants(
     client: PoolClient,
-    page: number,
-    limit: number,
+    query: ProductListQuery,
   ): Promise<ProductDetails[]> {
-    const offset = (page - 1) * limit;
+    const where = buildProductWhere(query);
+    const limitIndex = where.values.length + 1;
 
     const result = await client.query<ProductDetailsRow>(
       `
@@ -180,20 +193,21 @@ export class PostgresProductRepository implements ProductRepository {
                pvm.created_at AS "mediaCreatedAt",
                pvm.updated_at AS "mediaUpdatedAt"
         FROM (
-               SELECT ${PRODUCT_COLUMNS}
-               FROM products
-               WHERE is_deleted = FALSE
-               ORDER BY id
-               LIMIT $1 OFFSET $2
+               SELECT ${PRODUCT_COLUMNS},
+                      ${SORT_COLUMNS}
+               FROM products p
+               WHERE ${where.sql}
+               ORDER BY ${buildProductOrderBy(query.sort, "")}
+               LIMIT $${limitIndex} OFFSET $${limitIndex + 1}
              ) p
                LEFT JOIN product_variants pv
                          ON pv.product_id = p.id
                            AND pv.is_deleted = FALSE
                LEFT JOIN product_variant_media pvm
                          ON pvm.product_variant_id = pv.id
-        ORDER BY p.id, pv.id, pvm.sort_order, pvm.id
+        ORDER BY ${buildProductOrderBy(query.sort, "p")}, pv.id, pvm.sort_order, pvm.id
       `,
-      [limit, offset],
+      [...where.values, query.limit, (query.page - 1) * query.limit],
     );
 
     return this.mapProductDetailsRows(result.rows);
@@ -262,15 +276,87 @@ export class PostgresProductRepository implements ProductRepository {
     return result.rows.length > 0;
   }
 
-  async countAll(client: PoolClient): Promise<number> {
+  async countAll(
+    client: PoolClient,
+    query: Omit<ProductListQuery, "page" | "limit" | "sort">,
+  ): Promise<number> {
+    const where = buildProductWhere(query);
+
     const result = await client.query(
       `
         SELECT COUNT(*) AS total
-        FROM products
-        WHERE is_deleted = FALSE
+        FROM products p
+        WHERE ${where.sql}
       `,
+      where.values,
     );
 
     return Number(result.rows[0].total);
+  }
+
+  async setPublished(
+    client: PoolClient,
+    id: number,
+    isPublished: boolean,
+  ): Promise<Product | null> {
+    const result = await client.query<Product>(
+      `
+        UPDATE products
+        SET is_published = $1,
+            updated_at   = NOW()
+        WHERE id = $2
+          AND is_deleted = FALSE
+        RETURNING ${PRODUCT_COLUMNS}
+      `,
+      [isPublished, id],
+    );
+
+    const row = result.rows[0];
+
+    return row ? this.mapProductRow(row) : null;
+  }
+
+  async hasOrders(client: PoolClient, id: number): Promise<boolean> {
+    const result = await client.query(
+      `
+        SELECT EXISTS (
+          SELECT 1
+          FROM order_items oi
+                 JOIN product_variants pv ON pv.id = oi.product_variant_id
+          WHERE pv.product_id = $1
+        ) AS "hasOrders"
+      `,
+      [id],
+    );
+
+    return Boolean(result.rows[0].hasOrders);
+  }
+
+  async findMediaUrls(client: PoolClient, id: number): Promise<string[]> {
+    const result = await client.query<{ url: string }>(
+      `
+        SELECT pvm.url
+        FROM product_variant_media pvm
+               JOIN product_variants pv ON pv.id = pvm.product_variant_id
+        WHERE pv.product_id = $1
+      `,
+      [id],
+    );
+
+    return result.rows.map((row) => row.url);
+  }
+
+  async hardDelete(client: PoolClient, id: number): Promise<boolean> {
+    // Warianty i media usuwa ON DELETE CASCADE.
+    const result = await client.query(
+      `
+        DELETE FROM products
+        WHERE id = $1
+        RETURNING id
+      `,
+      [id],
+    );
+
+    return result.rows.length > 0;
   }
 }

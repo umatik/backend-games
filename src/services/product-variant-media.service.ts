@@ -9,6 +9,7 @@ import type { Cache } from "@/cache/cache.interface.js";
 import { getProductVariantMediaType } from "@/validators/product-variant-media.validator.js";
 import { UnsupportedMediaTypeError } from "@/errors/unsupported-media-type.js";
 import { FileExtensionIsRequiredError } from "@/errors/file-extension-is-required.js";
+import type { AudioProcessor } from "@/audio/audio-processor.interface.js";
 
 const MEDIA_FOLDER_BY_TYPE: Record<ProductVariantMediaType, string> = {
   [ProductVariantMediaType.PHOTO]: "photo",
@@ -23,6 +24,7 @@ export class ProductVariantMediaService {
     private storage: Storage,
     private pool: Database,
     private productCache: Cache<unknown>,
+    private audioProcessor: AudioProcessor,
   ) {}
 
   async findByProductVariantId(
@@ -65,15 +67,25 @@ export class ProductVariantMediaService {
       throw new UnsupportedMediaTypeError();
     }
 
-    const extension = filename.split(".").pop()?.toLowerCase();
+    const originalExtension = filename.split(".").pop()?.toLowerCase();
 
-    if (!extension) {
+    if (!originalExtension) {
       throw new FileExtensionIsRequiredError();
     }
 
+    let stored = { buffer: file, extension: originalExtension, contentType };
+
+    if (type === ProductVariantMediaType.AUDIO) {
+      stored = await this.audioProcessor.process(stored);
+    }
+
     const folder = MEDIA_FOLDER_BY_TYPE[type];
-    const storageFilename = `products/${folder}/variant-${productVariantId}-${Date.now()}.${extension}`;
-    const url = await this.storage.save(file, storageFilename, contentType);
+    const storageFilename = `products/${folder}/variant-${productVariantId}-${Date.now()}.${stored.extension}`;
+    const url = await this.storage.save(
+      stored.buffer,
+      storageFilename,
+      stored.contentType,
+    );
     const client = await this.pool.connect();
 
     try {

@@ -39,6 +39,12 @@ import { PasswordResetService } from "@/services/password-reset.service.js";
 import { ProductService } from "@/services/product.service.js";
 import { ProductVariantMediaService } from "@/services/product-variant-media.service.js";
 import { UserService } from "@/services/user.service.js";
+import { PassThroughAudioProcessor } from "@/audio/pass-through-audio-processor.js";
+import {
+  type ExchangeRateProvider,
+  FixedExchangeRateProvider,
+  NbpExchangeRateProvider,
+} from "@/services/exchange-rate.service.js";
 
 // Redis
 export const redisClient = createClient({
@@ -102,14 +108,29 @@ const productVariantMediaService = new ProductVariantMediaService(
   storage,
   pool,
   productCache,
+  new PassThroughAudioProcessor(),
 );
+
+// Kurs EUR → PLN: stały z EUR_PLN_RATE (w testach domyślnie 4.3), inaczej NBP z cache w Redis.
+const fixedEurPlnRate =
+  process.env.EUR_PLN_RATE ?? (process.env.NODE_ENV === "test" ? "4.3" : undefined);
+
+const exchangeRates: ExchangeRateProvider = fixedEurPlnRate
+  ? new FixedExchangeRateProvider(Number(fixedEurPlnRate))
+  : new NbpExchangeRateProvider(
+      new RedisCache<number>(redisClient),
+      process.env.EUR_PLN_FALLBACK_RATE
+        ? Number(process.env.EUR_PLN_FALLBACK_RATE)
+        : null,
+    );
 
 const productService = new ProductService(
   productRepository,
   productVariantRepository,
   pool,
   productCache,
-  productVariantMediaRepository,
+  storage,
+  exchangeRates,
 );
 
 const productController = new ProductController(productService);

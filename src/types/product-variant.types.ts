@@ -24,13 +24,6 @@ export type CreateProductVariantData = {
 
 export type CreateProductVariantInput = Omit<CreateProductVariantData, "productId">;
 
-export type UpdateProductVariantInput = {
-  id?: number | undefined;
-  priceEur?: number | undefined;
-  quantity?: number | undefined;
-  attributes?: Record<string, unknown> | undefined;
-};
-
 export type UpdateProductVariantData = {
   priceEur?: number | undefined;
   quantity?: number | undefined;

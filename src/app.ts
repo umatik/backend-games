@@ -71,7 +71,7 @@ app.use((req, res) => {
 });
 
 // 500
-const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   console.error(
     `${new Date().toISOString()} ERROR ${req.ip} ${req.method} ${req.originalUrl}`,
     err,

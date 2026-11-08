@@ -11,6 +11,13 @@ const config: Linter.Config[] = [
     languageOptions: {
       globals: globals.node,
     },
+    rules: {
+      // Parametry wymagane przez sygnaturę (np. `next` w obsłudze błędów Express), ale nieużywane: prefiks `_`.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
   },
 ];
 

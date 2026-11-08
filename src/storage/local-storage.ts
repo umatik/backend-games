@@ -11,7 +11,7 @@ export class LocalStorage implements Storage {
   async save(
     file: Buffer,
     filename: string,
-    contentType: string,
+    _contentType: string,
   ): Promise<string> {
     const filePath = path.join(this.basePath, filename);
 

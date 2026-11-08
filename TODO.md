@@ -86,6 +86,10 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 
 ## 7. Odsłuch i audio (pełna wersja na końcu; na razie atrapa)
 
+> **Pominięte (decyzja 2026-11-08):** etap audio (ffmpeg, limity) świadomie odłożony. Nagrania zapisują się
+> bez obróbki przez atrapę `PassThroughAudioProcessor`; wrócić do tego przed startem sklepu albo gdy pliki audio
+> zaczną zajmować za dużo miejsca.
+
 - [x] Interfejs `AudioProcessor` z atrapą, która zapisuje plik bez zmian. Później podmiana na ffmpeg w `dependency-injection.ts`.
 
 - [x] Odsłuch jest opcjonalny: linki z Discogs, własne linki albo własne nagranie
@@ -123,6 +127,14 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Usunąć `.DS_Store` z repozytorium i dodać do `.gitignore`
 - [x] Cache list: klucz z uporządkowanych parametrów, TTL, czyszczenie przy zmianach. Bez cache dla wyszukiwania tekstowego.
 
+## 9a. Zależności (stan 2026-11-08)
+
+- [x] Aktualizacja pakietów w ramach dozwolonych wersji (`pnpm update`); podatności z 19 do 3
+- [x] supertest 7.3 sam naprawia problem z macOS (łączenie z obcym procesem na 127.0.0.1), więc własna łatka w `test-setup.ts` została usunięta
+- [x] eslint: nieużywane parametry wymagane przez sygnaturę mają prefiks `_` (reguła w `eslint.config.ts`)
+- [ ] Zostały: `deepmerge` (tylko w jest, brak poprawki), `glob` i `minimatch` w `swagger-jsdoc` (czyta pliki tras przy starcie; poprawka wymaga głównej wersji `glob`, która może zepsuć Swaggera). Sprawdzać przy kolejnych aktualizacjach.
+- [ ] Zmiany głównych wersji odłożone: `dotenv` 18, TypeScript 7 (nowy kompilator). Zrobić osobno, z przeczytaniem listy zmian.
+
 ## 10. Dane i testy
 
 - [x] Seed: kilka płyt reggae (split 7", LP w kilku tłoczeniach i stanach, wyprzedany wariant, szkic) oraz po jednym produkcie `tshirt` i `other`
@@ -132,7 +144,7 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [ ] Test konwersji audio (`test-audio.wav`)
 - [ ] Nowe tabele w liście TRUNCATE (`test-database.ts`)
 - [x] Testy czytają wyłącznie `.env.test` (`src/config/env.ts`); wcześniej `app.ts` doczytywał też `.env`, więc testy widziały prawdziwe klucze i zależały od SMTP z `.env`
-- [x] **Niestabilne testy API** (naprawione 2026-11-08): supertest łączył się z 127.0.0.1, a serwer testowy słuchał na `::`, więc inny program na Macu słuchający na 127.0.0.1 pod tym samym portem czasem przejmował połączenie (puste 404/503, „socket hang up”, 401). `test-setup.ts` łączy się teraz przez `[::1]`. Do tego test wgrywania bez logowania czasem kończył się „write EPIPE”, więc wysyła teraz żądanie bez pliku. Wynik: 40 pełnych uruchomień, ostatnie 20 bez porażki.
+- [x] **Niestabilne testy API** (naprawione 2026-11-08): supertest łączył się z 127.0.0.1, a serwer testowy słuchał na `::`, więc inny program na Macu słuchający na 127.0.0.1 pod tym samym portem czasem przejmował połączenie (puste 404/503, „socket hang up”, 401). `test-setup.ts` łączył się przez `[::1]`; od supertest 7.3 problem naprawia sama biblioteka. Do tego test wgrywania bez logowania czasem kończył się „write EPIPE”, więc wysyła teraz żądanie bez pliku. Wynik: 40 pełnych uruchomień, ostatnie 20 bez porażki.
 
 ## Później (osobne etapy)
 

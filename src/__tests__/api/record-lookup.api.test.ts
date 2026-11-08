@@ -3,6 +3,7 @@ import request from "supertest";
 import app from "@/app.js";
 import { redisClient } from "@/dependency-injection.js";
 import { loginAsAdmin, loginAsUser } from "@/__test-helpers__/auth.js";
+import { pool } from "@/database/db.js";
 
 afterAll(async () => {
   await redisClient.close();
@@ -95,6 +96,14 @@ describe("Record lookup API", () => {
 
     expect(response.status).toBe(503);
     expect(response.body.message).toBe("Claude integration is not configured");
+    // Zdjęcie jest zapisane mimo błędu, żeby kreator mógł przejść do formularza ręcznego z tym zdjęciem.
+    expect(response.body.photoUploadIds).toHaveLength(1);
+
+    const pending = await pool.query("SELECT path FROM pending_uploads WHERE id = $1", [
+      response.body.photoUploadIds[0],
+    ]);
+
+    expect(pending.rows[0].path).toMatch(/^products\/photo\/label-.+\.jpg$/);
   });
 
   it("should validate the condition note before calling Claude", async () => {
@@ -118,5 +127,50 @@ describe("Record lookup API", () => {
     const response = await request(app).get("/products/1");
 
     expect(response.status).toBe(200);
+  });
+
+  it("should attach a kept label photo as the primary photo of a new variant", async () => {
+    const token = await loginAsAdmin();
+    const uploadId = "6f1c2c1e-6d2b-4d61-9a0e-3f4c5b6a7d8e";
+
+    // Rozpoznawanie wymaga Claude, więc zdjęcie dodajemy tak, jak zapisuje je rozpoznawanie.
+    await pool.query(
+      `INSERT INTO pending_uploads (id, path, content_type, created_by)
+       VALUES ($1, 'products/photo/label-test.jpg', 'image/jpeg', 2)`,
+      [uploadId],
+    );
+
+    const created = await request(app)
+      .post("/products/1/variants")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        priceEur: 1500,
+        attributes: { format: '7"', mediaCondition: "NM", sleeveCondition: "generic" },
+        photoUploadIds: [uploadId],
+      });
+
+    expect(created.status).toBe(201);
+    expect(created.body.variant.media).toEqual([
+      expect.objectContaining({
+        type: "photo",
+        url: "products/photo/label-test.jpg",
+        isPrimary: true,
+        sortOrder: 0,
+      }),
+    ]);
+
+    const reused = await request(app)
+      .post("/products/1/variants")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        priceEur: 1500,
+        attributes: { format: '7"', mediaCondition: "NM", sleeveCondition: "generic" },
+        photoUploadIds: [uploadId],
+      });
+
+    expect(reused.status).toBe(400);
+    expect(reused.body.errors).toEqual([
+      expect.objectContaining({ path: "photoUploadIds" }),
+    ]);
   });
 });

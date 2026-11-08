@@ -70,8 +70,9 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 - [x] Kilka wyników: lista do wyboru (miniatura, artysta – tytuł, wytwórnia, nr kat., rok, kraj, format). Przy jednym wyniku też potwierdzenie.
 - [x] Opcja „żadne z nich, wpisz ręcznie”: formularz uzupełniony tym, co odczytało AI
 - [ ] Wykrywanie duplikatów: to samo ID z Discogs lub numer katalogowy → propozycja dodania wariantu do istniejącego produktu
-- [ ] Zdjęcie labela trafia jako pierwsze zdjęcie wariantu (po stronie panelu: po utworzeniu wariantu wgrać to samo zdjęcie przez endpoint mediów)
-- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła) i założyć token; wpisać klucze w ustawieniach (panel lub `PATCH /settings`)
+- [x] Zdjęcie labela, z którego rozpoznajemy płytę, jest głównym zdjęciem (`isPrimary`) wariantu: rozpoznawanie zapisuje zdjęcia (tabela `pending_uploads`, migracja 016) i zwraca `photoUploadIds`, które podaje się przy tworzeniu wariantu; nieużyte znikają po 24 h. Zdjęcia są zapisywane także wtedy, gdy Claude lub Discogs zawiodą (odpowiedź z błędem zawiera `photoUploadIds`), żeby kreator mógł przejść do formularza ręcznego z tym zdjęciem. Przy dodawaniu ręcznym zdjęcia idą od razu przez endpoint mediów, bez tego mechanizmu. Zdjęć z Discogs na razie nie importujemy (miniatury Discogs tylko na liście kandydatów do wyboru).
+- [x] Token Discogs i klucz Claude ustawione; całość sprawdzona na żywo 2026-11-08 (zdjęcie ZV-7-006 → poprawny odczyt i wydanie z Discogs w ok. 4 s)
+- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła danych na stronie sklepu)
 
 ## 6. Kreator dodawania produktu
 
@@ -114,7 +115,7 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] `GET /settings`, `PATCH /settings` (`null` przywraca `.env`/domyślną), `POST /settings/test/{anthropic|discogs}`
 - [x] Integracje (Claude, Discogs, kurs zapasowy) czytają ustawienia na bieżąco, bez restartu
 - [x] Model Claude do wyboru w ustawieniach (Opus 5.5 / Haiku 5.5)
-- [ ] Ustawić `SETTINGS_ENCRYPTION_KEY` w `.env` (`openssl rand -base64 32`)
+- [x] Ustawić `SETTINGS_ENCRYPTION_KEY` w `.env` (`openssl rand -base64 32`)
 
 ## 9. Porządki techniczne
 
@@ -130,6 +131,7 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Discogs i Claude zamockowane w testach, bez sieci
 - [ ] Test konwersji audio (`test-audio.wav`)
 - [ ] Nowe tabele w liście TRUNCATE (`test-database.ts`)
+- [x] Testy czytają wyłącznie `.env.test` (`src/config/env.ts`); wcześniej `app.ts` doczytywał też `.env`, więc testy widziały prawdziwe klucze i zależały od SMTP z `.env`
 - [x] **Niestabilne testy API** (naprawione 2026-11-08): supertest łączył się z 127.0.0.1, a serwer testowy słuchał na `::`, więc inny program na Macu słuchający na 127.0.0.1 pod tym samym portem czasem przejmował połączenie (puste 404/503, „socket hang up”, 401). `test-setup.ts` łączy się teraz przez `[::1]`. Do tego test wgrywania bez logowania czasem kończył się „write EPIPE”, więc wysyła teraz żądanie bez pliku. Wynik: 40 pełnych uruchomień, ostatnie 20 bez porażki.
 
 ## Później (osobne etapy)

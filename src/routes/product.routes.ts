@@ -80,6 +80,14 @@ export const createProductRouter = (
    *           type: integer
    *           minimum: 0
    *           default: 1
+   *         photoUploadIds:
+   *           type: array
+   *           maxItems: 2
+   *           description: >-
+   *             Photo ids from POST /products/lookup/photo (create only). The first becomes the primary photo.
+   *           items:
+   *             type: string
+   *             format: uuid
    *         attributes:
    *           type: object
    *           description: >-

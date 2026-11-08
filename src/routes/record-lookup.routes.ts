@@ -28,9 +28,10 @@ export const createRecordLookupRouter = (
    *     tags: [Products – wizard]
    *     summary: Read a label photo with Claude and find matching releases on Discogs
    *     description: >-
-   *       Saves nothing. Returns what was read from the label (`reading`, used for "none of these, enter
-   *       manually") and up to 10 Discogs `candidates`. Search order: catalog number + label, catalog number,
-   *       artist + title.
+   *       Returns what was read from the label (`reading`, used for "none of these, enter manually"), up to 10
+   *       Discogs `candidates` (search order: catalog number + label, catalog number, artist + title) and
+   *       `photoUploadIds`: the photos are kept for 24 hours; pass them as `photoUploadIds` when creating the
+   *       variant and the first one becomes its primary photo. Discogs images are not used.
    *     security:
    *       - bearerAuth: []
    *     requestBody:
@@ -54,9 +55,11 @@ export const createRecordLookupRouter = (
    *       400:
    *         description: Missing, too many, too large or unsupported photos
    *       502:
-   *         description: Claude or Discogs failed
+   *         description: >-
+   *           Claude or Discogs failed. The photos are still kept: `photoUploadIds` is returned so the wizard can
+   *           continue with manual entry and attach the photo.
    *       503:
-   *         description: Claude or Discogs is not configured
+   *         description: Claude or Discogs is not configured; `photoUploadIds` is returned as for 502
    */
   router.post(
     "/lookup/photo",

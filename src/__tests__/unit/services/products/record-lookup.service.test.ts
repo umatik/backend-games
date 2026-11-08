@@ -11,9 +11,37 @@ import type {
 } from "@/integrations/discogs/discogs-client.js";
 import type { LabelReader, LabelReading } from "@/integrations/claude/label-reader.js";
 import type { ConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
-import { IntegrationNotConfiguredError } from "@/errors/external-service.error.js";
+import {
+  ExternalServiceError,
+  IntegrationNotConfiguredError,
+  PhotoLookupError,
+} from "@/errors/external-service.error.js";
 import { getProductType } from "@/product-types/index.js";
 import type { IntegrationProvider } from "@/integrations/integration-provider.js";
+import type { Storage } from "@/storage/storage.interface.js";
+import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
+import type { Database } from "@/database/database.interface.js";
+import type { PoolClient } from "pg";
+
+const storage = {
+  save: jest.fn<Storage["save"]>(async (_file, filename) => filename),
+  delete: jest.fn<Storage["delete"]>(async () => undefined),
+  exists: jest.fn<Storage["exists"]>(),
+};
+
+const pendingUploads = {
+  create: jest.fn<PendingUploadRepository["create"]>(async () => undefined),
+  claim: jest.fn<PendingUploadRepository["claim"]>(),
+  deleteExpired: jest.fn<PendingUploadRepository["deleteExpired"]>(async () => []),
+};
+
+const releaseClient = jest.fn();
+const pool: Database = {
+  connect: async () => ({ release: releaseClient }) as unknown as PoolClient,
+};
+
+const lookupService = (provider: IntegrationProvider) =>
+  new RecordLookupService(provider, storage, pendingUploads, pool);
 
 const providerOf = (integrations: {
   labelReader?: LabelReader;
@@ -96,9 +124,8 @@ describe("RecordLookupService", () => {
       getRelease: jest.fn<DiscogsClient["getRelease"]>(),
     };
     translator = { translate: jest.fn<ConditionNoteTranslator["translate"]>() };
-    service = new RecordLookupService(
-      providerOf({ labelReader, discogs, translator }),
-    );
+    jest.clearAllMocks();
+    service = lookupService(providerOf({ labelReader, discogs, translator }));
   });
 
   describe("lookupByPhoto", () => {
@@ -116,6 +143,65 @@ describe("RecordLookupService", () => {
       );
       expect(result.reading).toBe(zuluReading);
       expect(result.candidates).toEqual([mapSearchResult(zuluSearchResult)]);
+    });
+
+    it("should keep the label photos for the variant and clean up old ones", async () => {
+      pendingUploads.deleteExpired.mockResolvedValueOnce([
+        {
+          id: "old",
+          path: "products/photo/label-old.jpg",
+          contentType: "image/jpeg",
+          createdBy: null,
+          createdAt: new Date(0),
+        },
+      ]);
+
+      const result = await service.lookupByPhoto(
+        [
+          { data: Buffer.from("a"), mediaType: "image/jpeg" },
+          { data: Buffer.from("b"), mediaType: "image/webp" },
+        ],
+        2,
+      );
+
+      expect(storage.delete).toHaveBeenCalledWith("products/photo/label-old.jpg");
+      expect(result.photoUploadIds).toHaveLength(2);
+      expect(storage.save.mock.calls.map((call) => call[1])).toEqual([
+        `products/photo/label-${result.photoUploadIds[0]}.jpg`,
+        `products/photo/label-${result.photoUploadIds[1]}.webp`,
+      ]);
+      expect(pendingUploads.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ id: result.photoUploadIds[0], createdBy: 2 }),
+      );
+      expect(releaseClient).toHaveBeenCalled();
+    });
+
+    it("should keep the photos and return their ids when the lookup fails", async () => {
+      labelReader.read.mockRejectedValue(new ExternalServiceError("Claude declined to read the label"));
+      jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const error = await service
+        .lookupByPhoto([{ data: Buffer.from("a"), mediaType: "image/jpeg" }], 2)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(PhotoLookupError);
+      expect((error as PhotoLookupError).statusCode).toBe(502);
+      expect((error as PhotoLookupError).message).toBe("Claude declined to read the label");
+      expect((error as PhotoLookupError).photoUploadIds).toHaveLength(1);
+      expect(storage.save).toHaveBeenCalledTimes(1);
+      expect(pendingUploads.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should keep the photos when Claude is not configured", async () => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const error = await lookupService(providerOf({}))
+        .lookupByPhoto([{ data: Buffer.from("a"), mediaType: "image/jpeg" }])
+        .catch((caught: unknown) => caught);
+
+      expect((error as PhotoLookupError).statusCode).toBe(503);
+      expect((error as PhotoLookupError).photoUploadIds).toHaveLength(1);
     });
 
     it("should fall back to the catalog number alone, then to artist and title", async () => {
@@ -175,14 +261,15 @@ describe("RecordLookupService", () => {
   });
 
   it.each([
-    ["Claude", () => new RecordLookupService(providerOf({})).lookupByPhoto([])],
-    ["Discogs", () => new RecordLookupService(providerOf({})).lookupByCatalogNumber("X")],
-    ["Discogs", () => new RecordLookupService(providerOf({})).getReleaseDraft(1)],
-    ["Claude", () => new RecordLookupService(providerOf({})).translateConditionNote("x")],
+    ["Claude", () => lookupService(providerOf({})).lookupByPhoto([])],
+    ["Discogs", () => lookupService(providerOf({})).lookupByCatalogNumber("X")],
+    ["Discogs", () => lookupService(providerOf({})).getReleaseDraft(1)],
+    ["Claude", () => lookupService(providerOf({})).translateConditionNote("x")],
   ])("should report that %s is not configured", async (service, call) => {
-    await expect(call()).rejects.toThrow(
-      new IntegrationNotConfiguredError(service),
-    );
+    jest.spyOn(console, "error").mockImplementation(() => {});
+
+    // Przy zdjęciu błąd jest opakowany w PhotoLookupError (z zapisanymi zdjęciami), ale komunikat jest ten sam.
+    await expect(call()).rejects.toThrow(new IntegrationNotConfiguredError(service).message);
   });
 });
 
@@ -198,6 +285,19 @@ describe("mapSearchResult", () => {
       country: "France",
       formats: ["Vinyl", '7"', "45 RPM"],
     });
+  });
+
+  it("should skip the Discogs placeholder image", () => {
+    expect(
+      mapSearchResult({
+        id: 1,
+        thumb: "https://st.discogs.com/abc/images/spacer.gif",
+        cover_image: "https://i.discogs.com/cover.jpg",
+      }).thumbnail,
+    ).toBe("https://i.discogs.com/cover.jpg");
+    expect(
+      mapSearchResult({ id: 1, thumb: "https://st.discogs.com/abc/images/spacer.gif" }).thumbnail,
+    ).toBeNull();
   });
 
   it("should use nulls for missing fields", () => {
@@ -241,6 +341,20 @@ describe("mapReleaseToDraft", () => {
       country: "France",
       discogsReleaseId: 123,
     });
+  });
+
+  it("should add artists credited only on tracks, as on splits", () => {
+    const draft = mapReleaseToDraft({
+      id: 34434571,
+      title: "Jah Prophecy",
+      artists: [{ name: "Bunnington Judah" }],
+      tracklist: [
+        { position: "A", title: "Jah Prophecy", artists: [{ name: "Bunnington Judah" }] },
+        { position: "B", title: "Prophetic Dub", artists: [{ name: "Zulu Vibes" }] },
+      ],
+    });
+
+    expect(draft.product.attributes.artists).toEqual(["Bunnington Judah", "Zulu Vibes"]);
   });
 
   it("should produce product attributes that pass the vinyl schema", () => {

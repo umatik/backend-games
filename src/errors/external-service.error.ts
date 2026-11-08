@@ -8,6 +8,23 @@ export class IntegrationNotConfiguredError extends AppError {
   }
 }
 
+/**
+ * Rozpoznawanie ze zdjęcia się nie udało, ale zdjęcia zostały zapisane: kreator przechodzi do formularza
+ * ręcznego i nadal może podpiąć je do wariantu przez `photoUploadIds`.
+ */
+export class PhotoLookupError extends AppError {
+  constructor(
+    public readonly originalError: unknown,
+    public readonly photoUploadIds: string[],
+  ) {
+    super(
+      originalError instanceof AppError ? originalError.message : "Label lookup failed",
+      originalError instanceof AppError ? originalError.statusCode : 502,
+    );
+    this.name = "PhotoLookupError";
+  }
+}
+
 /** Zewnętrzna usługa nie odpowiedziała poprawnie. */
 export class ExternalServiceError extends AppError {
   constructor(

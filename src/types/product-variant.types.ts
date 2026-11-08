@@ -22,7 +22,10 @@ export type CreateProductVariantData = {
   attributes: Record<string, unknown>;
 };
 
-export type CreateProductVariantInput = Omit<CreateProductVariantData, "productId">;
+export type CreateProductVariantInput = Omit<CreateProductVariantData, "productId"> & {
+  /** Zdjęcia zapisane przy rozpoznawaniu płyty; pierwsze staje się zdjęciem głównym wariantu. */
+  photoUploadIds?: string[] | undefined;
+};
 
 export type UpdateProductVariantData = {
   priceEur?: number | undefined;

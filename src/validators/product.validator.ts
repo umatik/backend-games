@@ -13,6 +13,8 @@ export const createProductVariantSchema = z.strictObject({
   priceEur,
   quantity: quantity.default(1),
   attributes: attributes.default({}),
+  /** Identyfikatory zdjęć z `POST /products/lookup/photo`; pierwsze zostaje zdjęciem głównym. */
+  photoUploadIds: z.array(z.uuid()).max(2).optional(),
 });
 
 export const updateProductVariantSchema = z

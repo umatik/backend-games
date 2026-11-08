@@ -17,6 +17,9 @@ import type { Database } from "@/database/database.interface.js";
 import type { ProductRepository } from "@/repositories/products/product/product.interface.js";
 import type { ProductVariantRepository } from "@/repositories/products/product-variant/product-variant.interface.js";
 import type { Storage } from "@/storage/storage.interface.js";
+import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
+import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
 import {
   getProductType,
   type ProductTypeDefinition,
@@ -44,6 +47,8 @@ export class ProductService {
     private cache: ProductListCache,
     private storage: Storage,
     private exchangeRates: ExchangeRateProvider,
+    private pendingUploads: PendingUploadRepository,
+    private productVariantMediaRepository: ProductVariantMediaInterface,
   ) {}
 
   // ------------------------------------------------------------------
@@ -78,12 +83,9 @@ export class ProductService {
 
       const createdVariants: ProductVariant[] = [];
 
-      for (const variant of variants) {
+      for (const [index, variant] of variants.entries()) {
         createdVariants.push(
-          await this.productVariantRepository.create(client, {
-            productId: created.id,
-            ...variant,
-          }),
+          await this.createVariantWithPhotos(client, created.id, variant, `variants.${index}`),
         );
       }
 
@@ -333,16 +335,19 @@ export class ProductService {
 
       const type = this.getType(product.type);
 
-      return this.productVariantRepository.create(client, {
+      return this.createVariantWithPhotos(
+        client,
         productId,
-        priceEur: data.priceEur,
-        quantity: data.quantity,
-        attributes: this.parseAttributes(
-          type.variantAttributes,
-          data.attributes,
-          "attributes",
-        ),
-      });
+        {
+          ...data,
+          attributes: this.parseAttributes(
+            type.variantAttributes,
+            data.attributes,
+            "attributes",
+          ),
+        },
+        "",
+      );
     });
 
     if (!variant) {
@@ -479,6 +484,57 @@ export class ProductService {
         throw error;
       }
     });
+  }
+
+  /**
+   * Tworzy wariant i podpina zdjęcia zapisane przy rozpoznawaniu płyty: pierwsze jako główne, kolejne po nim.
+   * Nieznane albo już użyte identyfikatory kończą się błędem walidacji (cała transakcja jest wycofywana).
+   */
+  private async createVariantWithPhotos(
+    client: Awaited<ReturnType<Database["connect"]>>,
+    productId: number,
+    data: CreateProductVariantInput,
+    path: string,
+  ): Promise<ProductVariant> {
+    const variant = await this.productVariantRepository.create(client, {
+      productId,
+      priceEur: data.priceEur,
+      quantity: data.quantity,
+      attributes: data.attributes,
+    });
+
+    const ids = data.photoUploadIds ?? [];
+
+    if (ids.length === 0) {
+      return variant;
+    }
+
+    const uploads = await this.pendingUploads.claim(client, ids);
+
+    if (uploads.length !== new Set(ids).size || uploads.length !== ids.length) {
+      throw new ValidationError("Invalid product data", [
+        {
+          path: path ? `${path}.photoUploadIds` : "photoUploadIds",
+          message: "Unknown, expired or already used photo upload",
+        },
+      ]);
+    }
+
+    for (const [index, upload] of uploads.entries()) {
+      variant.media.push(
+        await this.productVariantMediaRepository.create(
+          client,
+          variant.id,
+          ProductVariantMediaType.PHOTO,
+          upload.path,
+          null,
+          index,
+          index === 0,
+        ),
+      );
+    }
+
+    return variant;
   }
 
   private async deleteFiles(urls: string[]): Promise<void> {

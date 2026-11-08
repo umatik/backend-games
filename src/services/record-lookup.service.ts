@@ -6,7 +6,14 @@ import type {
 } from "@/integrations/discogs/discogs-client.js";
 import type { LabelImage, LabelReading } from "@/integrations/claude/label-reader.js";
 import type { IntegrationProvider } from "@/integrations/integration-provider.js";
-import { IntegrationNotConfiguredError } from "@/errors/external-service.error.js";
+import { randomUUID } from "node:crypto";
+import {
+  IntegrationNotConfiguredError,
+  PhotoLookupError,
+} from "@/errors/external-service.error.js";
+import type { Database } from "@/database/database.interface.js";
+import type { Storage } from "@/storage/storage.interface.js";
+import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
 import type { TranslatedText } from "@/product-types/common.js";
 import { VINYL_FORMATS } from "@/product-types/vinyl.js";
 
@@ -52,8 +59,20 @@ export type ReleaseDraft = {
 };
 
 const CANDIDATE_LIMIT = 10;
+/** Po tym czasie nieużyte zdjęcia labela są usuwane. */
+export const PENDING_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+
+const EXTENSION_BY_MEDIA_TYPE: Record<LabelImage["mediaType"], string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 const MAX_PREVIEW_LINKS = 20;
 const MAX_DESCRIPTION_LENGTH = 10_000;
+
+/** Discogs zwraca ten pusty obrazek zamiast miniatury, gdy nie udostępnia okładki. */
+const isPlaceholderImage = (url: string | undefined): boolean =>
+  !url || url.endsWith("/spacer.gif");
 
 /** Discogs dokleja do nazw numer dla odróżnienia osób o tym samym imieniu, np. „Zulu Vibes (2)”. */
 const cleanName = (name: string): string => name.replace(/\s+\(\d+\)$/, "").trim();
@@ -64,27 +83,47 @@ const emptyToUndefined = (value: string | undefined): string | undefined => {
 };
 
 export class RecordLookupService {
-  constructor(private readonly integrations: IntegrationProvider) {}
+  constructor(
+    private readonly integrations: IntegrationProvider,
+    private readonly storage: Storage,
+    private readonly pendingUploads: PendingUploadRepository,
+    private readonly pool: Database,
+  ) {}
 
   /**
    * Zdjęcie labela → odczyt przez Claude → kandydaci z Discogs. Zwraca też sam odczyt, żeby opcja
-   * „żadne z nich, wpisz ręcznie” mogła uzupełnić formularz tym, co AI zobaczyło.
+   * „żadne z nich, wpisz ręcznie” mogła uzupełnić formularz tym, co AI zobaczyło, oraz `photoUploadIds`:
+   * zapisane zdjęcia, które przy tworzeniu wariantu stają się jego zdjęciami (pierwsze jako główne).
    */
   async lookupByPhoto(
     images: LabelImage[],
-  ): Promise<{ reading: LabelReading; candidates: ReleaseCandidate[] }> {
-    const labelReader = this.require(await this.integrations.getLabelReader(), "Claude");
-    const discogs = this.require(await this.integrations.getDiscogs(), "Discogs");
+    userId: number | null = null,
+  ): Promise<{
+    reading: LabelReading;
+    candidates: ReleaseCandidate[];
+    photoUploadIds: string[];
+  }> {
+    // Zdjęcia zapisujemy najpierw: gdy Claude albo Discogs zawiodą, kreator przejdzie do formularza ręcznego
+    // i nadal podepnie to zdjęcie do wariantu.
+    const photoUploadIds = await this.savePendingPhotos(images, userId);
 
-    const reading = await labelReader.read(images);
-    const candidates = await this.searchWithFallback(discogs, {
-      catno: reading.catalogNumber ?? undefined,
-      label: reading.label ?? undefined,
-      artist: reading.artists[0],
-      releaseTitle: reading.title ?? undefined,
-    });
+    try {
+      const labelReader = this.require(await this.integrations.getLabelReader(), "Claude");
+      const discogs = this.require(await this.integrations.getDiscogs(), "Discogs");
 
-    return { reading, candidates };
+      const reading = await labelReader.read(images);
+      const candidates = await this.searchWithFallback(discogs, {
+        catno: reading.catalogNumber ?? undefined,
+        label: reading.label ?? undefined,
+        artist: reading.artists[0],
+        releaseTitle: reading.title ?? undefined,
+      });
+
+      return { reading, candidates, photoUploadIds };
+    } catch (error) {
+      console.error("Label lookup failed, photos kept for manual entry:", error);
+      throw new PhotoLookupError(error, photoUploadIds);
+    }
   }
 
   /** Wyszukiwanie po wpisanym numerze katalogowym (opcjonalnie z wytwórnią), bez zdjęcia. */
@@ -147,6 +186,58 @@ export class RecordLookupService {
     return [];
   }
 
+  /** Zapisuje zdjęcia w docelowym folderze i rejestruje je jako oczekujące; przy okazji sprząta stare. */
+  private async savePendingPhotos(
+    images: LabelImage[],
+    userId: number | null,
+  ): Promise<string[]> {
+    const client = await this.pool.connect();
+    const saved: string[] = [];
+
+    try {
+      const expired = await this.pendingUploads.deleteExpired(
+        client,
+        new Date(Date.now() - PENDING_UPLOAD_TTL_MS),
+      );
+
+      for (const upload of expired) {
+        await this.storage.delete(upload.path).catch((error: unknown) => {
+          console.error(`Failed to delete expired upload "${upload.path}":`, error);
+        });
+      }
+
+      const ids: string[] = [];
+
+      for (const image of images) {
+        const id = randomUUID();
+        const path = await this.storage.save(
+          image.data,
+          `products/photo/label-${id}.${EXTENSION_BY_MEDIA_TYPE[image.mediaType]}`,
+          image.mediaType,
+        );
+
+        saved.push(path);
+        await this.pendingUploads.create(client, {
+          id,
+          path,
+          contentType: image.mediaType,
+          createdBy: userId,
+        });
+        ids.push(id);
+      }
+
+      return ids;
+    } catch (error) {
+      for (const path of saved) {
+        await this.storage.delete(path).catch(() => undefined);
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private require<T>(dependency: T | null, service: string): T {
     if (dependency === null) {
       throw new IntegrationNotConfiguredError(service);
@@ -162,7 +253,8 @@ export const mapSearchResult = (result: DiscogsSearchResult): ReleaseCandidate =
   return {
     releaseId: result.id,
     title: result.title ?? null,
-    thumbnail: result.thumb || result.cover_image || null,
+    thumbnail:
+      [result.thumb, result.cover_image].find((url) => !isPlaceholderImage(url)) ?? null,
     label: result.label?.[0] ? cleanName(result.label[0]) : null,
     catalogNumber: emptyToUndefined(result.catno) ?? null,
     year: Number.isInteger(year) && year > 0 ? year : null,
@@ -199,7 +291,16 @@ export const mapReleaseToDraft = (release: DiscogsRelease): ReleaseDraft => {
     .join("\n\n")
     .slice(0, MAX_DESCRIPTION_LENGTH);
 
-  const artists = (release.artists ?? []).map((artist) => cleanName(artist.name));
+  // Przy splitach Discogs często podaje na poziomie wydania tylko jednego artystę, a resztę przy utworach
+  // (np. dub innego wykonawcy na stronie B), więc dołączamy też artystów z listy utworów.
+  const artists = [
+    ...new Set(
+      [
+        ...(release.artists ?? []),
+        ...(release.tracklist ?? []).flatMap((track) => track.artists ?? []),
+      ].map((artist) => cleanName(artist.name)),
+    ),
+  ];
 
   return {
     product: {

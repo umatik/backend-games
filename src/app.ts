@@ -1,5 +1,5 @@
+import "@/config/env.js";
 import helmet from "helmet";
-import "dotenv/config";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import openapi from "@/docs/openapi.js";

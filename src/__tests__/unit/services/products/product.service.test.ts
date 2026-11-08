@@ -12,6 +12,9 @@ import {
   type ExchangeRateProvider,
 } from "@/services/exchange-rate.service.js";
 import { ValidationError } from "@/errors/validation.error.js";
+import type { PendingUploadRepository } from "@/repositories/pending-upload/pending-upload.interface.js";
+import type { ProductVariantMediaInterface } from "@/repositories/products/product-media/product-variant-media.interface.js";
+import { ProductVariantMediaType } from "@/types/product-variant-media.types.js";
 
 const mockClient = {
   query: jest.fn(),
@@ -93,6 +96,8 @@ describe("ProductService", () => {
   let exchangeRates: jest.Mocked<ExchangeRateProvider>;
   let mockPool: Database;
   let cache: jest.Mocked<ProductListCache>;
+  let pendingUploads: jest.Mocked<PendingUploadRepository>;
+  let mediaRepository: jest.Mocked<ProductVariantMediaInterface>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -144,6 +149,20 @@ describe("ProductService", () => {
       clear: jest.fn(),
     };
 
+    pendingUploads = {
+      create: jest.fn(),
+      claim: jest.fn(),
+      deleteExpired: jest.fn(),
+    };
+
+    mediaRepository = {
+      findByProductVariantId: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
     productService = new ProductService(
       productRepository,
       productVariantRepository,
@@ -151,6 +170,8 @@ describe("ProductService", () => {
       cache,
       storage,
       exchangeRates,
+      pendingUploads,
+      mediaRepository,
     );
   });
 
@@ -254,6 +275,92 @@ describe("ProductService", () => {
 
       expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
       expect(cache.clear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("label photos from the lookup", () => {
+    const upload = (id: string, path: string) => ({
+      id,
+      path,
+      contentType: "image/jpeg",
+      createdBy: 2,
+      createdAt: now,
+    });
+
+    it("should attach the photos to the new variant, the first one as primary", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productVariantRepository.create.mockResolvedValue(makeVariant({ id: 7, media: [] }));
+      pendingUploads.claim.mockResolvedValue([
+        upload("a", "products/photo/label-a.jpg"),
+        upload("b", "products/photo/label-b.jpg"),
+      ]);
+      mediaRepository.create.mockImplementation(
+        async (_client, variantId, type, url, alt, sortOrder, isPrimary) => ({
+          id: sortOrder + 1,
+          productVariantId: variantId,
+          type,
+          url,
+          alt,
+          sortOrder,
+          isPrimary,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+
+      const variant = await productService.createVariant(1, {
+        priceEur: 1500,
+        quantity: 1,
+        attributes: vinylVariantAttributes,
+        photoUploadIds: ["a", "b"],
+      });
+
+      expect(pendingUploads.claim).toHaveBeenCalledWith(client, ["a", "b"]);
+      expect(mediaRepository.create.mock.calls.map((call) => call.slice(1))).toEqual([
+        [7, ProductVariantMediaType.PHOTO, "products/photo/label-a.jpg", null, 0, true],
+        [7, ProductVariantMediaType.PHOTO, "products/photo/label-b.jpg", null, 1, false],
+      ]);
+      expect(variant?.media.map((media) => media.isPrimary)).toEqual([true, false]);
+      expect(queries()).toEqual(["BEGIN", "COMMIT"]);
+    });
+
+    it("should reject unknown or already used uploads and roll back", async () => {
+      productRepository.findById.mockResolvedValue(makeProduct());
+      productVariantRepository.create.mockResolvedValue(makeVariant());
+      pendingUploads.claim.mockResolvedValue([upload("a", "products/photo/label-a.jpg")]);
+
+      const error = await productService
+        .createVariant(1, {
+          priceEur: 1500,
+          quantity: 1,
+          attributes: vinylVariantAttributes,
+          photoUploadIds: ["a", "missing"],
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).errors[0]?.path).toBe("photoUploadIds");
+      expect(mediaRepository.create).not.toHaveBeenCalled();
+      expect(queries()).toEqual(["BEGIN", "ROLLBACK"]);
+    });
+
+    it("should report the variant index when creating a product", async () => {
+      productRepository.create.mockResolvedValue(makeProduct());
+      productVariantRepository.create.mockResolvedValue(makeVariant());
+      pendingUploads.claim.mockResolvedValue([]);
+
+      const error = await productService
+        .createProduct({
+          type: "vinyl",
+          title: "Jah Prophecy",
+          attributes: { artists: ["Bunnington Judah"] },
+          variants: [
+            { priceEur: 1500, quantity: 1, attributes: vinylVariantAttributes, photoUploadIds: ["x"] },
+          ],
+        })
+        .catch((caught: unknown) => caught);
+
+      expect((error as ValidationError).errors[0]?.path).toBe("variants.0.photoUploadIds");
     });
   });
 

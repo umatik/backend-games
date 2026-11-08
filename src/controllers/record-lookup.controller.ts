@@ -2,7 +2,9 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import type { RecordLookupService } from "@/services/record-lookup.service.js";
 import type { LabelImage } from "@/integrations/claude/label-reader.js";
+import type { AuthenticatedRequest } from "@/middleware/authentication.middleware.js";
 import { parseId } from "@/validators/helpers/id.validator.js";
+import { PhotoLookupError } from "@/errors/external-service.error.js";
 import { formatZodIssues } from "@/validators/helpers/zod.js";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -51,9 +53,27 @@ export class RecordLookupController {
       images.push({ data: file.buffer, mediaType });
     }
 
-    const result = await this.recordLookupService.lookupByPhoto(images);
+    const userId = (req as AuthenticatedRequest).user?.userId;
 
-    res.status(200).json({ message: "Label read", ...result });
+    try {
+      const result = await this.recordLookupService.lookupByPhoto(
+        images,
+        userId ? Number(userId) : null,
+      );
+
+      res.status(200).json({ message: "Label read", ...result });
+    } catch (error) {
+      if (error instanceof PhotoLookupError) {
+        // Zdjęcia są zapisane, więc kreator może przejść do formularza ręcznego z tym zdjęciem.
+        res.status(error.statusCode).json({
+          message: error.message,
+          photoUploadIds: error.photoUploadIds,
+        });
+        return;
+      }
+
+      throw error;
+    }
   };
 
   lookupByCatalogNumber = async (req: Request, res: Response) => {

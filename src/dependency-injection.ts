@@ -15,6 +15,7 @@ import type { ProductDetails } from "@/types/product.types.js";
 
 import { RedisCache } from "@/cache/redis-cache.js";
 import { LocalStorage } from "@/storage/local-storage.js";
+import { PendingUploadPostgresRepository } from "@/repositories/pending-upload/pending-upload-postgres.repository.js";
 
 import { AuthenticationPostgresRepository } from "@/repositories/authentication/authentication-postgres.repository.js";
 import { OrderPostgresRepository } from "@/repositories/order/order-postgres.repository.js";
@@ -104,6 +105,7 @@ const productCache = new RedisCache<{
 }>(redisClient);
 
 const storage = new LocalStorage();
+const pendingUploadRepository = new PendingUploadPostgresRepository();
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -166,6 +168,8 @@ const productService = new ProductService(
   productCache,
   storage,
   exchangeRates,
+  pendingUploadRepository,
+  productVariantMediaRepository,
 );
 
 const productController = new ProductController(productService);
@@ -190,7 +194,12 @@ const integrations = new SettingsIntegrationProvider(settingsService, {
   enabled: !isTest && process.env.INTEGRATIONS_ENABLED !== "false",
 });
 
-const recordLookupService = new RecordLookupService(integrations);
+const recordLookupService = new RecordLookupService(
+  integrations,
+  storage,
+  pendingUploadRepository,
+  pool,
+);
 
 export const recordLookupRouter = createRecordLookupRouter(
   new RecordLookupController(recordLookupService),

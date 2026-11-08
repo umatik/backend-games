@@ -10,6 +10,7 @@ import {
   productRouter,
   productVariantMediaRouter,
   recordLookupRouter,
+  settingsRouter,
   orderRouter,
   userRouter,
   authRouter,
@@ -56,6 +57,7 @@ app.use("/products", recordLookupRouter);
 app.use("/products", productRouter);
 app.use("/products", productVariantMediaRouter);
 app.use("/orders", orderRouter);
+app.use("/settings", settingsRouter);
 app.use("/users", userRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapi));
 

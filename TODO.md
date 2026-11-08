@@ -71,7 +71,7 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 - [x] Opcja „żadne z nich, wpisz ręcznie”: formularz uzupełniony tym, co odczytało AI
 - [ ] Wykrywanie duplikatów: to samo ID z Discogs lub numer katalogowy → propozycja dodania wariantu do istniejącego produktu
 - [ ] Zdjęcie labela trafia jako pierwsze zdjęcie wariantu (po stronie panelu: po utworzeniu wariantu wgrać to samo zdjęcie przez endpoint mediów)
-- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła) i założyć token; ustawić w `.env`: `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT`, `ANTHROPIC_API_KEY`
+- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła) i założyć token; wpisać klucze w ustawieniach (panel lub `PATCH /settings`)
 
 ## 6. Kreator dodawania produktu
 
@@ -104,6 +104,17 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Nowe uprawnienie `products:publish` (w seedzie)
 - [x] Walidacja przez zod, także użytkowników, zamówień i mediów (stare walidatory usunięte)
 - [x] Swagger (`@openapi`) aktualizowany przy każdym endpoincie
+
+## 8a. Moduł ustawień
+
+- [x] Tabela `settings` (migracja 015), uprawnienie `settings:manage` (admin)
+- [x] Lista ustawień zdefiniowana w kodzie (`src/settings/definitions.ts`): grupa, rodzaj (sekret / tekst / liczba / lista), walidacja zod, zmienna środowiskowa jako zapas, wartość domyślna
+- [x] Kolejność: baza (panel) → `.env` → wartość domyślna
+- [x] Sekrety szyfrowane AES-256-GCM kluczem `SETTINGS_ENCRYPTION_KEY`; API zwraca tylko zamaskowaną postać
+- [x] `GET /settings`, `PATCH /settings` (`null` przywraca `.env`/domyślną), `POST /settings/test/{anthropic|discogs}`
+- [x] Integracje (Claude, Discogs, kurs zapasowy) czytają ustawienia na bieżąco, bez restartu
+- [x] Model Claude do wyboru w ustawieniach (Opus 5.5 / Haiku 5.5)
+- [ ] Ustawić `SETTINGS_ENCRYPTION_KEY` w `.env` (`openssl rand -base64 32`)
 
 ## 9. Porządki techniczne
 

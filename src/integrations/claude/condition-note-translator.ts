@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { parseWithClaude } from "./claude-client.js";
+import { CLAUDE_MODEL, parseWithClaude } from "./claude-client.js";
 
 const translationSchema = z.object({
   en: z.string(),
@@ -22,10 +22,14 @@ Keep the meaning exact and the tone plain. Use the terms record collectors use (
 unchanged. Return only the translations.`;
 
 export class ClaudeConditionNoteTranslator implements ConditionNoteTranslator {
-  constructor(private readonly client: Anthropic) {}
+  constructor(
+    private readonly client: Anthropic,
+    private readonly model: string = CLAUDE_MODEL,
+  ) {}
 
   async translate(polishText: string): Promise<ConditionNoteTranslation> {
     return parseWithClaude(this.client, {
+      model: this.model,
       system: SYSTEM_PROMPT,
       schema: translationSchema,
       what: "translate the condition note",

@@ -13,6 +13,17 @@ import type { LabelReader, LabelReading } from "@/integrations/claude/label-read
 import type { ConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
 import { IntegrationNotConfiguredError } from "@/errors/external-service.error.js";
 import { getProductType } from "@/product-types/index.js";
+import type { IntegrationProvider } from "@/integrations/integration-provider.js";
+
+const providerOf = (integrations: {
+  labelReader?: LabelReader;
+  discogs?: DiscogsClient;
+  translator?: ConditionNoteTranslator;
+}): IntegrationProvider => ({
+  getLabelReader: async () => integrations.labelReader ?? null,
+  getDiscogs: async () => integrations.discogs ?? null,
+  getConditionNoteTranslator: async () => integrations.translator ?? null,
+});
 
 const zuluReading: LabelReading = {
   artists: ["Bunnington Judah", "Zulu Vibes"],
@@ -85,7 +96,9 @@ describe("RecordLookupService", () => {
       getRelease: jest.fn<DiscogsClient["getRelease"]>(),
     };
     translator = { translate: jest.fn<ConditionNoteTranslator["translate"]>() };
-    service = new RecordLookupService(labelReader, discogs, translator);
+    service = new RecordLookupService(
+      providerOf({ labelReader, discogs, translator }),
+    );
   });
 
   describe("lookupByPhoto", () => {
@@ -162,10 +175,10 @@ describe("RecordLookupService", () => {
   });
 
   it.each([
-    ["Claude", () => new RecordLookupService(null, null, null).lookupByPhoto([])],
-    ["Discogs", () => new RecordLookupService(null, null, null).lookupByCatalogNumber("X")],
-    ["Discogs", () => new RecordLookupService(null, null, null).getReleaseDraft(1)],
-    ["Claude", () => new RecordLookupService(null, null, null).translateConditionNote("x")],
+    ["Claude", () => new RecordLookupService(providerOf({})).lookupByPhoto([])],
+    ["Discogs", () => new RecordLookupService(providerOf({})).lookupByCatalogNumber("X")],
+    ["Discogs", () => new RecordLookupService(providerOf({})).getReleaseDraft(1)],
+    ["Claude", () => new RecordLookupService(providerOf({})).translateConditionNote("x")],
   ])("should report that %s is not configured", async (service, call) => {
     await expect(call()).rejects.toThrow(
       new IntegrationNotConfiguredError(service),

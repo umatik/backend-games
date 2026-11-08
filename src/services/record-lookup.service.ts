@@ -4,12 +4,8 @@ import type {
   DiscogsSearchParams,
   DiscogsSearchResult,
 } from "@/integrations/discogs/discogs-client.js";
-import type {
-  LabelImage,
-  LabelReader,
-  LabelReading,
-} from "@/integrations/claude/label-reader.js";
-import type { ConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
+import type { LabelImage, LabelReading } from "@/integrations/claude/label-reader.js";
+import type { IntegrationProvider } from "@/integrations/integration-provider.js";
 import { IntegrationNotConfiguredError } from "@/errors/external-service.error.js";
 import type { TranslatedText } from "@/product-types/common.js";
 import { VINYL_FORMATS } from "@/product-types/vinyl.js";
@@ -68,11 +64,7 @@ const emptyToUndefined = (value: string | undefined): string | undefined => {
 };
 
 export class RecordLookupService {
-  constructor(
-    private readonly labelReader: LabelReader | null,
-    private readonly discogs: DiscogsClient | null,
-    private readonly translator: ConditionNoteTranslator | null,
-  ) {}
+  constructor(private readonly integrations: IntegrationProvider) {}
 
   /**
    * Zdjęcie labela → odczyt przez Claude → kandydaci z Discogs. Zwraca też sam odczyt, żeby opcja
@@ -81,8 +73,8 @@ export class RecordLookupService {
   async lookupByPhoto(
     images: LabelImage[],
   ): Promise<{ reading: LabelReading; candidates: ReleaseCandidate[] }> {
-    const labelReader = this.require(this.labelReader, "Claude");
-    const discogs = this.require(this.discogs, "Discogs");
+    const labelReader = this.require(await this.integrations.getLabelReader(), "Claude");
+    const discogs = this.require(await this.integrations.getDiscogs(), "Discogs");
 
     const reading = await labelReader.read(images);
     const candidates = await this.searchWithFallback(discogs, {
@@ -100,20 +92,23 @@ export class RecordLookupService {
     catalogNumber: string,
     label?: string,
   ): Promise<ReleaseCandidate[]> {
-    const discogs = this.require(this.discogs, "Discogs");
+    const discogs = this.require(await this.integrations.getDiscogs(), "Discogs");
 
     return this.searchWithFallback(discogs, { catno: catalogNumber, label });
   }
 
   async getReleaseDraft(releaseId: number): Promise<ReleaseDraft | null> {
-    const discogs = this.require(this.discogs, "Discogs");
+    const discogs = this.require(await this.integrations.getDiscogs(), "Discogs");
     const release = await discogs.getRelease(releaseId);
 
     return release ? mapReleaseToDraft(release) : null;
   }
 
   async translateConditionNote(polishText: string): Promise<TranslatedText> {
-    const translator = this.require(this.translator, "Claude");
+    const translator = this.require(
+      await this.integrations.getConditionNoteTranslator(),
+      "Claude",
+    );
     const { en, es } = await translator.translate(polishText);
 
     return { en, es, pl: polishText };

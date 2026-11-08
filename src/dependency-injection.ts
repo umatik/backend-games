@@ -1,8 +1,10 @@
 import { createClient } from "redis";
-import Anthropic from "@anthropic-ai/sdk";
-import { HttpDiscogsClient } from "@/integrations/discogs/discogs-client.js";
-import { ClaudeLabelReader } from "@/integrations/claude/label-reader.js";
-import { ClaudeConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
+import { SettingsIntegrationProvider } from "@/integrations/integration-provider.js";
+import { SecretCipher } from "@/settings/secret-cipher.js";
+import { SettingsService } from "@/services/settings.service.js";
+import { SettingsPostgresRepository } from "@/repositories/settings/settings-postgres.repository.js";
+import { SettingsController } from "@/controllers/settings.controller.js";
+import { createSettingsRouter } from "@/routes/settings.routes.js";
 import { RecordLookupService } from "@/services/record-lookup.service.js";
 import { RecordLookupController } from "@/controllers/record-lookup.controller.js";
 import { createRecordLookupRouter } from "@/routes/record-lookup.routes.js";
@@ -118,17 +120,43 @@ const productVariantMediaService = new ProductVariantMediaService(
   new PassThroughAudioProcessor(),
 );
 
-// Kurs EUR → PLN: stały z EUR_PLN_RATE (w testach domyślnie 4.3), inaczej NBP z cache w Redis.
-const fixedEurPlnRate =
-  process.env.EUR_PLN_RATE ?? (process.env.NODE_ENV === "test" ? "4.3" : undefined);
+// Ustawienia sklepu (panel admina). Sekrety są szyfrowane kluczem z SETTINGS_ENCRYPTION_KEY;
+// w testach używamy stałego klucza testowego.
+const isTest = process.env.NODE_ENV === "test";
+
+const encryptionKey =
+  process.env.SETTINGS_ENCRYPTION_KEY ??
+  (isTest ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined);
+
+const createSecretCipher = (): SecretCipher | null => {
+  if (!encryptionKey) {
+    console.warn("SETTINGS_ENCRYPTION_KEY is not set: secrets cannot be saved in settings.");
+    return null;
+  }
+
+  try {
+    return new SecretCipher(encryptionKey);
+  } catch (error) {
+    console.error("Invalid SETTINGS_ENCRYPTION_KEY:", error);
+    return null;
+  }
+};
+
+const settingsService = new SettingsService(
+  new SettingsPostgresRepository(),
+  pool,
+  createSecretCipher(),
+);
+
+// Kurs EUR → PLN: stały z EUR_PLN_RATE (w testach domyślnie 4.3), inaczej NBP z cache w Redis,
+// a gdy NBP zawiedzie, kurs zapasowy z ustawień.
+const fixedEurPlnRate = process.env.EUR_PLN_RATE ?? (isTest ? "4.3" : undefined);
 
 const exchangeRates: ExchangeRateProvider = fixedEurPlnRate
   ? new FixedExchangeRateProvider(Number(fixedEurPlnRate))
   : new NbpExchangeRateProvider(
       new RedisCache<number>(redisClient),
-      process.env.EUR_PLN_FALLBACK_RATE
-        ? Number(process.env.EUR_PLN_FALLBACK_RATE)
-        : null,
+      async () => (await settingsService.get("eurPlnFallbackRate")) ?? null,
     );
 
 const productService = new ProductService(
@@ -156,44 +184,23 @@ export const productVariantMediaRouter = createProductVariantMediaRoutes(
   upload,
 );
 
-// Rozpoznawanie płyt (Claude + Discogs). Bez konfiguracji endpointy odpowiadają 503; w testach zawsze wyłączone,
-// żeby testy nie łączyły się z siecią.
-const isTest = process.env.NODE_ENV === "test";
+// Rozpoznawanie płyt (Claude + Discogs). Klucze i model pochodzą z ustawień; bez nich endpointy odpowiadają 503.
+// W testach integracje są zawsze wyłączone, żeby testy nie łączyły się z siecią.
+const integrations = new SettingsIntegrationProvider(settingsService, {
+  enabled: !isTest && process.env.INTEGRATIONS_ENABLED !== "false",
+});
 
-const createClaudeClient = (): Anthropic | null => {
-  if (isTest || process.env.CLAUDE_ENABLED === "false") {
-    return null;
-  }
-
-  try {
-    // Dane logowania: ANTHROPIC_API_KEY (lub inne źródło, które SDK rozpoznaje samo).
-    return new Anthropic({ timeout: 60_000, maxRetries: 2 });
-  } catch (error) {
-    console.error("Claude client unavailable:", error);
-    return null;
-  }
-};
-
-const claudeClient = createClaudeClient();
-
-const discogsClient =
-  !isTest && process.env.DISCOGS_TOKEN
-    ? new HttpDiscogsClient(
-        process.env.DISCOGS_TOKEN,
-        process.env.DISCOGS_USER_AGENT ?? "RasBassShop/1.0",
-      )
-    : null;
-
-const recordLookupService = new RecordLookupService(
-  claudeClient ? new ClaudeLabelReader(claudeClient) : null,
-  discogsClient,
-  claudeClient ? new ClaudeConditionNoteTranslator(claudeClient) : null,
-);
+const recordLookupService = new RecordLookupService(integrations);
 
 export const recordLookupRouter = createRecordLookupRouter(
   new RecordLookupController(recordLookupService),
   authorizationService,
   upload,
+);
+
+export const settingsRouter = createSettingsRouter(
+  new SettingsController(settingsService, integrations),
+  authorizationService,
 );
 
 // Order

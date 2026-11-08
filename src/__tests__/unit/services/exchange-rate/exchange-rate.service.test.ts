@@ -28,7 +28,7 @@ describe("NbpExchangeRateProvider", () => {
 
   it("should fetch the rate from NBP and cache it", async () => {
     fetchFn.mockResolvedValue(nbpResponse({ rates: [{ mid: 4.2735 }] }));
-    const provider = new NbpExchangeRateProvider(cache, null, fetchFn);
+    const provider = new NbpExchangeRateProvider(cache, async () => null, fetchFn);
 
     expect(await provider.getEurPlnRate()).toBe(4.2735);
     expect(await provider.getEurPlnRate()).toBe(4.2735);
@@ -38,21 +38,21 @@ describe("NbpExchangeRateProvider", () => {
   it("should fall back to the last known rate when NBP fails", async () => {
     store.set("exchange-rate:EUR:PLN:last", 4.25);
     fetchFn.mockRejectedValue(new Error("network down"));
-    const provider = new NbpExchangeRateProvider(cache, 4.5, fetchFn);
+    const provider = new NbpExchangeRateProvider(cache, async () => 4.5, fetchFn);
 
     expect(await provider.getEurPlnRate()).toBe(4.25);
   });
 
   it("should use the configured fallback rate when nothing is cached", async () => {
     fetchFn.mockResolvedValue(nbpResponse({}, false));
-    const provider = new NbpExchangeRateProvider(cache, 4.5, fetchFn);
+    const provider = new NbpExchangeRateProvider(cache, async () => 4.5, fetchFn);
 
     expect(await provider.getEurPlnRate()).toBe(4.5);
   });
 
   it("should return null when NBP sends no valid rate and there is no fallback", async () => {
     fetchFn.mockResolvedValue(nbpResponse({ rates: [{ mid: "abc" }] }));
-    const provider = new NbpExchangeRateProvider(cache, null, fetchFn);
+    const provider = new NbpExchangeRateProvider(cache, async () => null, fetchFn);
 
     expect(await provider.getEurPlnRate()).toBeNull();
   });

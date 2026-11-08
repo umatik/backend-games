@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { ExternalServiceError } from "@/errors/external-service.error.js";
 
+/** Model domyślny; w sklepie wybierany w ustawieniach (`anthropic.model`). */
 export const CLAUDE_MODEL = "claude-opus-5-5";
 
 /**
@@ -15,6 +16,7 @@ export const CLAUDE_MODEL = "claude-opus-5-5";
 export const parseWithClaude = async <Schema extends z.ZodType>(
   client: Anthropic,
   params: {
+    model: string;
     system: string;
     content: Anthropic.Beta.BetaContentBlockParam[];
     schema: Schema;
@@ -25,10 +27,13 @@ export const parseWithClaude = async <Schema extends z.ZodType>(
 
   try {
     response = await client.beta.messages.parse({
-      model: CLAUDE_MODEL,
+      model: params.model,
       max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      // Haiku nie ma zapasowego modelu po odmowie; dla pozostałych modeli włączamy go.
+      ...(!params.model.startsWith("claude-haiku") && {
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default" as const,
+      }),
       output_config: {
         effort: "low",
         format: betaZodOutputFormat(params.schema),

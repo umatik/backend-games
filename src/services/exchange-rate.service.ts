@@ -24,12 +24,13 @@ type NbpResponse = { rates?: { mid?: unknown }[] };
 
 /**
  * Średni kurs NBP (tabela A). Kurs trzymamy w cache przez 6 godzin; jeśli NBP nie odpowiada, używamy ostatniego
- * znanego kursu (do 30 dni), a w ostateczności `fallbackRate`.
+ * znanego kursu (do 30 dni), a w ostateczności kursu zapasowego z ustawień.
  */
 export class NbpExchangeRateProvider implements ExchangeRateProvider {
   constructor(
     private readonly cache: Cache<number>,
-    private readonly fallbackRate: number | null = null,
+    /** Kurs zapasowy, np. z ustawień sklepu; czytany dopiero, gdy NBP i cache zawiodą. */
+    private readonly getFallbackRate: () => Promise<number | null> = async () => null,
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
@@ -63,7 +64,7 @@ export class NbpExchangeRateProvider implements ExchangeRateProvider {
     } catch (error) {
       console.error("Failed to fetch EUR/PLN rate from NBP:", error);
 
-      return (await this.cache.get(LAST_RATE_KEY)) ?? this.fallbackRate;
+      return (await this.cache.get(LAST_RATE_KEY)) ?? (await this.getFallbackRate());
     }
   }
 }

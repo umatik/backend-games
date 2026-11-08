@@ -93,4 +93,16 @@ describe("Claude integrations", () => {
       es: "Ligero crujido",
     });
   });
+
+  it("should use the configured model and skip refusal fallbacks for Haiku", async () => {
+    parse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: { en: "a", es: "b" } });
+
+    await new ClaudeConditionNoteTranslator(client, "claude-haiku-5-5").translate("a");
+
+    const params = parse.mock.calls[0]![0];
+
+    expect(params.model).toBe("claude-haiku-5-5");
+    expect(params).not.toHaveProperty("fallbacks");
+    expect(params).not.toHaveProperty("betas");
+  });
 });

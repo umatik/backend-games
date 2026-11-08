@@ -12,6 +12,7 @@ const migrationsPath = path.resolve(
 export async function resetTestDatabase(): Promise<void> {
   await pool.query(`
     TRUNCATE TABLE
+      settings,
       order_items,
       orders,
       login_logs,

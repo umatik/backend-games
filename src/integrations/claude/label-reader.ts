@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { parseWithClaude } from "./claude-client.js";
+import { CLAUDE_MODEL, parseWithClaude } from "./claude-client.js";
 
 export type LabelImage = {
   data: Buffer;
@@ -47,10 +47,14 @@ Transcribe what is printed on the label; the result is used to search the record
 Use null (or an empty list) for anything that is missing or unreadable. Never guess.`;
 
 export class ClaudeLabelReader implements LabelReader {
-  constructor(private readonly client: Anthropic) {}
+  constructor(
+    private readonly client: Anthropic,
+    private readonly model: string = CLAUDE_MODEL,
+  ) {}
 
   async read(images: LabelImage[]): Promise<LabelReading> {
     return parseWithClaude(this.client, {
+      model: this.model,
       system: SYSTEM_PROMPT,
       schema: labelReadingSchema,
       what: "read the label",

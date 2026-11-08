@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { SettingsService } from "@/services/settings.service.js";
 import { ClaudeLabelReader, type LabelReader } from "./claude/label-reader.js";
+import { CLAUDE_MODEL } from "./claude/claude-client.js";
 import {
   ClaudeConditionNoteTranslator,
   type ConditionNoteTranslator,
@@ -117,7 +118,7 @@ export class SettingsIntegrationProvider implements IntegrationProvider {
     }
 
     const apiKey = await this.settings.get("anthropicApiKey");
-    const model = (await this.settings.get("claudeModel")) ?? "claude-opus-5-5";
+    const model = (await this.settings.get("claudeModel")) ?? CLAUDE_MODEL;
 
     if (!apiKey) {
       return null;

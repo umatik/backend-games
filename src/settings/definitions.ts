@@ -23,7 +23,7 @@ export type SettingDefinition<T = unknown> = {
 
 const define = <T>(definition: SettingDefinition<T>) => definition;
 
-export const CLAUDE_MODELS = ["claude-opus-5-5", "claude-haiku-5-5"] as const;
+export const CLAUDE_MODELS = ["claude-haiku-5-5", "claude-opus-5-5"] as const;
 
 export const settingDefinitions = {
   shopName: define({
@@ -53,10 +53,10 @@ export const settingDefinitions = {
     key: "anthropic.model",
     group: "integrations",
     kind: "select",
-    description: "Claude model: Opus 5.5 reads worn labels better, Haiku 5.5 is much cheaper",
+    description: "Claude model: Haiku 5.5 is much cheaper, Opus 5.5 reads worn or hard labels better",
     schema: z.enum(CLAUDE_MODELS),
     options: CLAUDE_MODELS,
-    defaultValue: "claude-opus-5-5" as (typeof CLAUDE_MODELS)[number],
+    defaultValue: "claude-haiku-5-5" as (typeof CLAUDE_MODELS)[number],
   }),
   discogsToken: define({
     key: "discogs.token",

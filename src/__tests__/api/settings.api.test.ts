@@ -43,8 +43,8 @@ describe("Settings API", () => {
     expect(byKey(response.body.settings, "anthropic.model")).toEqual(
       expect.objectContaining({
         kind: "select",
-        options: ["claude-opus-5-5", "claude-haiku-5-5"],
-        value: "claude-opus-5-5",
+        options: ["claude-haiku-5-5", "claude-opus-5-5"],
+        value: "claude-haiku-5-5",
         source: "default",
       }),
     );
@@ -57,7 +57,7 @@ describe("Settings API", () => {
     const updated = await request(app)
       .patch("/settings")
       .set("Authorization", `Bearer ${token}`)
-      .send({ values: { "anthropic.apiKey": API_KEY, "anthropic.model": "claude-haiku-5-5" } });
+      .send({ values: { "anthropic.apiKey": API_KEY, "anthropic.model": "claude-opus-5-5" } });
 
     expect(updated.status).toBe(200);
     expect(JSON.stringify(updated.body)).not.toContain(API_KEY);
@@ -69,7 +69,7 @@ describe("Settings API", () => {
         updatedBy: "bob@example.com",
       }),
     );
-    expect(byKey(updated.body.settings, "anthropic.model").value).toBe("claude-haiku-5-5");
+    expect(byKey(updated.body.settings, "anthropic.model").value).toBe("claude-opus-5-5");
 
     const listed = await request(app).get("/settings").set("Authorization", `Bearer ${token}`);
     expect(JSON.stringify(listed.body)).not.toContain(API_KEY);

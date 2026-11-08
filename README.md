@@ -140,8 +140,9 @@ Lista szkiców: `GET /products/manage?status=draft`.
 
 ## Integracje
 
-- **Claude** (Anthropic): odczyt labela i tłumaczenia. Model do wyboru w ustawieniach: Opus 5.5 (dokładniejszy)
-  albo Haiku 5.5 (znacznie tańszy). Odczyt jednego zdjęcia na Opus 5.5 kosztuje około 0,02 USD.
+- **Claude** (Anthropic): odczyt labela i tłumaczenia. Model do wyboru w ustawieniach (`anthropic.model`):
+  Haiku 5.5 (domyślny, ułamek centa za zdjęcie) albo Opus 5.5 (dokładniejszy przy zniszczonych labelach,
+  około 0,02 USD za zdjęcie).
 - **Discogs:** wyszukiwanie wydań i ich szczegóły. Wymaga darmowego tokenu osobistego. Przed startem sklepu sprawdź
   warunki korzystania z API (podawanie źródła danych).
 - **NBP:** średni kurs EUR/PLN, trzymany w cache przez 6 godzin.

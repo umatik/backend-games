@@ -4,7 +4,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { ExternalServiceError } from "@/errors/external-service.error.js";
 
 /** Model domyślny; w sklepie wybierany w ustawieniach (`anthropic.model`). */
-export const CLAUDE_MODEL = "claude-opus-5-5";
+export const CLAUDE_MODEL = "claude-haiku-5-5";
 
 /**
  * Wspólne wywołanie Claude z odpowiedzią w kształcie schematu zod.

@@ -30,7 +30,7 @@ describe("Claude integrations", () => {
   it("should send label photos as base64 images with refusal fallbacks", async () => {
     parse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: reading });
 
-    const result = await new ClaudeLabelReader(client).read([
+    const result = await new ClaudeLabelReader(client, "claude-opus-5-5").read([
       { data: Buffer.from("side-a"), mediaType: "image/jpeg" },
       { data: Buffer.from("side-b"), mediaType: "image/png" },
     ]);
@@ -45,7 +45,7 @@ describe("Claude integrations", () => {
       messages: { content: { type: string; source?: { data: string; media_type: string } }[] }[];
     };
 
-    expect(params.model).toBe(CLAUDE_MODEL);
+    expect(params.model).toBe("claude-opus-5-5");
     expect(params.betas).toEqual(["server-side-fallback-2026-07-01"]);
     expect(params.fallbacks).toBe("default");
     expect(params.output_config.effort).toBe("low");
@@ -104,5 +104,14 @@ describe("Claude integrations", () => {
     expect(params.model).toBe("claude-haiku-5-5");
     expect(params).not.toHaveProperty("fallbacks");
     expect(params).not.toHaveProperty("betas");
+  });
+
+  it("should use Haiku 5.5 by default", async () => {
+    parse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: reading });
+
+    await new ClaudeLabelReader(client).read([{ data: Buffer.from("x"), mediaType: "image/jpeg" }]);
+
+    expect(CLAUDE_MODEL).toBe("claude-haiku-5-5");
+    expect(parse.mock.calls[0]![0].model).toBe("claude-haiku-5-5");
   });
 });

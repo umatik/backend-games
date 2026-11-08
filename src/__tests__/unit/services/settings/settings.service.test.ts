@@ -97,7 +97,7 @@ describe("SettingsService", () => {
     const settings = service({ DISCOGS_USER_AGENT: "FromEnv/1.0" });
 
     expect(await settings.get("discogsUserAgent")).toBe("FromEnv/1.0");
-    expect(await settings.get("claudeModel")).toBe("claude-opus-5-5");
+    expect(await settings.get("claudeModel")).toBe("claude-haiku-5-5");
     expect(await settings.get("anthropicApiKey")).toBeUndefined();
 
     await settings.update({ "discogs.userAgent": "FromPanel/2.0" }, 2);

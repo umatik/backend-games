@@ -169,6 +169,9 @@ Ponowny audyt: `AUDIT_RECHECK.md`. Poprzednie poprawki potwierdzone; 3 nowe zgł
 - [x] Testy schematów zod, kreatora, publikacji i usuwania (2026-11-08): `unit/product-types`, `unit/validators`, `api/product-lifecycle.api.test.ts` (usuwanie plików przy twardym usuwaniu, miękkie usuwanie zamówionych, cache listy, zapis kreatora ze zdjęciem i wycofanie przy złym zdjęciu)
 - [x] Testy end-to-end w `e2e/` (2026-11-08): ścieżka właściciela sklepu, klienta i reset hasła przez Mailpit; `pnpm test:e2e`. Do rozważenia później: uruchamianie ich na zbudowanym kontenerze w ramach przygotowania do produkcji
 - [x] Discogs i Claude zamockowane w testach, bez sieci
+- [x] Testy na żywych usługach (2026-11-08): `live/`, `pnpm test:live`, poza zwykłym `pnpm test`. Claude czyta zdjęcie ZV-7-006, Discogs znajduje wydanie 34434571 i mapuje szkic, tłumaczenie notatki, pełny pierwszy krok kreatora (zdjęcie → kandydaci), kurs NBP. Bez kluczy pomijane. Pierwsze uruchomienie: 7/7, ok. 10 s.
+- [ ] Testy obciążeniowe (k6 albo autocannon) po przygotowaniu do produkcji: przeglądanie sklepu z cache i bez, wiele osób kupujących ostatnie sztuki tej samej płyty, publikacja w trakcie ruchu; mierzyć p95, błędy, pulę połączeń, pracę bez Redisa
+- [ ] Kreator: Discogs nie zawsze podaje prędkość (np. 34434571 ma tylko 7"), a Claude czyta „45 RPM” z labela. Panel może uzupełnić puste pola szkicu z Discogs odczytem ze zdjęcia
 - [ ] Test konwersji audio (`test-audio.wav`)
 - [x] Nowe tabele w liście TRUNCATE (`test-database.ts`): `settings`, `pending_uploads`
 - [x] Testy mają własny katalog plików `./uploads-test` (`STORAGE_PATH` w `.env.test`), czyszczony przed każdym uruchomieniem (`src/database/test-global-setup.ts`). Wcześniej zapisywały do `./uploads` razem z dev; 1137 osieroconych plików (4,4 MB) przeniesiono 2026-11-08 do Kosza (`ecommerce-api-uploads-2026-11-08`).

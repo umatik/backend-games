@@ -11,6 +11,8 @@ const config: Config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   maxWorkers: 1,
+  // Testy na żywych usługach (Claude, Discogs, NBP) uruchamia osobno `pnpm test:live` (jest.live.config.ts).
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/live/"],
   globalSetup: "<rootDir>/src/database/test-global-setup.ts",
   setupFilesAfterEnv: ["<rootDir>/src/database/test-setup.ts"],
 };

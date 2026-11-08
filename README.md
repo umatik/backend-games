@@ -83,6 +83,7 @@ pnpm migrate             # migracje bazy developerskiej
 pnpm migrate:test        # baza testowa (tworzy ją, jeśli trzeba)
 pnpm test                # wszystkie testy (potrzebują PostgreSQL, Redis i Mailpit)
 pnpm test:e2e            # tylko scenariusze end-to-end z katalogu e2e/
+pnpm test:live           # testy na żywych usługach: Claude, Discogs, NBP (klucze z .env, ułamek centa)
 npx tsc --noEmit         # sprawdzenie typów
 npx eslint .
 ```
@@ -216,6 +217,11 @@ Scenariusze end-to-end w katalogu `e2e/` przechodzą całe ścieżki przez HTTP 
 - **klient:** rejestracja, logowanie, zamówienie, „moje zamówienia”, anulowanie ze zwrotem na stan;
 - **reset hasła:** prawdziwy e-mail przez SMTP do Mailpita, z którego test odczytuje token (adres API: `MAILPIT_URL`,
   domyślnie `http://localhost:8025`).
+
+Testy na żywych usługach w katalogu `live/` nie wchodzą do `pnpm test`. Uruchamiane ręcznie (`pnpm test:live`)
+sprawdzają, czy Claude, Discogs i NBP odpowiadają tak, jak zakłada kod: odczyt zdjęcia labela ZV-7-006, wyszukanie
+wydania 34434571, szkic z Discogs, tłumaczenie notatki, kurs EUR/PLN. Klucze biorą z `.env`; bez klucza dana grupa
+jest pomijana. Inny model Claude: `LIVE_CLAUDE_MODEL=claude-opus-5-5 pnpm test:live`.
 
 ## Do zrobienia
 

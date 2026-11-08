@@ -5,6 +5,7 @@
   "scripts": {
     "test": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --silent",
     "test:e2e": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --silent e2e/",
+    "test:live": "NODE_ENV=development NODE_OPTIONS=--experimental-vm-modules jest --config jest.live.config.ts",
     "dev": "tsx src/server.ts",
     "migrate": "tsx src/database/migrate.ts",
     "migrate:test": "NODE_ENV=test tsx src/database/migrate.ts"

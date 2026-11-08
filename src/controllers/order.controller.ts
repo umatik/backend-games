@@ -4,7 +4,8 @@ import { UserNotFoundError } from "@/errors/user-not-found.error.js";
 import { InsufficientStockError } from "@/errors/insufficient-stock.error.js";
 import type { CreateOrderData } from "@/types/order.types.js";
 import { OrderService } from "@/services/order.service.js";
-import { isValidOrderItems } from "@/validators/order.validator.js";
+import { createOrderSchema } from "@/validators/order.validator.js";
+import { formatZodIssues } from "@/validators/helpers/zod.js";
 import type { AuthenticatedRequest } from "@/middleware/authentication.middleware.js";
 import { parseId } from "@/validators/helpers/id.validator.js";
 import { createPagination } from "@/utils/pagination.js";
@@ -18,14 +19,17 @@ export class OrderController {
   ) {}
 
   createOrder = async (req: AuthenticatedRequest, res: Response) => {
-    const { items } = req.body;
+    const parsed = createOrderSchema.safeParse(req.body ?? {});
 
-    if (!isValidOrderItems(items)) {
+    if (!parsed.success) {
       res.status(400).json({
         message: "Invalid order items",
+        errors: formatZodIssues(parsed.error),
       });
       return;
     }
+
+    const { items } = parsed.data;
 
     if (!req.user) {
       res.status(401).json({

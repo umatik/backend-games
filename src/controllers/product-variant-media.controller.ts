@@ -1,52 +1,13 @@
 import type { Request, Response } from "express";
 
 import type { ProductVariantMediaService } from "@/services/product-variant-media.service.js";
-import {
-  isValidProductVariantMediaAlt,
-  isValidProductVariantMediaIsPrimary,
-  isValidProductVariantMediaSortOrder,
-} from "@/validators/product-variant-media.validator.js";
+import { productVariantMediaInputSchema } from "@/validators/product-variant-media.validator.js";
+import { formatZodIssues } from "@/validators/helpers/zod.js";
 
 export class ProductVariantMediaController {
   constructor(
     private readonly productVariantMediaService: ProductVariantMediaService,
   ) {}
-
-  private validateMediaInput(
-    alt: unknown,
-    sortOrder: unknown,
-    isPrimary: unknown,
-  ): {
-    alt: string | null;
-    sortOrder: number;
-    isPrimary: boolean;
-  } | null {
-    if (!isValidProductVariantMediaAlt(alt)) {
-      return null;
-    }
-
-    const parsedSortOrder = Number(sortOrder);
-
-    if (!isValidProductVariantMediaSortOrder(parsedSortOrder)) {
-      return null;
-    }
-
-    if (isPrimary !== "true" && isPrimary !== "false") {
-      return null;
-    }
-
-    const parsedIsPrimary = isPrimary === "true";
-
-    if (!isValidProductVariantMediaIsPrimary(parsedIsPrimary)) {
-      return null;
-    }
-
-    return {
-      alt: alt ?? null,
-      sortOrder: parsedSortOrder,
-      isPrimary: parsedIsPrimary,
-    };
-  }
 
   async findByProductVariantId(req: Request, res: Response): Promise<void> {
     const productVariantId = Number(req.params.productVariantId);
@@ -77,7 +38,6 @@ export class ProductVariantMediaController {
 
   async create(req: Request, res: Response): Promise<void> {
     const productVariantId = Number(req.params.productVariantId);
-    const { alt, sortOrder, isPrimary } = req.body;
     const file = req.file?.buffer;
     const filename = req.file?.originalname;
     const contentType = req.file?.mimetype;
@@ -87,12 +47,17 @@ export class ProductVariantMediaController {
       return;
     }
 
-    const validatedInput = this.validateMediaInput(alt, sortOrder, isPrimary);
+    const parsed = productVariantMediaInputSchema.safeParse(req.body ?? {});
 
-    if (!validatedInput) {
-      res.status(400).json({ message: "Invalid media input" });
+    if (!parsed.success) {
+      res.status(400).json({
+        message: "Invalid media input",
+        errors: formatZodIssues(parsed.error),
+      });
       return;
     }
+
+    const validatedInput = parsed.data;
 
     const media = await this.productVariantMediaService.create(
       productVariantId,
@@ -109,14 +74,18 @@ export class ProductVariantMediaController {
 
   async update(req: Request, res: Response): Promise<void> {
     const mediaId = Number(req.params.mediaId);
-    const { alt, sortOrder, isPrimary } = req.body;
 
-    const validatedInput = this.validateMediaInput(alt, sortOrder, isPrimary);
+    const parsed = productVariantMediaInputSchema.safeParse(req.body ?? {});
 
-    if (!validatedInput) {
-      res.status(400).json({ message: "Invalid media input" });
+    if (!parsed.success) {
+      res.status(400).json({
+        message: "Invalid media input",
+        errors: formatZodIssues(parsed.error),
+      });
       return;
     }
+
+    const validatedInput = parsed.data;
 
     const media = await this.productVariantMediaService.update(
       mediaId,

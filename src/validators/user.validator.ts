@@ -1,90 +1,52 @@
-import { isValidString } from "@/validators/helpers/string.validator.js";
+import { z } from "zod";
 
-export const isValidRegisterUser = (data: unknown): boolean => {
-  if (typeof data !== "object" || data === null) {
-    return false;
-  }
+const text = (maxLength: number) => z.string().trim().min(1).max(maxLength);
 
-  const user = data as Record<string, unknown>;
+const email = z.string().trim().max(255).pipe(z.email());
 
-  const email = typeof user.email === "string" ? user.email.trim() : "";
+/** Hasła nie przycinamy, ale nie może składać się z samych spacji. */
+const password = z
+  .string()
+  .min(8)
+  .max(255)
+  .refine((value) => value.trim() !== "", { message: "Password is required" });
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  return (
-    emailRegex.test(email) &&
-    email.length <= 255 &&
-    isValidString(user.password, 255) &&
-    typeof user.password === "string" &&
-    user.password.length >= 8 &&
-    isValidString(user.firstName, 100) &&
-    isValidString(user.lastName, 100) &&
-    isValidString(user.phone, 50) &&
-    isValidString(user.address, Number.MAX_SAFE_INTEGER) &&
-    isValidString(user.city, 100) &&
-    isValidString(user.postalCode, 20) &&
-    isValidString(user.country, 100)
-  );
+const contactFields = {
+  firstName: text(100),
+  lastName: text(100),
+  phone: text(50),
+  address: text(10_000),
+  city: text(100),
+  postalCode: text(20),
+  country: text(100),
 };
 
-export const isValidUpdateUser = (data: unknown): boolean => {
-  if (typeof data !== "object" || data === null) {
-    return false;
-  }
+export const registerUserSchema = z.object({
+  email,
+  password,
+  ...contactFields,
+});
 
-  const user = data as Record<string, unknown>;
-
-  const allowedFields = [
-    "email",
-    "firstName",
-    "lastName",
-    "phone",
-    "address",
-    "city",
-    "postalCode",
-    "country",
-  ];
-
-  const fields = Object.keys(user);
-
-  if (fields.length === 0) {
-    return false;
-  }
-
-  if (!fields.every((field) => allowedFields.includes(field))) {
-    return false;
-  }
-
-  const fieldMaxLengths: Record<string, number> = {
-    email: 255,
-    firstName: 100,
-    lastName: 100,
-    phone: 50,
-    address: Number.MAX_SAFE_INTEGER,
-    city: 100,
-    postalCode: 20,
-    country: 100,
-  };
-
-  return fields.every((field) => {
-    const maxLength = fieldMaxLengths[field];
-
-    return maxLength !== undefined && isValidString(user[field], maxLength);
+export const updateUserSchema = z
+  .strictObject({
+    email: email.optional(),
+    firstName: contactFields.firstName.optional(),
+    lastName: contactFields.lastName.optional(),
+    phone: contactFields.phone.optional(),
+    address: contactFields.address.optional(),
+    city: contactFields.city.optional(),
+    postalCode: contactFields.postalCode.optional(),
+    country: contactFields.country.optional(),
+  })
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "At least one field is required",
   });
-};
 
-export const isValidForgotPassword = (
-  data: unknown,
-): data is { email: string } => {
-  if (typeof data !== "object" || data === null) {
-    return false;
-  }
+export const forgotPasswordSchema = z.object({
+  email: email.transform((value) => value.toLowerCase()),
+});
 
-  const { email } = data as { email?: unknown };
-
-  return (
-    typeof email === "string" &&
-    email.trim().length > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-  );
-};
+export const resetPasswordSchema = z.object({
+  token: text(255),
+  password,
+});

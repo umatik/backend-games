@@ -3,15 +3,16 @@ import type { AuthenticatedRequest } from "@/middleware/authentication.middlewar
 import { UserService } from "@/services/user.service.js";
 import { AuthorizationService } from "@/services/authorization.service.js";
 import {
-  isValidForgotPassword,
-  isValidRegisterUser,
-  isValidUpdateUser,
+  forgotPasswordSchema,
+  registerUserSchema,
+  resetPasswordSchema,
+  updateUserSchema,
 } from "../validators/user.validator.js";
 import { EmailAlreadyExistsError } from "@/errors/email-already-exists.error.js";
 import { createPagination } from "@/utils/pagination.js";
 import { isValidPagination } from "@/validators/helpers/pagination.validator.js";
 import type { PasswordResetService } from "@/services/password-reset.service.js";
-import { isValidResetPassword } from "@/validators/helpers/string.validator.js";
+import { formatZodIssues } from "@/validators/helpers/zod.js";
 
 export class UserController {
   constructor(
@@ -87,9 +88,12 @@ export class UserController {
   };
 
   register = async (req: Request, res: Response) => {
-    if (!isValidRegisterUser(req.body)) {
+    const parsed = registerUserSchema.safeParse(req.body ?? {});
+
+    if (!parsed.success) {
       res.status(400).json({
         message: "Invalid registration data",
+        errors: formatZodIssues(parsed.error),
       });
       return;
     }
@@ -104,7 +108,7 @@ export class UserController {
       city,
       postalCode,
       country,
-    } = req.body;
+    } = parsed.data;
 
     try {
       const user = await this.userService.register({
@@ -166,14 +170,17 @@ export class UserController {
       }
     }
 
-    if (!isValidUpdateUser(req.body)) {
+    const parsed = updateUserSchema.safeParse(req.body ?? {});
+
+    if (!parsed.success) {
       res.status(400).json({
         message: "Invalid update data",
+        errors: formatZodIssues(parsed.error),
       });
       return;
     }
 
-    const user = await this.userService.updateUser(userId, req.body);
+    const user = await this.userService.updateUser(userId, parsed.data);
 
     if (!user) {
       res.status(404).json({
@@ -189,16 +196,17 @@ export class UserController {
   };
 
   forgotPassword = async (req: Request, res: Response) => {
-    if (!isValidForgotPassword(req.body)) {
+    const parsed = forgotPasswordSchema.safeParse(req.body ?? {});
+
+    if (!parsed.success) {
       res.status(400).json({
         message: "Invalid email",
+        errors: formatZodIssues(parsed.error),
       });
       return;
     }
 
-    await this.passwordResetService.forgotPassword(
-      req.body.email.trim().toLowerCase(),
-    );
+    await this.passwordResetService.forgotPassword(parsed.data.email);
 
     res.status(200).json({
       message: "If the account exists, a password reset email has been sent",
@@ -206,16 +214,19 @@ export class UserController {
   };
 
   resetPassword = async (req: Request, res: Response) => {
-    if (!isValidResetPassword(req.body)) {
+    const parsed = resetPasswordSchema.safeParse(req.body ?? {});
+
+    if (!parsed.success) {
       res.status(400).json({
         message: "Invalid reset password data",
+        errors: formatZodIssues(parsed.error),
       });
       return;
     }
 
     const reset = await this.passwordResetService.resetPassword(
-      req.body.token,
-      req.body.password,
+      parsed.data.token,
+      parsed.data.password,
     );
 
     if (!reset) {

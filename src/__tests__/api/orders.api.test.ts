@@ -470,3 +470,18 @@ describe("GET /orders/my", () => {
     expect(response.status).toBe(401);
   });
 });
+
+describe("Orders API – validation details", () => {
+  it("should point at the invalid order item", async () => {
+    const response = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${userToken}`)
+      .send({ items: [{ productVariantId: 1, quantity: 1.5 }] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid order items");
+    expect(response.body.errors).toEqual([
+      expect.objectContaining({ path: "items.0.quantity" }),
+    ]);
+  });
+});

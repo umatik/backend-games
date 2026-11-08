@@ -81,4 +81,8 @@ export type UpdateUserContactData = {
   country?: string;
 };
 
-export type UpdateUserRequest = UpdateUserData & UpdateUserContactData;
+export type UpdateUserRequest = {
+  [K in keyof (UpdateUserData & UpdateUserContactData)]?:
+    | (UpdateUserData & UpdateUserContactData)[K]
+    | undefined;
+};

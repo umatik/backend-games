@@ -478,3 +478,35 @@ describe("Users API", () => {
     expect(response.body.message).toBe("Invalid reset password data");
   });
 });
+
+describe("Users API – validation details", () => {
+  it("should list the invalid fields when registration data is invalid", async () => {
+    const response = await request(app).post("/users/register").send({
+      email: "not-an-email",
+      password: "short",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid registration data");
+
+    const paths = response.body.errors.map(
+      (error: { path: string }) => error.path,
+    );
+
+    expect(paths).toEqual(
+      expect.arrayContaining(["email", "password", "firstName", "country"]),
+    );
+  });
+
+  it("should reject unknown fields when updating a user", async () => {
+    const token = await loginAsUser();
+
+    const response = await request(app)
+      .patch("/users/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ firstName: "Alice", role: "admin" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid update data");
+  });
+});

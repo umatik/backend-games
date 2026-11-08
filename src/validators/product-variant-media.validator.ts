@@ -1,5 +1,5 @@
 import type { ProductVariantMedia } from "@/types/product-variant-media.types.js";
-import { isValidString } from "@/validators/helpers/string.validator.js";
+import { z } from "zod";
 
 const MEDIA_TYPES: Record<
   ProductVariantMedia["type"],
@@ -47,24 +47,15 @@ export function getProductVariantMediaType(
   return null;
 }
 
-export const isValidProductVariantMediaAlt = (
-  alt: unknown,
-): alt is string | null | undefined => {
-  return alt == null || isValidString(alt, 255);
-};
-
-export const isValidProductVariantMediaSortOrder = (
-  sortOrder: unknown,
-): boolean => {
-  return (
-    typeof sortOrder === "number" &&
-    Number.isInteger(sortOrder) &&
-    sortOrder >= 0
-  );
-};
-
-export const isValidProductVariantMediaIsPrimary = (
-  isPrimary: unknown,
-): boolean => {
-  return typeof isPrimary === "boolean";
-};
+/**
+ * Pola mediów przychodzą jako tekst z formularza multipart (przy wgrywaniu) albo jako JSON (przy edycji),
+ * dlatego `sortOrder` i `isPrimary` przyjmujemy w obu postaciach.
+ */
+export const productVariantMediaInputSchema = z.object({
+  alt: z.string().trim().min(1).max(255).nullish().transform((value) => value ?? null),
+  sortOrder: z.coerce.number().int().min(0),
+  isPrimary: z.union([
+    z.boolean(),
+    z.enum(["true", "false"]).transform((value) => value === "true"),
+  ]),
+});

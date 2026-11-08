@@ -7,7 +7,7 @@ import type {
   CreateOrderData,
   Order,
   OrderDetails,
-} from "../../types/order.types.js";
+} from "../../../../types/order.types.js";
 import type { Cache } from "@/cache/cache.interface.js";
 const mockClient = {
   query: jest.fn(),

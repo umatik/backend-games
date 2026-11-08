@@ -11,7 +11,7 @@ afterAll(async () => {
   await redisClient.close();
 });
 
-const uploadDir = path.resolve("src/__tests__/fixtures/uploads");
+const uploadDir = path.resolve("src/__tests__/unit/services/fixtures/uploads");
 
 describe("Product Variant Media API", () => {
   const getAdminToken = async () => loginAsAdmin();

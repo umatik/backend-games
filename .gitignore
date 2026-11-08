@@ -2,3 +2,9 @@ node_modules/
 .idea/
 .env
 dist/
+
+# macOS
+.DS_Store
+
+# lokalne pliki wgrywane przez API (LocalStorage)
+uploads/

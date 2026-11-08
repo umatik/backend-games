@@ -3,11 +3,12 @@ import type { ProductVariantMedia } from "@/types/product-variant-media.types.js
 export type ProductVariant = {
   id: number;
   productId: number;
-  color: string | null;
-  size: string | null;
-  media: ProductVariantMedia[];
-  price: number;
+  /** Cena w eurocentach. */
+  priceEur: number;
   quantity: number;
+  /** Pola zależne od typu produktu, zob. `src/product-types/`. */
+  attributes: Record<string, unknown>;
+  media: ProductVariantMedia[];
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -16,27 +17,22 @@ export type ProductVariant = {
 
 export type CreateProductVariantData = {
   productId: number;
-  color: string | null;
-  size: string | null;
-  price: number;
+  priceEur: number;
   quantity: number;
+  attributes: Record<string, unknown>;
 };
 
-export type CreateProductVariantInput = {
-  color: string | null;
-  size: string | null;
-  price: number;
-  quantity: number;
-};
+export type CreateProductVariantInput = Omit<CreateProductVariantData, "productId">;
 
 export type UpdateProductVariantInput = {
-  id?: number;
-  color?: string | null;
-  size?: string | null;
-  price?: number;
-  quantity?: number;
+  id?: number | undefined;
+  priceEur?: number | undefined;
+  quantity?: number | undefined;
+  attributes?: Record<string, unknown> | undefined;
 };
 
-export type UpdateProductVariantData = Partial<
-  Omit<CreateProductVariantData, "productId">
->;
+export type UpdateProductVariantData = {
+  priceEur?: number | undefined;
+  quantity?: number | undefined;
+  attributes?: Record<string, unknown> | undefined;
+};

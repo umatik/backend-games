@@ -13,7 +13,7 @@ const mockPool = {
   connect: jest.fn<() => Promise<PoolClient>>(),
 };
 
-jest.unstable_mockModule("../../database/db.js", () => ({
+jest.unstable_mockModule("@/database/db.js", () => ({
   pool: mockPool,
 }));
 

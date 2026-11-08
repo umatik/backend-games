@@ -6,35 +6,46 @@ import type {
 
 export type Product = {
   id: number;
-  name: string;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  /** Klucz typu z rejestru `src/product-types/`. */
+  type: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  isPublished: boolean;
+  /** Pola zależne od typu produktu, zob. `src/product-types/`. */
+  attributes: Record<string, unknown>;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
 };
 
-export type ProductRow = {
-  id: number;
-  name: string;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+export type ProductDetails = Product & {
+  variants: ProductVariant[];
 };
 
 export type CreateProductData = {
-  name: string;
+  type: string;
+  title: string;
+  description?: string | null | undefined;
+  attributes: Record<string, unknown>;
   variants: CreateProductVariantInput[];
 };
 
 export type CreateProductRecord = {
-  name: string;
+  type: string;
+  title: string;
+  description: string | null;
+  attributes: Record<string, unknown>;
+  /** Początek sluga; repozytorium dokleja `-{id}`, co gwarantuje unikalność. */
+  slugBase: string;
 };
 
 export type UpdateProductData = {
-  name?: string;
-  variants?: UpdateProductVariantInput[];
+  title?: string | undefined;
+  description?: string | null | undefined;
+  attributes?: Record<string, unknown> | undefined;
+  variants?: UpdateProductVariantInput[] | undefined;
 };
-export type ProductDetails = Product & {
-  variants: ProductVariant[];
-};
+
+export type UpdateProductRecord = Omit<UpdateProductData, "variants">;

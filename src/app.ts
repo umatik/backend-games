@@ -13,6 +13,7 @@ import {
   authRouter,
 } from "./dependency-injection.js";
 import { AppError } from "@/errors/app.error.js";
+import { ValidationError } from "@/errors/validation.error.js";
 
 const app = express();
 
@@ -73,6 +74,15 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (err?.type === "entity.too.large") {
     res.status(413).json({
       message: "Request body too large",
+    });
+
+    return;
+  }
+
+  if (err instanceof ValidationError) {
+    res.status(err.statusCode).json({
+      message: err.message,
+      errors: err.errors,
     });
 
     return;

@@ -15,6 +15,7 @@ import type { ProductDetails } from "@/types/product.types.js";
 
 import { RedisCache } from "@/cache/redis-cache.js";
 import { LocalStorage } from "@/storage/local-storage.js";
+import { uploadsPath } from "@/config/http.js";
 import { PendingUploadPostgresRepository } from "@/repositories/pending-upload/pending-upload-postgres.repository.js";
 
 import { AuthenticationPostgresRepository } from "@/repositories/authentication/authentication-postgres.repository.js";
@@ -104,7 +105,7 @@ const productCache = new RedisCache<{
   total: number;
 }>(redisClient);
 
-const storage = new LocalStorage();
+const storage = new LocalStorage(uploadsPath);
 const pendingUploadRepository = new PendingUploadPostgresRepository();
 
 const upload = multer({

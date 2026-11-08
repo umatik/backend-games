@@ -11,6 +11,7 @@ const config: Config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   maxWorkers: 1,
+  globalSetup: "<rootDir>/src/database/test-global-setup.ts",
   setupFilesAfterEnv: ["<rootDir>/src/database/test-setup.ts"],
 };
 

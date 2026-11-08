@@ -16,6 +16,7 @@ import {
   authRouter,
 } from "./dependency-injection.js";
 import { AppError } from "@/errors/app.error.js";
+import { parseCorsOrigins, uploadsPath } from "@/config/http.js";
 import { ValidationError } from "@/errors/validation.error.js";
 
 const app = express();
@@ -25,7 +26,7 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: parseCorsOrigins(process.env.CORS_ORIGIN),
   }),
 );
 
@@ -50,6 +51,28 @@ app.get("/", (req, res) => {
   res.json({
     message: "E-commerce API is running",
   });
+});
+
+// Pliki z LocalStorage (zdjęcia, nagrania). Nazwy plików są unikalne, więc przeglądarka może je długo trzymać w cache.
+// Helmet domyślnie blokuje wczytywanie zasobów z innej domeny, a panel i sklep działają pod innymi adresami niż API.
+app.use(
+  "/uploads",
+  (_req, res, next) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(uploadsPath, {
+    index: false,
+    dotfiles: "ignore",
+    redirect: false,
+    immutable: true,
+    maxAge: "30d",
+  }),
+);
+
+// Specyfikacja OpenAPI jako JSON, np. do generowania typów w panelu.
+app.get("/api-docs.json", (_req, res) => {
+  res.json(openapi);
 });
 
 // Kolejność ma znaczenie: /products/lookup musi być przed /products/:id.
@@ -97,6 +120,20 @@ const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     res.status(err.statusCode).json({
       message: err.message,
       errors: err.errors,
+    });
+
+    return;
+  }
+
+  // Błędy klienta z bibliotek Express (np. niepoprawny JSON, ścieżka z „..” w /uploads) mają własny status 4xx.
+  if (
+    typeof err?.status === "number" &&
+    err.status >= 400 &&
+    err.status < 500 &&
+    !(err instanceof AppError)
+  ) {
+    res.status(err.status).json({
+      message: err.expose && typeof err.message === "string" ? err.message : "Bad Request",
     });
 
     return;

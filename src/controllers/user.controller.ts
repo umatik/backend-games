@@ -41,6 +41,26 @@ export class UserController {
     });
   };
 
+  /** Zalogowany użytkownik i jego uprawnienia, np. żeby panel wiedział, co pokazać. */
+  getMe = async (req: AuthenticatedRequest, res: Response) => {
+    const userId = Number(req.user?.userId);
+    const user = Number.isInteger(userId) ? await this.userService.getUserById(userId) : null;
+
+    // Token jest ważny, ale konta już nie ma.
+    if (!user) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Current user",
+      user,
+      permissions: await this.authorizationService.getPermissions(userId),
+    });
+  };
+
   getUser = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       res.status(401).json({

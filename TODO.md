@@ -72,7 +72,14 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 - [x] Wykrywanie duplikatów: to samo ID z Discogs, numer katalogowy (z wytwórnią) albo tytuł z artystą (ten sam album w innym tłoczeniu) → `existingProducts` w propozycji z Discogs i `GET /products/lookup/existing`
 - [x] Zdjęcie labela, z którego rozpoznajemy płytę, jest głównym zdjęciem (`isPrimary`) wariantu: rozpoznawanie zapisuje zdjęcia (tabela `pending_uploads`, migracja 016) i zwraca `photoUploadIds`, które podaje się przy tworzeniu wariantu; nieużyte znikają po 24 h. Zdjęcia są zapisywane także wtedy, gdy Claude lub Discogs zawiodą (odpowiedź z błędem zawiera `photoUploadIds`), żeby kreator mógł przejść do formularza ręcznego z tym zdjęciem. Przy dodawaniu ręcznym zdjęcia idą od razu przez endpoint mediów, bez tego mechanizmu. Zdjęć z Discogs na razie nie importujemy (miniatury Discogs tylko na liście kandydatów do wyboru).
 - [x] Token Discogs i klucz Claude ustawione; całość sprawdzona na żywo 2026-11-08 (zdjęcie ZV-7-006 → poprawny odczyt i wydanie z Discogs w ok. 4 s)
-- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła danych na stronie sklepu)
+- [x] Warunki API Discogs przeczytane 2026-11-08 (wersja z 27.05.2025, https://support.discogs.com/hc/en-us/articles/360009334593):
+  - Dane, których używamy (tytuł, artyści, wytwórnia, nr kat., rok, kraj, format, tracklista, notatki, kredyty), to „CC0 Data”: wolno ich używać komercyjnie.
+  - Zdjęcia z Discogs i dane z Marketplace (ceny, historia sprzedaży) to „Restricted Data”: zakaz użycia komercyjnego. Dobrze, że ich nie importujemy; nie pobierać cen z Discogs.
+  - Przy danych z Discogs trzeba pokazać „Data provided by Discogs.” z linkiem (bez `nofollow`) do strony wydania na discogs.com.
+  - Na stronie (np. w regulaminie) informacja: „This application uses Discogs’ API but is not affiliated with, sponsored or endorsed by Discogs. ‘Discogs’ is a trademark of Zink Media, LLC.”
+  - Treść z API nie może być wyświetlana, jeśli jest starsza niż 6 h od tej na Discogs, ani przechowywana dłużej, niż to potrzebne. Do wyjaśnienia: czy to dotyczy też danych CC0 skopiowanych do produktu i poprawionych przez nas (licencja CC0 mówi, że wolno je zachować).
+- [ ] **Obowiązkowe oznaczenie przy danych z Discogs:** dopisek „Data provided by Discogs.” z linkiem do strony wydania na discogs.com (`https://www.discogs.com/release/{discogsReleaseId}`). Link nie może mieć `nofollow`. API zwraca `discogsReleaseId` wariantu, a link buduje front. Rozważyć pole `discogsUrl` w odpowiedzi API.
+- [ ] Notka o Discogs w regulaminie sklepu (front)
 
 ## 6. Kreator dodawania produktu
 
@@ -109,6 +116,9 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Nowe uprawnienie `products:publish` (w seedzie)
 - [x] Walidacja przez zod, także użytkowników, zamówień i mediów (stare walidatory usunięte)
 - [x] Swagger (`@openapi`) aktualizowany przy każdym endpoincie
+- [x] Pod panel admina (2026-11-08): `GET /users/me` (użytkownik i uprawnienia), pliki pod `/uploads/{url}` (z nagłówkiem pozwalającym wczytać je z innej domeny i cache na 30 dni), `CORS_ORIGIN` jako lista adresów, specyfikacja pod `/api-docs.json`. Przy okazji niepoprawny JSON w żądaniu daje 400 zamiast 500.
+- [ ] Przy przejściu na R2/S3: `url` mediów stanie się pełnym adresem; panel powinien wtedy używać go wprost (rozważyć pole z pełnym adresem już teraz)
+- [ ] Nazwy plików mediów (`variant-{id}-{czas}`) są przewidywalne, więc zdjęcia szkiców da się odgadnąć. Dla zdjęć płyt bez znaczenia; zmienić na UUID, gdyby pojawiły się pliki prywatne
 
 ## 8a. Moduł ustawień
 
@@ -139,10 +149,12 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 
 - [x] Seed: kilka płyt reggae (split 7", LP w kilku tłoczeniach i stanach, wyprzedany wariant, szkic) oraz po jednym produkcie `tshirt` i `other`
 - [x] Poprawić testy unit i API (produkty, zamówienia)
-- [ ] Testy schematów zod, kreatora, publikacji i usuwania
+- [x] Testy schematów zod, kreatora, publikacji i usuwania (2026-11-08): `unit/product-types`, `unit/validators`, `api/product-lifecycle.api.test.ts` (usuwanie plików przy twardym usuwaniu, miękkie usuwanie zamówionych, cache listy, zapis kreatora ze zdjęciem i wycofanie przy złym zdjęciu)
+- [x] Testy end-to-end w `e2e/` (2026-11-08): ścieżka właściciela sklepu, klienta i reset hasła przez Mailpit; `pnpm test:e2e`. Do rozważenia później: uruchamianie ich na zbudowanym kontenerze w ramach przygotowania do produkcji
 - [x] Discogs i Claude zamockowane w testach, bez sieci
 - [ ] Test konwersji audio (`test-audio.wav`)
-- [ ] Nowe tabele w liście TRUNCATE (`test-database.ts`)
+- [x] Nowe tabele w liście TRUNCATE (`test-database.ts`): `settings`, `pending_uploads`
+- [x] Testy mają własny katalog plików `./uploads-test` (`STORAGE_PATH` w `.env.test`), czyszczony przed każdym uruchomieniem (`src/database/test-global-setup.ts`). Wcześniej zapisywały do `./uploads` razem z dev; 1137 osieroconych plików (4,4 MB) przeniesiono 2026-11-08 do Kosza (`ecommerce-api-uploads-2026-11-08`).
 - [x] Testy czytają wyłącznie `.env.test` (`src/config/env.ts`); wcześniej `app.ts` doczytywał też `.env`, więc testy widziały prawdziwe klucze i zależały od SMTP z `.env`
 - [x] **Niestabilne testy API** (naprawione 2026-11-08): supertest łączył się z 127.0.0.1, a serwer testowy słuchał na `::`, więc inny program na Macu słuchający na 127.0.0.1 pod tym samym portem czasem przejmował połączenie (puste 404/503, „socket hang up”, 401). `test-setup.ts` łączył się przez `[::1]`; od supertest 7.3 problem naprawia sama biblioteka. Do tego test wgrywania bez logowania czasem kończył się „write EPIPE”, więc wysyła teraz żądanie bez pliku. Wynik: 40 pełnych uruchomień, ostatnie 20 bez porażki.
 

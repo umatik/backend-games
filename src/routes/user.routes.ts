@@ -50,6 +50,38 @@ export const createUserRouter = (
 
   /**
    * @openapi
+   * /users/me:
+   *   get:
+   *     tags:
+   *       - Users
+   *     summary: Get the logged-in user and their permissions
+   *     description: Lets the admin panel decide what to show, e.g. `products:publish` or `settings:manage`.
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Current user
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                 user:
+   *                   type: object
+   *                 permissions:
+   *                   type: array
+   *                   items:
+   *                     type: string
+   *                   example: ["products:create", "products:publish", "settings:manage"]
+   *       401:
+   *         description: Missing or invalid token, or the account no longer exists
+   */
+  router.get("/me", authenticationMiddleware, userController.getMe);
+
+  /**
+   * @openapi
    * /users/{id}:
    *   get:
    *     tags:

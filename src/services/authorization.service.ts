@@ -7,6 +7,18 @@ export class AuthorizationService {
     private pool: Database,
   ) {}
 
+  async getPermissions(userId: number): Promise<string[]> {
+    const client = await this.pool.connect();
+
+    try {
+      const permissions = await this.permissionRepository.findByUserId(client, userId);
+
+      return [...permissions].sort();
+    } finally {
+      client.release();
+    }
+  }
+
   async hasPermission(userId: number, permission: string): Promise<boolean> {
     const client = await this.pool.connect();
 

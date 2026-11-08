@@ -4,7 +4,8 @@ Backend sklepu internetowego z płytami winylowymi (reggae, nowe i używane), z 
 Node.js + TypeScript, Express 5, PostgreSQL, Redis.
 
 Panel admina i sklep to osobne aplikacje, które korzystają z tego API. Dokumentacja wszystkich endpointów jest
-w Swaggerze: `http://localhost:3000/api-docs`.
+w Swaggerze: `http://localhost:3000/api-docs`, a sama specyfikacja OpenAPI (np. do generowania typów w panelu) pod
+`/api-docs.json`.
 
 ## Co potrafi
 
@@ -62,6 +63,7 @@ Plik `.env` (nie trafia do repozytorium). Najważniejsze zmienne:
 | `JWT_*`                               | Tokeny logowania                                                                                      |
 | `SMTP_*`                              | Wysyłka maili (lokalnie Mailpit)                                                                      |
 | `STORAGE_PATH`                        | Folder na wgrywane pliki, domyślnie `./uploads`                                                       |
+| `CORS_ORIGIN`                         | Adresy panelu i sklepu rozdzielone przecinkami, np. `http://localhost:5173,http://localhost:5174`     |
 | `SETTINGS_ENCRYPTION_KEY`             | Klucz szyfrujący sekrety zapisywane w panelu; `openssl rand -base64 32`. **Nie zmieniaj go później.** |
 | `ANTHROPIC_API_KEY`                   | Klucz Claude (opcjonalnie, można wpisać w panelu)                                                     |
 | `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT` | Dostęp do Discogs (opcjonalnie, można wpisać w panelu)                                                |
@@ -79,7 +81,8 @@ Testy czytają wyłącznie `.env.test`.
 pnpm dev                 # API na :3000, Swagger na /api-docs
 pnpm migrate             # migracje bazy developerskiej
 pnpm migrate:test        # baza testowa (tworzy ją, jeśli trzeba)
-pnpm test                # wszystkie testy (potrzebują PostgreSQL i Redis)
+pnpm test                # wszystkie testy (potrzebują PostgreSQL, Redis i Mailpit)
+pnpm test:e2e            # tylko scenariusze end-to-end z katalogu e2e/
 npx tsc --noEmit         # sprawdzenie typów
 npx eslint .
 ```
@@ -167,6 +170,15 @@ zamaskowane. Zmiana działa od razu, bez restartu serwera.
 
 Wszystkie ma rola `admin`. Uprawnienia są w `seed_data.sql`.
 
+## Dla panelu admina
+
+- **Kim jestem:** `GET /users/me` zwraca zalogowanego użytkownika i listę jego uprawnień. Panel wpuszcza tylko
+  użytkownika z uprawnieniami do produktów, a przyciski (np. publikacja, ustawienia) pokazuje według uprawnień.
+- **Pliki:** media mają w polu `url` ścieżkę względną (np. `products/photo/variant-1-….jpg`). Plik jest dostępny pod
+  `{adres API}/uploads/{url}`. Nazwy plików są unikalne, więc przeglądarka trzyma je w cache przez 30 dni.
+- **CORS:** adres panelu musi być na liście `CORS_ORIGIN`.
+- **Typy:** specyfikacja OpenAPI pod `/api-docs.json`.
+
 ## Architektura
 
 ```text
@@ -187,13 +199,23 @@ src/
 ├── controllers/  services/  repositories/  routes/  validators/
 ├── database/         migracje, seed, konfiguracja testów
 └── __tests__/        testy API i jednostkowe
+e2e/                  scenariusze end-to-end (całe ścieżki przez HTTP)
 ```
 
 ## Testy
 
 Testy API działają na prawdziwej bazie `ecommerce_test`, którą czyszczą i wypełniają danymi startowymi przed każdym
 testem. Uruchamiają się po kolei. Claude, Discogs i NBP są w testach wyłączone albo zastąpione atrapami, więc testy nie
-łączą się z siecią.
+łączą się z siecią. Pliki wgrywane w testach trafiają do `./uploads-test` (`STORAGE_PATH` w `.env.test`), czyszczonego
+przed każdym uruchomieniem.
+
+Scenariusze end-to-end w katalogu `e2e/` przechodzą całe ścieżki przez HTTP na tej samej bazie testowej:
+
+- **właściciel sklepu:** szkic płyty, wariant, zdjęcie, ostrzeżenie o braku odsłuchu, publikacja, wykrycie duplikatu,
+  sprzedaż ostatniej sztuki, wycofanie z publikacji;
+- **klient:** rejestracja, logowanie, zamówienie, „moje zamówienia”, anulowanie ze zwrotem na stan;
+- **reset hasła:** prawdziwy e-mail przez SMTP do Mailpita, z którego test odczytuje token (adres API: `MAILPIT_URL`,
+  domyślnie `http://localhost:8025`).
 
 ## Do zrobienia
 

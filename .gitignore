@@ -8,3 +8,4 @@ dist/
 
 # lokalne pliki wgrywane przez API (LocalStorage)
 uploads/
+uploads-test/

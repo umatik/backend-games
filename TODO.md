@@ -15,7 +15,7 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 - [x] Sklep w trzech językach: EN (domyślny), ES, PL
 - [x] Interfejs i słowniki (formaty, skala Goldmine) tłumaczy frontend. API zwraca kody.
 - [x] Opis produktu: jeden tekst, bez tłumaczeń (uzupełnianie z Discogs: etap 4)
-- [ ] Notatka o stanie: wpisywana po PL i tłumaczona automatycznie przez Claude na EN i ES, z potwierdzeniem lub poprawką przed zapisem. Zapisana jako mapa `{ en, es, pl }`. Endpoint tłumaczenia tylko proponuje, niczego nie zapisuje. W testach zamockowany.
+- [x] Notatka o stanie: wpisywana po PL i tłumaczona automatycznie przez Claude na EN i ES, z potwierdzeniem lub poprawką przed zapisem. Zapisana jako mapa `{ en, es, pl }`. Endpoint tłumaczenia tylko proponuje, niczego nie zapisuje. W testach zamockowany.
 - [x] Stan płyty i okładki to enum, tłumaczony we frontendzie.
 
 ## 1. Typy produktów
@@ -36,7 +36,7 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
   - [x] artyści: lista stringów („Various” dla kompilacji, splity jako kilku artystów)
   - [x] lista utworów (z Discogs)
   - [x] linki do odsłuchu: lista (YouTube / Bandcamp)
-- [ ] Opis uzupełniany z Discogs (notes i wykonawcy), edytowalny
+- [x] Opis uzupełniany z Discogs (notes i wykonawcy), edytowalny
 
 ## 3. Model danych: wariant
 
@@ -63,15 +63,15 @@ Branch: `rassba` · Stan: planowanie zakończone, implementacja jeszcze nie rusz
 
 ## 5. Dodawanie przez zdjęcie (Claude i Discogs)
 
-- [ ] Endpoint: zdjęcie labela (1–2 zdjęcia) → Claude (vision) odczytuje pola → wyszukiwanie w Discogs → lista kandydatów. Endpoint niczego nie zapisuje. Tylko admin.
-- [ ] Wyszukiwanie w Discogs: najpierw numer katalogowy i wytwórnia, potem artysta i tytuł
-- [ ] Endpoint: wyszukiwanie po wpisanym numerze katalogowym, bez zdjęcia
-- [ ] Endpoint: szczegóły wybranego wydania zmapowane na pola formularza (z linkami `videos` do odsłuchu)
-- [ ] Kilka wyników: lista do wyboru (miniatura, artysta – tytuł, wytwórnia, nr kat., rok, kraj, format). Przy jednym wyniku też potwierdzenie.
-- [ ] Opcja „żadne z nich, wpisz ręcznie”: formularz uzupełniony tym, co odczytało AI
+- [x] Endpoint: zdjęcie labela (1–2 zdjęcia) → Claude (vision) odczytuje pola → wyszukiwanie w Discogs → lista kandydatów. Endpoint niczego nie zapisuje. Tylko admin.
+- [x] Wyszukiwanie w Discogs: najpierw numer katalogowy i wytwórnia, potem artysta i tytuł
+- [x] Endpoint: wyszukiwanie po wpisanym numerze katalogowym, bez zdjęcia
+- [x] Endpoint: szczegóły wybranego wydania zmapowane na pola formularza (z linkami `videos` do odsłuchu)
+- [x] Kilka wyników: lista do wyboru (miniatura, artysta – tytuł, wytwórnia, nr kat., rok, kraj, format). Przy jednym wyniku też potwierdzenie.
+- [x] Opcja „żadne z nich, wpisz ręcznie”: formularz uzupełniony tym, co odczytało AI
 - [ ] Wykrywanie duplikatów: to samo ID z Discogs lub numer katalogowy → propozycja dodania wariantu do istniejącego produktu
-- [ ] Zdjęcie labela trafia jako pierwsze zdjęcie wariantu
-- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła) i założyć token
+- [ ] Zdjęcie labela trafia jako pierwsze zdjęcie wariantu (po stronie panelu: po utworzeniu wariantu wgrać to samo zdjęcie przez endpoint mediów)
+- [ ] Sprawdzić warunki korzystania z API Discogs (limity, podawanie źródła) i założyć token; ustawić w `.env`: `DISCOGS_TOKEN`, `DISCOGS_USER_AGENT`, `ANTHROPIC_API_KEY`
 
 ## 6. Kreator dodawania produktu
 
@@ -116,7 +116,7 @@ Przebieg: zdjęcie → nowy produkt → edycja wariantu → media wariantu → p
 - [x] Seed: kilka płyt reggae (split 7", LP w kilku tłoczeniach i stanach, wyprzedany wariant, szkic) oraz po jednym produkcie `tshirt` i `other`
 - [x] Poprawić testy unit i API (produkty, zamówienia)
 - [ ] Testy schematów zod, kreatora, publikacji i usuwania
-- [ ] Discogs i Claude zamockowane w testach, bez sieci
+- [x] Discogs i Claude zamockowane w testach, bez sieci
 - [ ] Test konwersji audio (`test-audio.wav`)
 - [ ] Nowe tabele w liście TRUNCATE (`test-database.ts`)
 - [ ] **Niestabilny test** w `src/__tests__/api/orders.api.test.ts` (zauważony 2026-11-08): padł 2 razy na 12 pełnych uruchomień `pnpm test`, a przy osobnym uruchomieniu pliku zawsze przechodzi. Nie wiadomo, który test pada ani od kiedy. Podejrzenie: wspólna baza i kolejność testów (`beforeAll` tworzy produkt i zamówienie, `test-setup.ts` czyści bazę po każdym teście). Przy następnym wystąpieniu zapisać nazwę testu i komunikat (uruchomić bez `--silent`).

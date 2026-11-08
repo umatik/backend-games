@@ -4,10 +4,12 @@ import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import openapi from "@/docs/openapi.js";
 import express, { type ErrorRequestHandler } from "express";
+import multer from "multer";
 
 import {
   productRouter,
   productVariantMediaRouter,
+  recordLookupRouter,
   orderRouter,
   userRouter,
   authRouter,
@@ -49,6 +51,8 @@ app.get("/", (req, res) => {
   });
 });
 
+// Kolejność ma znaczenie: /products/lookup musi być przed /products/:id.
+app.use("/products", recordLookupRouter);
 app.use("/products", productRouter);
 app.use("/products", productVariantMediaRouter);
 app.use("/orders", orderRouter);
@@ -74,6 +78,14 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (err?.type === "entity.too.large") {
     res.status(413).json({
       message: "Request body too large",
+    });
+
+    return;
+  }
+
+  if (err instanceof multer.MulterError) {
+    res.status(err.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+      message: err.message,
     });
 
     return;

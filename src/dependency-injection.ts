@@ -1,4 +1,11 @@
 import { createClient } from "redis";
+import Anthropic from "@anthropic-ai/sdk";
+import { HttpDiscogsClient } from "@/integrations/discogs/discogs-client.js";
+import { ClaudeLabelReader } from "@/integrations/claude/label-reader.js";
+import { ClaudeConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
+import { RecordLookupService } from "@/services/record-lookup.service.js";
+import { RecordLookupController } from "@/controllers/record-lookup.controller.js";
+import { createRecordLookupRouter } from "@/routes/record-lookup.routes.js";
 import multer from "multer";
 
 import { pool } from "@/database/db.js";
@@ -146,6 +153,46 @@ export const productRouter = createProductRouter(
 
 export const productVariantMediaRouter = createProductVariantMediaRoutes(
   productVariantMediaController,
+  upload,
+);
+
+// Rozpoznawanie płyt (Claude + Discogs). Bez konfiguracji endpointy odpowiadają 503; w testach zawsze wyłączone,
+// żeby testy nie łączyły się z siecią.
+const isTest = process.env.NODE_ENV === "test";
+
+const createClaudeClient = (): Anthropic | null => {
+  if (isTest || process.env.CLAUDE_ENABLED === "false") {
+    return null;
+  }
+
+  try {
+    // Dane logowania: ANTHROPIC_API_KEY (lub inne źródło, które SDK rozpoznaje samo).
+    return new Anthropic({ timeout: 60_000, maxRetries: 2 });
+  } catch (error) {
+    console.error("Claude client unavailable:", error);
+    return null;
+  }
+};
+
+const claudeClient = createClaudeClient();
+
+const discogsClient =
+  !isTest && process.env.DISCOGS_TOKEN
+    ? new HttpDiscogsClient(
+        process.env.DISCOGS_TOKEN,
+        process.env.DISCOGS_USER_AGENT ?? "RasBassShop/1.0",
+      )
+    : null;
+
+const recordLookupService = new RecordLookupService(
+  claudeClient ? new ClaudeLabelReader(claudeClient) : null,
+  discogsClient,
+  claudeClient ? new ClaudeConditionNoteTranslator(claudeClient) : null,
+);
+
+export const recordLookupRouter = createRecordLookupRouter(
+  new RecordLookupController(recordLookupService),
+  authorizationService,
   upload,
 );
 

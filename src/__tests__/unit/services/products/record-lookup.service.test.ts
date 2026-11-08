@@ -1,0 +1,260 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  mapReleaseToDraft,
+  mapSearchResult,
+  RecordLookupService,
+} from "@/services/record-lookup.service.js";
+import type {
+  DiscogsClient,
+  DiscogsRelease,
+  DiscogsSearchResult,
+} from "@/integrations/discogs/discogs-client.js";
+import type { LabelReader, LabelReading } from "@/integrations/claude/label-reader.js";
+import type { ConditionNoteTranslator } from "@/integrations/claude/condition-note-translator.js";
+import { IntegrationNotConfiguredError } from "@/errors/external-service.error.js";
+import { getProductType } from "@/product-types/index.js";
+
+const zuluReading: LabelReading = {
+  artists: ["Bunnington Judah", "Zulu Vibes"],
+  title: "Jah Prophecy",
+  label: "Zulu Vibes",
+  catalogNumber: "ZV-7-006",
+  year: null,
+  format: '7"',
+  speed: 45,
+  sides: [
+    { side: "A", title: "Jah Prophecy", artists: ["Bunnington Judah"] },
+    { side: "B", title: "Prophetic Dub", artists: ["Zulu Vibes"] },
+  ],
+};
+
+const zuluSearchResult: DiscogsSearchResult = {
+  id: 123,
+  title: "Bunnington Judah / Zulu Vibes - Jah Prophecy",
+  thumb: "https://img.example/thumb.jpg",
+  year: "2025",
+  country: "France",
+  catno: "ZV-7-006",
+  label: ["Zulu Vibes (2)"],
+  format: ["Vinyl", '7"', "45 RPM"],
+};
+
+const zuluRelease: DiscogsRelease = {
+  id: 123,
+  title: "Jah Prophecy",
+  year: 2025,
+  country: "France",
+  notes: "Limited pressing.",
+  artists: [
+    { name: "Bunnington Judah", join: "/" },
+    { name: "Zulu Vibes (2)" },
+  ],
+  extraartists: [
+    { name: "Macca Dread", role: "Keyboards, Guitar" },
+    { name: "Downbeat Records", role: "Mastered By" },
+  ],
+  labels: [{ name: "Zulu Vibes (2)", catno: "ZV-7-006" }],
+  formats: [{ name: "Vinyl", qty: "1", descriptions: ['7"', "45 RPM", "Single"] }],
+  tracklist: [
+    { position: "A", title: "Jah Prophecy", duration: "", type_: "track" },
+    { position: "", title: "Heading", type_: "heading" },
+    {
+      position: "B",
+      title: "Prophetic Dub",
+      duration: "3:45",
+      type_: "track",
+      artists: [{ name: "Zulu Vibes (2)" }],
+    },
+  ],
+  videos: [
+    { uri: "https://www.youtube.com/watch?v=abc", title: "Jah Prophecy" },
+    { uri: "javascript:alert(1)" },
+  ],
+};
+
+describe("RecordLookupService", () => {
+  let labelReader: jest.Mocked<LabelReader>;
+  let discogs: jest.Mocked<DiscogsClient>;
+  let translator: jest.Mocked<ConditionNoteTranslator>;
+  let service: RecordLookupService;
+
+  beforeEach(() => {
+    labelReader = { read: jest.fn<LabelReader["read"]>().mockResolvedValue(zuluReading) };
+    discogs = {
+      search: jest.fn<DiscogsClient["search"]>().mockResolvedValue([]),
+      getRelease: jest.fn<DiscogsClient["getRelease"]>(),
+    };
+    translator = { translate: jest.fn<ConditionNoteTranslator["translate"]>() };
+    service = new RecordLookupService(labelReader, discogs, translator);
+  });
+
+  describe("lookupByPhoto", () => {
+    it("should search by catalog number and label first and return the reading", async () => {
+      discogs.search.mockResolvedValueOnce([zuluSearchResult]);
+      const image = { data: Buffer.from("jpg"), mediaType: "image/jpeg" as const };
+
+      const result = await service.lookupByPhoto([image]);
+
+      expect(labelReader.read).toHaveBeenCalledWith([image]);
+      expect(discogs.search).toHaveBeenCalledTimes(1);
+      expect(discogs.search).toHaveBeenCalledWith(
+        { catno: "ZV-7-006", label: "Zulu Vibes" },
+        10,
+      );
+      expect(result.reading).toBe(zuluReading);
+      expect(result.candidates).toEqual([mapSearchResult(zuluSearchResult)]);
+    });
+
+    it("should fall back to the catalog number alone, then to artist and title", async () => {
+      await service.lookupByPhoto([{ data: Buffer.from("x"), mediaType: "image/png" }]);
+
+      expect(discogs.search.mock.calls.map((call) => call[0])).toEqual([
+        { catno: "ZV-7-006", label: "Zulu Vibes" },
+        { catno: "ZV-7-006" },
+        { artist: "Bunnington Judah", releaseTitle: "Jah Prophecy" },
+      ]);
+    });
+
+    it("should return no candidates when nothing could be read", async () => {
+      labelReader.read.mockResolvedValue({
+        ...zuluReading,
+        artists: [],
+        title: null,
+        label: null,
+        catalogNumber: null,
+      });
+
+      const result = await service.lookupByPhoto([
+        { data: Buffer.from("x"), mediaType: "image/png" },
+      ]);
+
+      expect(discogs.search).not.toHaveBeenCalled();
+      expect(result.candidates).toEqual([]);
+    });
+  });
+
+  it("should search by a typed catalog number", async () => {
+    discogs.search.mockResolvedValueOnce([zuluSearchResult]);
+
+    const candidates = await service.lookupByCatalogNumber("ZV-7-006");
+
+    expect(discogs.search).toHaveBeenCalledWith({ catno: "ZV-7-006" }, 10);
+    expect(candidates).toHaveLength(1);
+  });
+
+  it("should return null for a release Discogs does not know", async () => {
+    discogs.getRelease.mockResolvedValue(null);
+
+    expect(await service.getReleaseDraft(999)).toBeNull();
+  });
+
+  it("should keep the Polish condition note and add the translations", async () => {
+    translator.translate.mockResolvedValue({
+      en: "Light crackle on side B",
+      es: "Ligero crujido en la cara B",
+    });
+
+    expect(await service.translateConditionNote("Lekki trzask na stronie B")).toEqual({
+      pl: "Lekki trzask na stronie B",
+      en: "Light crackle on side B",
+      es: "Ligero crujido en la cara B",
+    });
+  });
+
+  it.each([
+    ["Claude", () => new RecordLookupService(null, null, null).lookupByPhoto([])],
+    ["Discogs", () => new RecordLookupService(null, null, null).lookupByCatalogNumber("X")],
+    ["Discogs", () => new RecordLookupService(null, null, null).getReleaseDraft(1)],
+    ["Claude", () => new RecordLookupService(null, null, null).translateConditionNote("x")],
+  ])("should report that %s is not configured", async (service, call) => {
+    await expect(call()).rejects.toThrow(
+      new IntegrationNotConfiguredError(service),
+    );
+  });
+});
+
+describe("mapSearchResult", () => {
+  it("should map a Discogs search result to a candidate", () => {
+    expect(mapSearchResult(zuluSearchResult)).toEqual({
+      releaseId: 123,
+      title: "Bunnington Judah / Zulu Vibes - Jah Prophecy",
+      thumbnail: "https://img.example/thumb.jpg",
+      label: "Zulu Vibes",
+      catalogNumber: "ZV-7-006",
+      year: 2025,
+      country: "France",
+      formats: ["Vinyl", '7"', "45 RPM"],
+    });
+  });
+
+  it("should use nulls for missing fields", () => {
+    expect(mapSearchResult({ id: 1, year: "0" })).toEqual({
+      releaseId: 1,
+      title: null,
+      thumbnail: null,
+      label: null,
+      catalogNumber: null,
+      year: null,
+      country: null,
+      formats: [],
+    });
+  });
+});
+
+describe("mapReleaseToDraft", () => {
+  it("should map a Discogs release to the product form", () => {
+    const draft = mapReleaseToDraft(zuluRelease);
+
+    expect(draft.product).toEqual({
+      type: "vinyl",
+      title: "Jah Prophecy",
+      description:
+        "Limited pressing.\n\nKeyboards, Guitar – Macca Dread\nMastered By – Downbeat Records",
+      attributes: {
+        artists: ["Bunnington Judah", "Zulu Vibes"],
+        tracklist: [
+          { position: "A", title: "Jah Prophecy" },
+          { position: "B", title: "Prophetic Dub", artists: ["Zulu Vibes"], duration: "3:45" },
+        ],
+        previewLinks: ["https://www.youtube.com/watch?v=abc"],
+      },
+    });
+    expect(draft.variant.attributes).toEqual({
+      format: '7"',
+      speed: 45,
+      year: 2025,
+      label: "Zulu Vibes",
+      catalogNumber: "ZV-7-006",
+      country: "France",
+      discogsReleaseId: 123,
+    });
+  });
+
+  it("should produce product attributes that pass the vinyl schema", () => {
+    const vinyl = getProductType("vinyl")!;
+
+    expect(
+      vinyl.productAttributes.safeParse(mapReleaseToDraft(zuluRelease).product.attributes)
+        .success,
+    ).toBe(true);
+  });
+
+  it("should detect an LP reissue at 33 RPM and skip a catalog number of 'none'", () => {
+    const draft = mapReleaseToDraft({
+      id: 5,
+      title: "Dub From Zion",
+      formats: [{ name: "Vinyl", descriptions: ["LP", "Album", "Reissue", "33 ⅓ RPM"] }],
+      labels: [{ name: "Lion Yard", catno: "none" }],
+    });
+
+    expect(draft.variant.attributes).toEqual({
+      format: "LP",
+      speed: 33,
+      label: "Lion Yard",
+      pressing: "reissue",
+      discogsReleaseId: 5,
+    });
+    expect(draft.product.attributes.artists).toEqual(["Unknown Artist"]);
+    expect(draft.product.description).toBeNull();
+  });
+});
